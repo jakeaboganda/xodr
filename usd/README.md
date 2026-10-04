@@ -14,15 +14,21 @@ With no output path, the stage goes next to the map.
 ## View a stage in the browser
 
 ```sh
-sh usd/run.sh tests/data/town07.xodr tests/data/objects.xodr
+sh usd/run.sh usd/catalogues/sample.usda tests/data/signals.xodr
 ```
 
-The script exports each map to `usd/web/` and opens the first one at
-<http://localhost:8001>. Set `PORT` to use another port.
+The script exports each `.xodr`, stacks the `.usda` catalogues over it,
+flattens the result into `usd/web/`, and opens the first map at
+<http://localhost:8001>. Catalogues are optional. Set `PORT` to use another
+port. The first run installs OpenUSD's Python module into `target/usd-venv`.
 
 - To open another stage, click `open .usda` or drop the file on the page.
-- To see a mesh's path and `xodr:` attributes, hover over it.
-- To hide roads, road marks or objects, clear their boxes in the toolbar.
+  It must be flat, or its signals have no boards.
+- To see a prim's path, attributes and labels, hover over it.
+- To get close to something, such as a sign, double-click it.
+- To hide a group, such as `Signals`, clear its box in the toolbar.
+- To open a stage framed on one prim, add its path to the URL:
+  `?file=signals.usda&frame=/Map/Signals/signal_3`.
 
 The page reads stages with three.js's `USDLoader`, not with code from this
 repo. `USDLoader` draws each mesh in one colour. A road mark with lines of
