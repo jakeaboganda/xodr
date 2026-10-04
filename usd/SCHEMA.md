@@ -54,9 +54,10 @@ prim is `/Map`.
 | `/Map/Controllers/controller_<n>` | `Scope` | One controller. |
 | `/_SignalTypes/<type class>` | class `Xform` | One per signal type. See [Signal types](#signal-types). |
 
-`<n>` is the id `xodr` gives the road, lane, mark or object. It's not the
-OpenDRIVE id, which can hold characters USD doesn't allow in a name. The
-OpenDRIVE ids are in the attributes below.
+`<n>` is the id `xodr` gives the prim's road, lane, mark, object, signal or
+controller, or a count for added poles. It's not the OpenDRIVE id, which can
+hold characters USD doesn't allow in a name. The OpenDRIVE ids are in the
+attributes below.
 
 Lanes and marks with no triangles have no prim.
 
@@ -72,13 +73,13 @@ Each signal has these children:
 | --- | --- | --- |
 | `board` | `Xform` | The signal's own board. It inherits the signal's type class and is scaled to the board's size. |
 | `sign_<b>_<k>` | `Xform` | Sign `k` on static board `b`, like `board` but for the sign's own type. 1 cm in front of `board`. |
-| `display_<b>` | `Xform` | Variable message board `b`: a `screen` mesh, and an `area_<k>` mesh for each display area. |
+| `display_<b>` | `Xform` | Variable message board `b`: a `screen` mesh, and an `area_<k>` mesh for each display area, in metres. |
 
 A board's scale is (1, width, height). X isn't scaled, so a type class can
 give its board a depth in metres. A board the map gives no size is 0.6 m
 across and 0.6 m up, and its signal has `xodr:sizeGuessed = 1`.
 
-Every board has two label sets:
+Every board has up to two label sets:
 
 - `opendrive`: the codes, as `country:type:subtype`, such as `DE:274:55`.
 - `meaning`: what the map's `<semantics>` say, such as `speed:maximum`.
