@@ -16,6 +16,9 @@
   export too.
 - Each signal links to the pole that holds it up: one the map has, or one
   the exporter adds. Road paint and boards over a driving lane get none.
+- `usd/catalogues/sample.usda` sets the look and labels of the signal
+  types in the test maps. `usd/flatten.py` stacks catalogues over a stage
+  and flattens it, and `usd/check.py` checks stages with OpenUSD in CI.
 
 ## 0.5.0 - 2026-10-03
 

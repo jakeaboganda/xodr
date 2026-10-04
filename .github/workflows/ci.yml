@@ -41,3 +41,23 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --all-features
+
+  # Export every test map and check the stages with OpenUSD itself, alone,
+  # under the sample catalogue, and flattened.
+  usd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install usd-core==26.8
+      - run: cargo build --release -p xodr-usd
+      - run: |
+          mkdir -p target/usd
+          for map in tests/data/*.xodr; do
+            target/release/xodr_usd "$map" "target/usd/$(basename "$map" .xodr).usda"
+          done
+      - run: python usd/check.py usd/catalogues/sample.usda target/usd/*.usda

@@ -11,6 +11,9 @@ these stages in another tool, or to write them from another exporter.
 - A **relationship** is a named link from one prim to others, by path.
 - `Scope` groups prims. `Xform` groups prims and moves them. `Mesh` holds
   triangles or quads.
+- A **layer** is one file of scene description. A stage can stack layers.
+  Where two layers set the same value, the stronger layer wins.
+- An **over** changes a prim that another layer defines.
 - A **class** is a prim that isn't drawn. A prim that **inherits** a class
   gets the class's children and attributes. Values the prim sets itself win.
 - A **label** names what a prim is, for tools such as a perception
@@ -117,7 +120,61 @@ or digit becomes `_`, and a name that starts with a digit gets a `_` in
 front. For example, `DE`, `274` and `-1` give `DE_274__1`. Two types whose
 codes differ only in those characters share a class.
 
-To change how a type looks, write a layer that overrides its type class.
+To change how a type looks, write a [catalogue](#catalogues).
+
+## Catalogues
+
+A catalogue is a layer that sets how signal types look and what they are.
+It holds one `over` per type class under `/_SignalTypes`. Every signal of
+that type picks up the change.
+
+Type classes use board units. Y runs from -0.5 to 0.5 across the board and
+Z from 0 to 1 up it. Each board scales these to its own width and height.
+X is in metres and isn't scaled. +X faces the traffic.
+
+In a type class, a catalogue can:
+
+- replace the grey quad by setting `Board`'s `points`, `faceVertexCounts`,
+  `faceVertexIndices`, `extent` and `primvars:displayColor`;
+- add more meshes next to `Board`;
+- add labels in the `class` set, such as `traffic_sign`.
+
+This catalogue turns every German 50 km/h sign into a red disc:
+
+```usda
+#usda 1.0
+
+over "_SignalTypes"
+{
+    over "DE_274_55" (
+        prepend apiSchemas = ["SemanticsLabelsAPI:class"]
+    )
+    {
+        token[] semantics:labels:class = ["traffic_sign", "speed_limit"]
+
+        over "Board"
+        {
+            float3[] extent = [(0, -0.5, 0), (0, 0.5, 1)]
+            int[] faceVertexCounts = [8]
+            int[] faceVertexIndices = [0, 1, 2, 3, 4, 5, 6, 7]
+            point3f[] points = [(0, 0.5, 0.5), (0, 0.35, 0.85), (0, 0, 1), (0, -0.35, 0.85), (0, -0.5, 0.5), (0, -0.35, 0.15), (0, 0, 0), (0, 0.35, 0.15)]
+            color3f[] primvars:displayColor = [(0.8, 0.1, 0.1)]
+        }
+    }
+}
+```
+
+To use a catalogue, stack it over the stage, catalogue first:
+
+```usda
+#usda 1.0
+(
+    subLayers = [@catalogue.usda@, @town07.usda@]
+)
+```
+
+[`catalogues/sample.usda`](catalogues/sample.usda) covers every `DE` and
+`OPENDRIVE` type in the test maps.
 
 ## Attributes
 
