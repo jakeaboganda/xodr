@@ -10,6 +10,7 @@ use xodr::{
 };
 
 mod signals;
+mod supports;
 
 /// The version of `usd/SCHEMA.md` this writer follows.
 pub const SCHEMA_VERSION: u32 = 1;
@@ -42,7 +43,9 @@ pub fn write_stage(
     road_marks(net, out)?;
     let objects = objects(net, provenance, &net.object_mesh(), out)?;
     let paths = Paths { lanes, objects };
-    let classes = signals::signals(net, provenance, &paths, out)?;
+    let (supports, poles) = supports::supports(net, &paths);
+    supports::write_poles(&poles, out)?;
+    let classes = signals::signals(net, provenance, &paths, &supports, out)?;
     signals::controllers(net, provenance, out)?;
     writeln!(out, "}}")?;
     signals::type_classes(&classes, out)

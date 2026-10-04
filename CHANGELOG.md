@@ -14,6 +14,8 @@
   links to its lanes and the signals and objects it names. Each board
   inherits a type class that a catalogue layer can override. Controllers
   export too.
+- Each signal links to the pole that holds it up: one the map has, or one
+  the exporter adds. Road paint and boards over a driving lane get none.
 
 ## 0.5.0 - 2026-10-03
 

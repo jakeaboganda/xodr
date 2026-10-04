@@ -84,3 +84,46 @@ fn a_signal_links_to_what_it_references() {
     );
     assert!(stage.contains("custom string[] xodr:referenceTypes = [\"stopline\", \"mast\"]"));
 }
+
+/// Each signal's `xodr:support`, by its `xodr:name`.
+fn supports(stage: &str) -> Vec<(String, String)> {
+    let mut found = Vec::new();
+    let mut name = String::new();
+    for line in stage.lines().map(str::trim) {
+        if let Some(n) = line.strip_prefix("custom string xodr:name = ") {
+            name = n.trim_matches('"').to_string();
+        }
+        if let Some(s) = line.strip_prefix("custom token xodr:support = ") {
+            found.push((name.clone(), s.trim_matches('"').to_string()));
+        }
+    }
+    found
+}
+
+#[test]
+fn a_signal_stands_on_a_pole_unless_it_is_paint_or_overhead() {
+    let found = supports(&stage("signals"));
+    let support = |name: &str| {
+        found
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, s)| s.as_str())
+            .unwrap_or_else(|| panic!("{name} in {found:?}"))
+    };
+    assert_eq!(support("Light"), "object");
+    assert_eq!(support("StopLine"), "none");
+    assert_eq!(support("Gantry"), "none");
+    assert_eq!(support("SpeedLimit50"), "synthesized");
+    let stage = stage("signals");
+    let speed = stage.find("\"SpeedLimit50\"").expect("the speed limit");
+    let plate = stage.find("\"LorriesOnly\"").expect("the plate");
+    let pole = "rel xodr:supportPrim = [</Map/Supports/support_0>]";
+    assert!(stage[speed..plate].contains(pole) && stage[plate..].contains(pole));
+}
+
+#[test]
+fn a_signal_finds_the_pole_object_under_it() {
+    let found = supports(&stage("straight_500m_signs"));
+    assert_eq!(found.len(), 19);
+    assert!(found.iter().all(|(_, s)| s == "object"), "{found:?}");
+}
