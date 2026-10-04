@@ -30,26 +30,4 @@ different colours gets its first line's colour.
 
 ## What's in the stage
 
-The stage is Z-up, in metres, in the map's frame.
-
-| Prim | Contents |
-| --- | --- |
-| `/Map/Roads/road_<n>/lane_<n>` | One mesh per lane, from `RoadNetwork::surface_mesh`. |
-| `/Map/RoadMarks/mark_<n>` | One mesh per painted road mark, 5 mm above its lane. |
-| `/Map/Objects/object_<n>` | One double-sided mesh per object, from `RoadNetwork::object_mesh`. |
-
-`<n>` is the crate's id. Each prim keeps its OpenDRIVE names in `xodr:`
-attributes:
-
-- Road: `xodr:roadId`, and `xodr:junction` if the road is in a junction.
-- Lane: `xodr:section`, `xodr:laneId`, `xodr:laneType`.
-- Road mark: `xodr:type`, `xodr:weight`, `xodr:color`, `xodr:laneChange`.
-- Object: `xodr:type`, `xodr:subtype`, `xodr:name`, `xodr:objectId`,
-  `xodr:roadId`.
-
-Each mesh has a `displayColor` and no material. Driving lanes are dark grey
-and sidewalks and curbs light grey. Other lanes are mid grey. Paint uses the
-colour its line names, or white.
-
-The export leaves out signals, object markings, junction areas and OpenCRG
-surfaces.
+[SCHEMA.md](SCHEMA.md) lists every prim and attribute.

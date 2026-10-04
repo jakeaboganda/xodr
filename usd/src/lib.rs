@@ -1,21 +1,14 @@
 //! Export a map loaded by `xodr` as an OpenUSD stage (`.usda`).
 //!
-//! Call [`write_stage`]. The stage is Z-up, in metres, in the map's frame:
-//!
-//! ```text
-//! /Map
-//!   Roads/road_<n>/lane_<n>   each lane's surface, from RoadNetwork::surface_mesh
-//!   RoadMarks/mark_<n>        each road mark's painted lines
-//!   Objects/object_<n>        each object with a volume, from RoadNetwork::object_mesh
-//! ```
-//!
-//! `<n>` is the crate's id, so every name is valid in USD. Each prim keeps
-//! its OpenDRIVE names in `xodr:` attributes, such as `xodr:roadId`.
+//! Call [`write_stage`]. `usd/SCHEMA.md` describes what the stage holds.
 
 use std::collections::BTreeMap;
 use std::io::{self, Write};
 
 use xodr::{LaneSpan, LaneType, Point, Provenance, RoadId, RoadNetwork, Vector};
+
+/// The version of `usd/SCHEMA.md` this writer follows.
+pub const SCHEMA_VERSION: u32 = 1;
 
 /// Metres between a road mark and its lane, so the lane doesn't hide it.
 const LIFT: f32 = 0.005;
@@ -29,6 +22,11 @@ pub fn write_stage(
 ) -> io::Result<()> {
     writeln!(out, "#usda 1.0")?;
     writeln!(out, "(")?;
+    writeln!(out, "    customLayerData = {{")?;
+    writeln!(out, "        dictionary xodr = {{")?;
+    writeln!(out, "            int schemaVersion = {SCHEMA_VERSION}")?;
+    writeln!(out, "        }}")?;
+    writeln!(out, "    }}")?;
     writeln!(out, "    defaultPrim = \"Map\"")?;
     writeln!(out, "    metersPerUnit = 1")?;
     writeln!(out, "    upAxis = \"Z\"")?;

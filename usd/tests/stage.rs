@@ -55,3 +55,10 @@ fn a_lane_names_its_road_and_lane_as_opendrive_does() {
     assert!(stage.contains("custom int xodr:laneId = 1"));
     assert!(stage.contains("custom string xodr:laneType = \"driving\""));
 }
+
+#[test]
+fn a_stage_records_its_schema_version() {
+    let stage = stage("demo");
+    let version = format!("int schemaVersion = {}", xodr_usd::SCHEMA_VERSION);
+    assert!(stage.contains(&version));
+}
