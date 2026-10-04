@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### OpenUSD export
+
+- `xodr_usd`, in the new `xodr-usd` workspace crate, writes a map as an
+  OpenUSD `.usda` stage: a mesh per lane, road mark and object, each with
+  its OpenDRIVE ids as `xodr:` attributes. The `xodr` crate doesn't change.
+  Run `cargo run -p xodr-usd -- map.xodr`. See `usd/README.md`.
+
 ## 0.5.0 - 2026-10-03
 
 ### Renamed to `xodr`

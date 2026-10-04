@@ -81,6 +81,16 @@ cobbles from `belgian_block.crg`, which `examples/crg_data.sh` downloads:
 
 ![Scanned cobbles from ASAM's belgian_block.crg](viewer/crg-cobbles.png)
 
+## OpenUSD
+
+[`usd/`](usd/README.md) writes a map as an OpenUSD `.usda` stage, with a
+mesh per lane, road mark and object, each tagged with its OpenDRIVE ids. It
+isn't part of the crate.
+
+```sh
+cargo run --release -p xodr-usd -- tests/data/town07.xodr
+```
+
 ## More
 
 - [docs/design.md](docs/design.md): the coordinate frame, `Point` and
