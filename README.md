@@ -83,9 +83,8 @@ cobbles from `belgian_block.crg`, which `examples/crg_data.sh` downloads:
 
 ## OpenUSD
 
-[`usd/`](usd/README.md) writes a map as an OpenUSD `.usda` stage, with a
-mesh per lane, road mark and object, each tagged with its OpenDRIVE ids. It
-isn't part of the crate.
+[`usd/`](usd/README.md) exports a map as an OpenUSD stage, with one mesh
+per lane, road mark and object. It's a separate tool, not part of the crate.
 
 ```sh
 cargo run --release -p xodr-usd -- tests/data/town07.xodr

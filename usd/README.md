@@ -1,62 +1,55 @@
 # OpenUSD export
 
-`xodr_usd` writes an OpenDRIVE map as an OpenUSD stage, in the `.usda`
-text format, for Omniverse, Blender, Houdini, `usdview` or any other tool
-that reads USD. It is pure Rust and needs no OpenUSD install.
+`xodr_usd` turns an OpenDRIVE map into an OpenUSD stage (`.usda`). Omniverse,
+Blender, Houdini and `usdview` can open it. It's pure Rust, so you don't need
+OpenUSD installed.
 
 ```sh
 cargo run --release -p xodr-usd -- tests/data/town07.xodr
 cargo run --release -p xodr-usd -- tests/data/town07.xodr /tmp/town07.usda
 ```
 
-Without an output path the stage goes beside the map, as `town07.usda`.
+With no output path, the stage goes next to the map.
 
-## View it in the browser
+## View a stage in the browser
 
 ```sh
 sh usd/run.sh tests/data/town07.xodr tests/data/objects.xodr
 ```
 
-The script exports each map into `usd/web/`, serves that folder on
-<http://localhost:8001>, and opens the first stage. Set `PORT` for another
-port. Press Ctrl-C to stop the server. Click `open .usda`, or drop a file on
-the page, to open any other stage.
+The script exports each map to `usd/web/` and opens the first one at
+<http://localhost:8001>. Set `PORT` to use another port.
 
-The page draws the stage with three.js's own `USDLoader`, so it's a second
-USD reader checking the export, not code that shares assumptions with it.
-Hover a mesh to read its path and `xodr:` attributes, and the toolbar shows
-or hides each of `Roads`, `RoadMarks` and `Objects`.
+- To open another stage, click `open .usda` or drop the file on the page.
+- To see a mesh's path and `xodr:` attributes, hover over it.
+- To hide roads, road marks or objects, clear their boxes in the toolbar.
 
-`USDLoader` doesn't read `doubleSided`, or a `displayColor` per face. The
-page reads `doubleSided` and the attributes from the stage's text itself.
-A road mark whose lines differ in colour is drawn in its first line's
-colour.
+The page reads stages with three.js's `USDLoader`, not with code from this
+repo. `USDLoader` draws each mesh in one colour. A road mark with lines of
+different colours gets its first line's colour.
 
-## What the stage holds
+## What's in the stage
 
-The stage is Z-up, in metres, in the map's own frame. Its default prim is
-`/Map`:
+The stage is Z-up, in metres, in the map's frame.
 
-| Prim | What it is |
+| Prim | Contents |
 | --- | --- |
-| `/Map/Roads/road_<n>` | One `Scope` per road. |
-| `/Map/Roads/road_<n>/lane_<n>` | One `Mesh` per lane: its slice of `RoadNetwork::surface_mesh`, with its normals. |
-| `/Map/RoadMarks/mark_<n>` | One `Mesh` per road mark that paints anything: a quad per piece of each line, 5 mm above the lane so the lane doesn't hide it. |
-| `/Map/Objects/object_<n>` | One double-sided `Mesh` per object with a volume: its slice of `RoadNetwork::object_mesh`. |
+| `/Map/Roads/road_<n>/lane_<n>` | One mesh per lane, from `RoadNetwork::surface_mesh`. |
+| `/Map/RoadMarks/mark_<n>` | One mesh per painted road mark, 5 mm above its lane. |
+| `/Map/Objects/object_<n>` | One double-sided mesh per object, from `RoadNetwork::object_mesh`. |
 
-The `<n>` are the crate's ids, so every name is a valid USD name. What
-OpenDRIVE calls each prim is in its `xodr:` attributes:
+`<n>` is the crate's id. Each prim keeps its OpenDRIVE names in `xodr:`
+attributes:
 
-- A road: `xodr:roadId`, and `xodr:junction` on a road inside a junction.
-- A lane: `xodr:section`, `xodr:laneId` and `xodr:laneType`.
-- A road mark: `xodr:type`, `xodr:weight`, `xodr:color` and `xodr:laneChange`.
-- An object: `xodr:type`, `xodr:subtype`, `xodr:name`, `xodr:objectId` and
+- Road: `xodr:roadId`, and `xodr:junction` if the road is in a junction.
+- Lane: `xodr:section`, `xodr:laneId`, `xodr:laneType`.
+- Road mark: `xodr:type`, `xodr:weight`, `xodr:color`, `xodr:laneChange`.
+- Object: `xodr:type`, `xodr:subtype`, `xodr:name`, `xodr:objectId`,
   `xodr:roadId`.
 
-Each mesh has a `displayColor`. Lanes are dark grey if traffic drives on
-them, light grey for a sidewalk or curb, and mid grey otherwise. Paint takes
-the colour its line names, and white for `standard` or a name OpenDRIVE
-doesn't define. There are no materials.
+Each mesh has a `displayColor` and no material. Driving lanes are dark grey
+and sidewalks and curbs light grey. Other lanes are mid grey. Paint uses the
+colour its line names, or white.
 
-Signals, object markings, junction areas and OpenCRG surfaces are not
-exported.
+The export leaves out signals, object markings, junction areas and OpenCRG
+surfaces.

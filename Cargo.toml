@@ -54,7 +54,7 @@ name = "query"
 harness = false
 
 # viewer/ bakes maps for the three.js viewer, natively or as WebAssembly.
-# usd/ exports them as OpenUSD stages.
+# usd/ exports maps as OpenUSD stages.
 [workspace]
 members = ["usd", "viewer"]
 
