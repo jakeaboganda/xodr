@@ -5,7 +5,7 @@
 //! cargo run -p xodr-usd -- tests/data/town07.xodr /tmp/town07.usda
 //! ```
 //!
-//! Without an output path the stage goes beside the map, as `<map>.usda`.
+//! With no output path, the stage goes next to the map as `<map>.usda`.
 
 use std::env;
 use std::fs::File;

@@ -32,8 +32,8 @@
 </script>
 
 <script type="module">
-// Draws a stage from xodr_usd with three.js's USDLoader, and reads back
-// what the loader drops: each prim's xodr: attributes and doubleSided.
+// Draws a stage with three.js's USDLoader. USDLoader drops xodr: attributes
+// and doubleSided, so the page reads those from the text.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { USDLoader } from 'three/addons/loaders/USDLoader.js';
@@ -67,8 +67,8 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-/** Each prim by name: its path, its xodr: attributes and whether it is
- * double-sided. Reads the layout xodr_usd writes; other stages get none. */
+/** Each prim's path, xodr: attributes and doubleSided, by name. Reads only
+ * the layout xodr_usd writes. */
 function index(text) {
   const prims = new Map();
   const path = [];
@@ -173,7 +173,7 @@ renderer.domElement.addEventListener('pointermove', e => {
   pointer.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
 });
 
-/** The path and attributes of `mesh` and of each prim above it. */
+/** The path of `mesh`, and the attributes of it and its parents. */
 function describe(mesh) {
   const prim = prims.get(mesh.name);
   if (!prim) return mesh.name;

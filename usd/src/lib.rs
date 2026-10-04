@@ -1,8 +1,6 @@
-//! Export an OpenDRIVE map baked by `xodr` as an OpenUSD stage, in the
-//! `.usda` text format.
+//! Export a map loaded by `xodr` as an OpenUSD stage (`.usda`).
 //!
-//! [`write_stage`] is the one entry point. The stage is Z-up, in metres, in
-//! the map's own frame, with one `Mesh` prim per lane, road mark and object:
+//! Call [`write_stage`]. The stage is Z-up, in metres, in the map's frame:
 //!
 //! ```text
 //! /Map
@@ -11,21 +9,19 @@
 //!   Objects/object_<n>        each object with a volume, from RoadNetwork::object_mesh
 //! ```
 //!
-//! Prims are named by the crate's ids, which are always valid USD names.
-//! Each carries what OpenDRIVE calls it as `xodr:` attributes, such as
-//! `xodr:roadId` and `xodr:laneId`, and a `displayColor`.
+//! `<n>` is the crate's id, so every name is valid in USD. Each prim keeps
+//! its OpenDRIVE names in `xodr:` attributes, such as `xodr:roadId`.
 
 use std::collections::BTreeMap;
 use std::io::{self, Write};
 
 use xodr::{LaneSpan, LaneType, Point, Provenance, RoadId, RoadNetwork, Vector};
 
-/// How far above its lane a road mark's paint is lifted, in metres, so the
-/// lane does not hide it.
+/// Metres between a road mark and its lane, so the lane doesn't hide it.
 const LIFT: f32 = 0.005;
 
-/// Write `net` to `out` as a `.usda` stage. `provenance` names each object's
-/// `<object id>` and road.
+/// Write `net` to `out` as a `.usda` stage. `provenance` gives each object's
+/// OpenDRIVE id and road.
 pub fn write_stage(
     net: &RoadNetwork,
     provenance: &Provenance,
@@ -46,7 +42,7 @@ pub fn write_stage(
     writeln!(out, "}}")
 }
 
-/// A `Scope` per road holding a `Mesh` per lane, sliced from the surface mesh.
+/// One `Scope` per road, with one `Mesh` per lane.
 fn roads(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
     let mesh = net.surface_mesh();
     let mut by_road: BTreeMap<usize, Vec<&LaneSpan>> = BTreeMap::new();
@@ -94,8 +90,7 @@ fn roads(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
     close(out, 1)
 }
 
-/// A `Mesh` per road mark that paints anything: a quad per piece of each
-/// line, lifted [`LIFT`] off its lane, coloured as the line is.
+/// One `Mesh` per painted road mark: a quad per piece, [`LIFT`] above the lane.
 fn road_marks(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
     open(out, 1, "Scope", "RoadMarks", &[])?;
     for mark in net.road_marks() {
@@ -137,8 +132,8 @@ fn road_marks(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
     close(out, 1)
 }
 
-/// A `Mesh` per object with a volume, sliced from the object mesh.
-/// Double-sided, as [`RoadNetwork::object_mesh`] asks of a flat shape.
+/// One double-sided `Mesh` per object, since [`RoadNetwork::object_mesh`]
+/// gives flat shapes one face.
 fn objects(net: &RoadNetwork, provenance: &Provenance, out: &mut impl Write) -> io::Result<()> {
     let mesh = net.object_mesh();
     open(out, 1, "Scope", "Objects", &[])?;
@@ -173,8 +168,7 @@ fn objects(net: &RoadNetwork, provenance: &Provenance, out: &mut impl Write) -> 
     close(out, 1)
 }
 
-/// A lane's colour: dark for a lane traffic drives on, light for a
-/// sidewalk or curb, and in between for the rest.
+/// Dark grey for driving lanes, light for sidewalks and curbs, mid otherwise.
 fn lane_color(kind: LaneType) -> [f32; 3] {
     match kind {
         _ if kind.is_drivable() => [0.2, 0.2, 0.2],
@@ -183,8 +177,7 @@ fn lane_color(kind: LaneType) -> [f32; 3] {
     }
 }
 
-/// The colour of paint OpenDRIVE names. `standard`, and any name it does
-/// not define, is white.
+/// The colour of an OpenDRIVE paint name. Unknown names are white.
 fn paint(name: &str) -> [f32; 3] {
     match name {
         "yellow" => [0.95, 0.75, 0.1],
@@ -203,9 +196,9 @@ enum Tag {
     Int(i64),
 }
 
-/// One `Mesh` prim. `indices` index `points`, `face_size` per face. One
-/// colour is the whole mesh's, and otherwise there is one per face. Empty
-/// `normals` leaves the normals to the renderer.
+/// One `Mesh` prim with `face_size` indices per face. `colors` holds one
+/// colour for the whole mesh or one per face. Empty `normals` lets the
+/// renderer compute them.
 struct MeshPrim<'a> {
     name: String,
     tags: Vec<(&'static str, Tag)>,

@@ -1,10 +1,8 @@
 #!/bin/sh
-# Export maps to OpenUSD, serve the viewer on localhost and open the first
-# one in the browser. Ctrl-C stops the server.
+# Export maps to OpenUSD and open the first one in the browser.
+# Ctrl-C stops the server.
 #
-#     sh usd/run.sh MAP.xodr [MAP.xodr ...]
-#
-# PORT defaults to 8001.
+#     PORT=8001 sh usd/run.sh MAP.xodr [MAP.xodr ...]
 set -eu
 
 [ $# -gt 0 ] || { echo "usage: sh usd/run.sh MAP.xodr [MAP.xodr ...]" >&2; exit 2; }
