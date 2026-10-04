@@ -11,6 +11,10 @@ these stages in another tool, or to write them from another exporter.
 - A **relationship** is a named link from one prim to others, by path.
 - `Scope` groups prims. `Xform` groups prims and moves them. `Mesh` holds
   triangles or quads.
+- A **class** is a prim that isn't drawn. A prim that **inherits** a class
+  gets the class's children and attributes. Values the prim sets itself win.
+- A **label** names what a prim is, for tools such as a perception
+  pipeline. Labels come in named sets, using OpenUSD's `SemanticsLabelsAPI`.
 
 ## Version
 
@@ -42,12 +46,55 @@ prim is `/Map`.
 | `/Map/Roads/road_<n>/lane_<n>` | `Mesh` | One lane's surface, with normals. |
 | `/Map/RoadMarks/mark_<n>` | `Mesh` | One painted road mark, 5 mm above its lane. One quad per piece of paint. |
 | `/Map/Objects/object_<n>` | `Mesh` | One object, double-sided. Objects with no volume have no prim. |
+| `/Map/Signals/signal_<n>` | `Xform` | One signal, at its board's position and turn. See [Signals](#signals). |
+| `/Map/Controllers/controller_<n>` | `Scope` | One controller. |
+| `/_SignalTypes/<type class>` | class `Xform` | One per signal type. See [Signal types](#signal-types). |
 
 `<n>` is the id `xodr` gives the road, lane, mark or object. It's not the
 OpenDRIVE id, which can hold characters USD doesn't allow in a name. The
 OpenDRIVE ids are in the attributes below.
 
 Lanes and marks with no triangles have no prim.
+
+## Signals
+
+A signal prim sits at the middle of its board's bottom edge. Its local +X
+points toward the traffic the board faces, +Y to the board's left, and +Z
+up. `xformOp:rotateXYZ` holds roll, pitch and heading, in degrees.
+
+Each signal has these children:
+
+| Child | Type | Contents |
+| --- | --- | --- |
+| `board` | `Xform` | The signal's own board. It inherits the signal's type class and is scaled to the board's size. |
+| `sign_<b>_<k>` | `Xform` | Sign `k` on static board `b`, like `board` but for the sign's own type. 1 cm in front of `board`. |
+| `display_<b>` | `Xform` | Variable message board `b`: a `screen` mesh, and an `area_<k>` mesh for each display area. |
+
+A board's scale is (1, width, height). X isn't scaled, so a type class can
+give its board a depth in metres. A board the map gives no size is 0.6 m
+across and 0.6 m up, and its signal has `xodr:sizeGuessed = 1`.
+
+Every board has two label sets:
+
+- `opendrive`: the codes, as `country:type:subtype`, such as `DE:274:55`.
+- `meaning`: what the map's `<semantics>` say, such as `speed:maximum`.
+  Each label is the element name, then its `type` if it has one. Boards
+  with no `<semantics>` have no `meaning` set.
+
+A sign with no `country` uses its signal's for its type class and code.
+
+## Signal types
+
+A type class holds what every signal of one type looks like. The writer
+makes one for each type the map uses, with one child: `Board`, a grey,
+double-sided quad 1 m across and 1 m up, facing +X.
+
+The class name joins the codes with `_`. Each character other than a letter
+or digit becomes `_`, and a name that starts with a digit gets a `_` in
+front. For example, `DE`, `274` and `-1` give `DE_274__1`. Two types whose
+codes differ only in those characters share a class.
+
+To change how a type looks, write a layer that overrides its type class.
 
 ## Attributes
 
@@ -69,9 +116,39 @@ Every attribute this schema adds starts with `xodr:`.
 | object | `string xodr:name` | The object `name`. |
 | object | `string xodr:objectId` | The `<object id>`. |
 | object | `string xodr:roadId` | The `<road id>` the object is on. |
+| signal | `string xodr:signalId` | The `<signal id>`. |
+| signal | `string xodr:roadId` | The `<road id>` the signal is on. |
+| signal | `double xodr:s`, `xodr:t` | Where the signal is along and across its road. |
+| signal | `token xodr:orientation` | `+`, `-` or `none`, as the map gives it. |
+| signal | `string xodr:name` | The signal `name`. |
+| signal | `string xodr:country`, `xodr:countryRevision` | The catalogue the codes come from, such as `DE`, and its year. |
+| signal | `string xodr:type`, `xodr:subtype` | The codes, such as `274` and `55`. |
+| signal | `double xodr:value`, `string xodr:unit` | The number the signal shows, such as `50` `km/h`. Only if the map gives one. |
+| signal | `string xodr:text` | The text the signal shows. |
+| signal | `bool xodr:dynamic` | Whether it can change what it shows, such as a traffic light. |
+| signal | `bool xodr:invalidated`, `xodr:temporary` | Whether it's struck out, and whether it's temporary. |
+| signal | `bool xodr:sizeGuessed` | Whether the map gives no width or no height. |
+| signal | `float xodr:length` | The board's thickness. Only if the map gives one. |
+| signal | `point3f[] xodr:appliesAt` | The points on the road where the signal applies: its own, then one per `<signalReference>`. |
+| signal | `rel xodr:lanes` | The lanes it applies to. |
+| signal | `rel xodr:dependencies`, `string[] xodr:dependencyTypes` | The signals its `<dependency>`s name, and each `type`. |
+| signal | `rel xodr:references`, `string[] xodr:referenceTypes` | The signals and objects its `<reference>`s name, and each `type`. |
+| sign | `string xodr:name`, `xodr:country`, `xodr:type`, `xodr:subtype`, `xodr:text` | As on a signal. |
+| sign | `double xodr:value`, `string xodr:unit` | As on a signal. |
+| display | `string xodr:display` | The `displayType`, such as `LED`. |
+| area | `int xodr:index` | The display area's `index`. |
+| controller | `string xodr:controllerId` | The `<controller id>`. |
+| controller | `string xodr:name` | The controller `name`. |
+| controller | `int xodr:sequence` | Its `sequence`. Only if the map gives one. |
+| controller | `rel xodr:signals`, `string[] xodr:controlTypes` | The signals it controls, and each `<control type>`. |
+
+A relationship skips a target with no prim, such as an object with no
+volume. Its matching `...Types` array skips the same entries. An empty
+array or relationship is left out.
 
 ## Colour
 
 Every mesh has a `primvars:displayColor` and no material. Driving lanes are
 dark grey, sidewalks and curbs light grey, and other lanes mid grey. Paint
-uses the colour its line names, or white. Objects are grey.
+uses the colour its line names, or white. Objects and signal boards are
+grey.
