@@ -19,6 +19,9 @@
 - `usd/catalogues/sample.usda` sets the look and labels of the signal
   types in the test maps. `usd/flatten.py` stacks catalogues over a stage
   and flattens it, and `usd/check.py` checks stages with OpenUSD in CI.
+- `usd/run.sh` takes catalogues and flattens each stage before the page
+  draws it. The page shows signals and poles, their attributes and labels,
+  and frames a prim you double-click.
 
 ## 0.5.0 - 2026-10-03
 
