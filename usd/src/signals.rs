@@ -7,25 +7,28 @@ use xodr::{
     Orientation, Point, Provenance, Referenced, RoadNetwork, Semantic, Signal, SignalBoard, Vector,
 };
 
+use crate::supports::Support;
 use crate::{close, list, open, quote, tuple, write_mesh, MeshPrim, Paths, Tag};
 
 /// Metres across and up for a board the map gives no size.
-const FALLBACK_SIZE: f32 = 0.6;
+pub(crate) const FALLBACK_SIZE: f32 = 0.6;
 
 /// Metres a sign or display sits in front of its signal's board.
 const FRONT: f32 = 0.01;
 
-/// One `Xform` per signal under `/Map/Signals`. Returns the type classes
-/// the boards inherit.
+/// One `Xform` per signal under `/Map/Signals`. `supports` is what holds
+/// up each signal, in the same order. Returns the type classes the boards
+/// inherit.
 pub(crate) fn signals(
     net: &RoadNetwork,
     provenance: &Provenance,
     paths: &Paths,
+    supports: &[Support],
     out: &mut impl Write,
 ) -> io::Result<BTreeSet<String>> {
     let mut classes = BTreeSet::new();
     open(out, 1, "def Scope", "Signals", &[], &[])?;
-    for signal in net.signals() {
+    for (signal, support) in net.signals().iter().zip(supports) {
         let prov = provenance.signals.iter().find(|p| p.signal == signal.id);
         let (width, height) = (signal.width, signal.height);
         let mut tags = vec![
@@ -62,6 +65,7 @@ pub(crate) fn signals(
             tags.push(("t", Tag::Double(p.t)));
             tags.push(("orientation", Tag::Token(orientation(p.orientation))));
         }
+        tags.extend(support.tags());
         tags.push(("appliesAt", Tag::Points(signal.applies_at.clone())));
         let lanes = signal.lanes.iter();
         let lanes = lanes.filter_map(|l| paths.lanes.get(l).cloned());

@@ -46,6 +46,7 @@ prim is `/Map`.
 | `/Map/Roads/road_<n>/lane_<n>` | `Mesh` | One lane's surface, with normals. |
 | `/Map/RoadMarks/mark_<n>` | `Mesh` | One painted road mark, 5 mm above its lane. One quad per piece of paint. |
 | `/Map/Objects/object_<n>` | `Mesh` | One object, double-sided. Objects with no volume have no prim. |
+| `/Map/Supports/support_<n>` | `Mesh` | One pole the exporter added. See [Poles](#poles). |
 | `/Map/Signals/signal_<n>` | `Xform` | One signal, at its board's position and turn. See [Signals](#signals). |
 | `/Map/Controllers/controller_<n>` | `Scope` | One controller. |
 | `/_SignalTypes/<type class>` | class `Xform` | One per signal type. See [Signal types](#signal-types). |
@@ -82,6 +83,28 @@ Every board has two label sets:
   with no `<semantics>` have no `meaning` set.
 
 A sign with no `country` uses its signal's for its type class and code.
+
+## Poles
+
+Each signal records what holds it up, in `xodr:support`:
+
+- `object`: a pole object from the map. `xodr:supportPrim` links to it.
+- `synthesized`: a pole the exporter added. `xodr:supportPrim` links to it.
+- `none`: nothing holds it up.
+
+The exporter takes the first rule that applies:
+
+1. A board less than 0.1 m above the road is paint, such as a stop line. It
+   gets `none`.
+2. A pole object the signal's `<reference>`s name gets `object`.
+3. A pole object within 0.5 m of the board, measured across the ground,
+   gets `object`.
+4. A board over a driving lane, such as on a gantry, gets `none`.
+5. Anything else gets `synthesized`. The added pole goes from the road
+   under the board up to the board's middle, just behind it. Signals within
+   0.5 m of each other share one pole.
+
+Added poles are grey, 8 cm across, and have `xodr:synthesized = 1`.
 
 ## Signal types
 
@@ -131,6 +154,7 @@ Every attribute this schema adds starts with `xodr:`.
 | signal | `float xodr:length` | The board's thickness. Only if the map gives one. |
 | signal | `point3f[] xodr:appliesAt` | The points on the road where the signal applies: its own, then one per `<signalReference>`. |
 | signal | `rel xodr:lanes` | The lanes it applies to. |
+| signal | `token xodr:support`, `rel xodr:supportPrim` | What holds it up. See [Poles](#poles). |
 | signal | `rel xodr:dependencies`, `string[] xodr:dependencyTypes` | The signals its `<dependency>`s name, and each `type`. |
 | signal | `rel xodr:references`, `string[] xodr:referenceTypes` | The signals and objects its `<reference>`s name, and each `type`. |
 | sign | `string xodr:name`, `xodr:country`, `xodr:type`, `xodr:subtype`, `xodr:text` | As on a signal. |
