@@ -2,10 +2,14 @@
 //!
 //! Call [`write_stage`]. `usd/SCHEMA.md` describes what the stage holds.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::{self, Write};
 
-use xodr::{LaneSpan, LaneType, Point, Provenance, RoadId, RoadNetwork, Vector};
+use xodr::{
+    LaneId, LaneSpan, LaneType, Mesh, ObjectId, Point, Provenance, RoadId, RoadNetwork, Vector,
+};
+
+mod signals;
 
 /// The version of `usd/SCHEMA.md` this writer follows.
 pub const SCHEMA_VERSION: u32 = 1;
@@ -34,22 +38,36 @@ pub fn write_stage(
     writeln!(out)?;
     writeln!(out, "def Xform \"Map\"")?;
     writeln!(out, "{{")?;
-    roads(net, out)?;
+    let lanes = roads(net, &net.surface_mesh(), out)?;
     road_marks(net, out)?;
-    objects(net, provenance, out)?;
-    writeln!(out, "}}")
+    let objects = objects(net, provenance, &net.object_mesh(), out)?;
+    let paths = Paths { lanes, objects };
+    let classes = signals::signals(net, provenance, &paths, out)?;
+    signals::controllers(net, provenance, out)?;
+    writeln!(out, "}}")?;
+    signals::type_classes(&classes, out)
 }
 
-/// One `Scope` per road, with one `Mesh` per lane.
-fn roads(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
-    let mesh = net.surface_mesh();
+/// The path of each lane and object prim in the stage.
+struct Paths {
+    lanes: HashMap<LaneId, String>,
+    objects: HashMap<ObjectId, String>,
+}
+
+/// One `Scope` per road, with one `Mesh` per lane. Returns each lane's path.
+fn roads(
+    net: &RoadNetwork,
+    mesh: &Mesh,
+    out: &mut impl Write,
+) -> io::Result<HashMap<LaneId, String>> {
+    let mut paths = HashMap::new();
     let mut by_road: BTreeMap<usize, Vec<&LaneSpan>> = BTreeMap::new();
     for span in mesh.lanes.iter().filter(|s| !s.indices.is_empty()) {
         if let Some(at) = net.road_lane(span.lane) {
             by_road.entry(at.road.0).or_default().push(span);
         }
     }
-    open(out, 1, "Scope", "Roads", &[])?;
+    open(out, 1, "def Scope", "Roads", &[], &[])?;
     for (road, spans) in by_road {
         let road = net
             .road(RoadId(road))
@@ -58,17 +76,20 @@ fn roads(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
         if let Some(junction) = road.junction() {
             tags.push(("junction", Tag::Text(junction.to_string())));
         }
-        open(out, 2, "Scope", &format!("road_{}", road.id().0), &tags)?;
+        let road_name = format!("road_{}", road.id().0);
+        open(out, 2, "def Scope", &road_name, &[], &tags)?;
         for span in spans {
             let (lane, at) = (net.lane(span.lane), net.road_lane(span.lane));
             let (lane, at) = (lane.expect("a span's lane"), at.expect("a span's lane"));
             let vertices = span.vertices.start as usize..span.vertices.end as usize;
             let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
+            let name = format!("lane_{}", span.lane.0);
+            paths.insert(span.lane, format!("/Map/Roads/{road_name}/{name}"));
             write_mesh(
                 out,
                 3,
                 &MeshPrim {
-                    name: format!("lane_{}", span.lane.0),
+                    name,
                     tags: vec![
                         ("section", Tag::Int(at.section as i64)),
                         ("laneId", Tag::Int(at.od_id.into())),
@@ -85,12 +106,13 @@ fn roads(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
         }
         close(out, 2)?;
     }
-    close(out, 1)
+    close(out, 1)?;
+    Ok(paths)
 }
 
 /// One `Mesh` per painted road mark: a quad per piece, [`LIFT`] above the lane.
 fn road_marks(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
-    open(out, 1, "Scope", "RoadMarks", &[])?;
+    open(out, 1, "def Scope", "RoadMarks", &[], &[])?;
     for mark in net.road_marks() {
         let pieces: Vec<(&String, &[Point; 4])> = mark
             .lines
@@ -131,10 +153,15 @@ fn road_marks(net: &RoadNetwork, out: &mut impl Write) -> io::Result<()> {
 }
 
 /// One double-sided `Mesh` per object, since [`RoadNetwork::object_mesh`]
-/// gives flat shapes one face.
-fn objects(net: &RoadNetwork, provenance: &Provenance, out: &mut impl Write) -> io::Result<()> {
-    let mesh = net.object_mesh();
-    open(out, 1, "Scope", "Objects", &[])?;
+/// gives flat shapes one face. Returns each object's path.
+fn objects(
+    net: &RoadNetwork,
+    provenance: &Provenance,
+    mesh: &Mesh,
+    out: &mut impl Write,
+) -> io::Result<HashMap<ObjectId, String>> {
+    let mut paths = HashMap::new();
+    open(out, 1, "def Scope", "Objects", &[], &[])?;
     for span in mesh.objects.iter().filter(|s| !s.indices.is_empty()) {
         let object = net.object(span.object).expect("a span's object");
         let mut tags = vec![
@@ -148,11 +175,13 @@ fn objects(net: &RoadNetwork, provenance: &Provenance, out: &mut impl Write) -> 
         }
         let vertices = span.vertices.start as usize..span.vertices.end as usize;
         let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
+        let name = format!("object_{}", object.id.0);
+        paths.insert(object.id, format!("/Map/Objects/{name}"));
         write_mesh(
             out,
             2,
             &MeshPrim {
-                name: format!("object_{}", object.id.0),
+                name,
                 tags,
                 points: &mesh.vertices[vertices.clone()],
                 normals: &mesh.normals[vertices],
@@ -163,7 +192,8 @@ fn objects(net: &RoadNetwork, provenance: &Provenance, out: &mut impl Write) -> 
             },
         )?;
     }
-    close(out, 1)
+    close(out, 1)?;
+    Ok(paths)
 }
 
 /// Dark grey for driving lanes, light for sidewalks and curbs, mid otherwise.
@@ -188,10 +218,18 @@ fn paint(name: &str) -> [f32; 3] {
     }
 }
 
-/// A value of an `xodr:` attribute.
+/// The value of an `xodr:` attribute, or the targets of an `xodr:`
+/// relationship.
 enum Tag {
     Text(String),
+    Token(&'static str),
     Int(i64),
+    Float(f32),
+    Double(f64),
+    Bool(bool),
+    Texts(Vec<String>),
+    Points(Vec<Point>),
+    Targets(Vec<String>),
 }
 
 /// One `Mesh` prim with `face_size` indices per face. `colors` holds one
@@ -209,7 +247,7 @@ struct MeshPrim<'a> {
 }
 
 fn write_mesh(out: &mut impl Write, depth: usize, m: &MeshPrim) -> io::Result<()> {
-    open(out, depth, "Mesh", &m.name, &m.tags)?;
+    open(out, depth, "def Mesh", &m.name, &[], &m.tags)?;
     let pad = indent(depth + 1);
     let (low, high) = extent(m.points);
     writeln!(
@@ -253,22 +291,52 @@ fn write_mesh(out: &mut impl Write, depth: usize, m: &MeshPrim) -> io::Result<()
     close(out, depth)
 }
 
-/// Open a prim of `kind` named `name`, with its `xodr:` attributes.
+/// Open a prim, such as `def Scope "Roads"`, with its metadata lines and
+/// its `xodr:` attributes. Empty arrays and relationships are left out.
 fn open(
     out: &mut impl Write,
     depth: usize,
-    kind: &str,
+    head: &str,
     name: &str,
+    meta: &[String],
     tags: &[(&str, Tag)],
 ) -> io::Result<()> {
     let pad = indent(depth);
-    writeln!(out, "{pad}def {kind} \"{name}\"")?;
+    if meta.is_empty() {
+        writeln!(out, "{pad}{head} \"{name}\"")?;
+    } else {
+        writeln!(out, "{pad}{head} \"{name}\" (")?;
+        for line in meta {
+            writeln!(out, "{pad}    {line}")?;
+        }
+        writeln!(out, "{pad})")?;
+    }
     writeln!(out, "{pad}{{")?;
     for (key, value) in tags {
-        match value {
-            Tag::Text(s) => writeln!(out, "{pad}    custom string xodr:{key} = {}", quote(s))?,
-            Tag::Int(n) => writeln!(out, "{pad}    custom int xodr:{key} = {n}")?,
-        }
+        let line = match value {
+            Tag::Text(s) => format!("custom string xodr:{key} = {}", quote(s)),
+            Tag::Token(s) => format!("custom token xodr:{key} = {}", quote(s)),
+            Tag::Int(n) => format!("custom int xodr:{key} = {n}"),
+            Tag::Float(x) => format!("custom float xodr:{key} = {x}"),
+            Tag::Double(x) => format!("custom double xodr:{key} = {x}"),
+            Tag::Bool(b) => format!("custom bool xodr:{key} = {}", u8::from(*b)),
+            Tag::Texts(v) if v.is_empty() => continue,
+            Tag::Texts(v) => format!(
+                "custom string[] xodr:{key} = [{}]",
+                list(v.iter().map(|s| quote(s)))
+            ),
+            Tag::Points(v) if v.is_empty() => continue,
+            Tag::Points(v) => format!(
+                "custom point3f[] xodr:{key} = [{}]",
+                list(v.iter().map(|p| tuple(p.to_array())))
+            ),
+            Tag::Targets(v) if v.is_empty() => continue,
+            Tag::Targets(v) => format!(
+                "rel xodr:{key} = [{}]",
+                list(v.iter().map(|p| format!("<{p}>")))
+            ),
+        };
+        writeln!(out, "{pad}    {line}")?;
     }
     Ok(())
 }

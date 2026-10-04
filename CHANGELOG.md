@@ -8,6 +8,12 @@
   `cargo run -p xodr-usd -- map.xodr`. The `xodr` crate doesn't change.
 - `sh usd/run.sh map.xodr` shows the stage in the browser. See
   `usd/README.md`.
+- `usd/SCHEMA.md` describes the stage. The stage records its schema
+  version.
+- Signals export, each with its board, its OpenDRIVE codes as labels, and
+  links to its lanes and the signals and objects it names. Each board
+  inherits a type class that a catalogue layer can override. Controllers
+  export too.
 
 ## 0.5.0 - 2026-10-03
 

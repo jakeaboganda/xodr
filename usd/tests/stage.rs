@@ -62,3 +62,25 @@ fn a_stage_records_its_schema_version() {
     let version = format!("int schemaVersion = {}", xodr_usd::SCHEMA_VERSION);
     assert!(stage.contains(&version));
 }
+
+#[test]
+fn every_signal_has_a_board_that_inherits_its_type_class() {
+    let (net, _) = load_file_with_provenance("../tests/data/signals.xodr").expect("map loads");
+    let stage = stage("signals");
+    assert_eq!(
+        stage.matches("def Xform \"signal_").count(),
+        net.signals().len()
+    );
+    assert!(stage.contains("inherits = </_SignalTypes/DE_274_55>"));
+    assert!(stage.contains("class Xform \"DE_274_55\""));
+    assert!(stage.contains("token[] semantics:labels:opendrive = [\"DE:274:55\"]"));
+}
+
+#[test]
+fn a_signal_links_to_what_it_references() {
+    let stage = stage("signals");
+    assert!(
+        stage.contains("rel xodr:references = [</Map/Signals/signal_4>, </Map/Objects/object_0>]")
+    );
+    assert!(stage.contains("custom string[] xodr:referenceTypes = [\"stopline\", \"mast\"]"));
+}
