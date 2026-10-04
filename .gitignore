@@ -3,3 +3,4 @@
 Cargo.lock
 /viewer/web/*.json
 /viewer/web/pkg/
+/usd/web/*.usda

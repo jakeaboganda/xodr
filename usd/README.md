@@ -11,6 +11,27 @@ cargo run --release -p xodr-usd -- tests/data/town07.xodr /tmp/town07.usda
 
 Without an output path the stage goes beside the map, as `town07.usda`.
 
+## View it in the browser
+
+```sh
+sh usd/run.sh tests/data/town07.xodr tests/data/objects.xodr
+```
+
+The script exports each map into `usd/web/`, serves that folder on
+<http://localhost:8001>, and opens the first stage. Set `PORT` for another
+port. Press Ctrl-C to stop the server. Click `open .usda`, or drop a file on
+the page, to open any other stage.
+
+The page draws the stage with three.js's own `USDLoader`, so it's a second
+USD reader checking the export, not code that shares assumptions with it.
+Hover a mesh to read its path and `xodr:` attributes, and the toolbar shows
+or hides each of `Roads`, `RoadMarks` and `Objects`.
+
+`USDLoader` doesn't read `doubleSided`, or a `displayColor` per face. The
+page reads `doubleSided` and the attributes from the stage's text itself.
+A road mark whose lines differ in colour is drawn in its first line's
+colour.
+
 ## What the stage holds
 
 The stage is Z-up, in metres, in the map's own frame. Its default prim is
