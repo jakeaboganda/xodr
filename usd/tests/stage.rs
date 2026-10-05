@@ -143,3 +143,18 @@ fn a_signal_controlled_twice_is_linked_once() {
     );
     assert!(stage.contains("custom string[] xodr:controlTypes = [\"0\", \"0\"]"));
 }
+
+#[test]
+fn a_sign_for_both_directions_has_a_board_each_way() {
+    let stage = stage("signals");
+    let start = stage.find("\"RoadWorks30\"").expect("the road works sign");
+    let end = stage[start..]
+        .find("def Xform \"signal_")
+        .map_or(stage.len(), |i| start + i);
+    let sign = &stage[start..end];
+    assert!(sign.contains("def Xform \"board\""));
+    assert!(sign.contains("def Xform \"board_back\""));
+    assert_eq!(sign.matches("float xformOp:rotateZ = 180").count(), 1);
+    let speed = stage.find("\"SpeedLimit50\"").expect("a one-way sign");
+    assert!(!stage[speed..start].contains("board_back"));
+}

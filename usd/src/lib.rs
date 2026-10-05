@@ -45,7 +45,7 @@ pub fn write_stage(
     let objects = objects(net, provenance, &net.object_mesh(), out)?;
     let paths = Paths { lanes, objects };
     let traffic = supports::traffic(net, &surface);
-    let (supports, poles) = supports::supports(net, &paths, &traffic.sampler());
+    let (supports, poles) = supports::supports(net, provenance, &paths, &traffic.sampler());
     supports::write_poles(&poles, out)?;
     let classes = signals::signals(net, provenance, &paths, &supports, out)?;
     signals::controllers(net, provenance, out)?;

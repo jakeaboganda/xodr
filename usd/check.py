@@ -57,27 +57,29 @@ def problems(stage):
 
 def pierced(stage, signal):
     """A problem if the pole the exporter added for `signal` goes through
-    its board. In the board's own frame the board is the square X = 0,
-    -0.5 <= Y <= 0.5, 0 <= Z <= 1, so an edge of the pole that crosses X = 0
-    inside it goes through."""
+    one of its boards, `board` or `board_back`. In a board's own frame it is
+    the square X = 0, -0.5 <= Y <= 0.5, 0 <= Z <= 1, so an edge of the pole
+    that crosses X = 0 inside it goes through."""
     support = signal.GetAttribute("xodr:support")
-    board = signal.GetChild("board")
-    if not support or support.Get() != "synthesized" or not board:
+    if not support or support.Get() != "synthesized":
         return []
     pole = stage.GetPrimAtPath(signal.GetRelationship("xodr:supportPrim").GetTargets()[0])
-    cache = UsdGeom.XformCache()
-    local = cache.GetLocalToWorldTransform(board).GetInverse()
     mesh = UsdGeom.Mesh(pole)
-    points = [local.Transform(Gf.Vec3d(p)) for p in mesh.GetPointsAttr().Get()]
     indices = mesh.GetFaceVertexIndicesAttr().Get()
-    for k in range(0, len(indices), 3):
-        corners = [points[i] for i in indices[k : k + 3]]
-        for a, b in zip(corners, corners[1:] + corners[:1]):
-            if (a[0] > 0) == (b[0] > 0):
-                continue
-            hit = a + (b - a) * (a[0] / (a[0] - b[0]))
-            if -0.5 <= hit[1] <= 0.5 and 0 <= hit[2] <= 1:
-                return [f"{pole.GetPath()} goes through {board.GetPath()}"]
+    cache = UsdGeom.XformCache()
+    for board in (signal.GetChild("board"), signal.GetChild("board_back")):
+        if not board:
+            continue
+        local = cache.GetLocalToWorldTransform(board).GetInverse()
+        points = [local.Transform(Gf.Vec3d(p)) for p in mesh.GetPointsAttr().Get()]
+        for k in range(0, len(indices), 3):
+            corners = [points[i] for i in indices[k : k + 3]]
+            for a, b in zip(corners, corners[1:] + corners[:1]):
+                if (a[0] > 0) == (b[0] > 0):
+                    continue
+                hit = a + (b - a) * (a[0] / (a[0] - b[0]))
+                if -0.5 <= hit[1] <= 0.5 and 0 <= hit[2] <= 1:
+                    return [f"{pole.GetPath()} goes through {board.GetPath()}"]
     return []
 
 
