@@ -7,7 +7,7 @@ use xodr::{
     Orientation, Point, Provenance, Referenced, RoadNetwork, Semantic, Signal, SignalBoard, Vector,
 };
 
-use crate::supports::{Support, GAP};
+use crate::supports::Placement;
 use crate::{close, list, open, quote, tuple, write_mesh, MeshPrim, Paths, Tag};
 
 /// Metres across and up for a board the map gives no size.
@@ -16,19 +16,19 @@ pub(crate) const FALLBACK_SIZE: f32 = 0.6;
 /// Metres a sign or display sits in front of its signal's box.
 const FRONT: f32 = 0.01;
 
-/// One `Xform` per signal under `/Map/Signals`. `supports` is what holds
-/// up each signal, in the same order. Returns the type classes the boards
-/// inherit.
+/// One `Xform` per signal under `/Map/Signals`. `placements` says what
+/// holds up each signal, in the same order, and where its boards stand.
+/// Returns the type classes the boards inherit.
 pub(crate) fn signals(
     net: &RoadNetwork,
     provenance: &Provenance,
     paths: &Paths,
-    supports: &[Support],
+    placements: &[Placement],
     out: &mut impl Write,
 ) -> io::Result<BTreeSet<String>> {
     let mut classes = BTreeSet::new();
     open(out, 1, "def Scope", "Signals", &[], &[])?;
-    for (signal, support) in net.signals().iter().zip(supports) {
+    for (signal, placement) in net.signals().iter().zip(placements) {
         let prov = provenance.signals.iter().find(|p| p.signal == signal.id);
         let (width, height) = (signal.width, signal.height);
         let mut tags = vec![
@@ -65,7 +65,7 @@ pub(crate) fn signals(
             tags.push(("t", Tag::Double(p.t)));
             tags.push(("orientation", Tag::Token(orientation(p.orientation))));
         }
-        tags.extend(support.tags());
+        tags.extend(placement.support.tags());
         tags.push(("appliesAt", Tag::Points(signal.applies_at.clone())));
         let lanes = signal.lanes.iter();
         let lanes = lanes.filter_map(|l| paths.lanes.get(l).cloned());
@@ -106,19 +106,15 @@ pub(crate) fn signals(
             kind: &signal.kind,
             subtype: &signal.subtype,
             semantics: &signal.semantics,
-            at: [0.0; 3],
+            at: [placement.front, 0.0, 0.0],
             turned: false,
             width,
             height,
         };
         if two_faced(provenance, signal) {
-            let apart = back(signal) + GAP;
-            let front = Board {
-                at: [apart, 0.0, 0.0],
-                ..board
-            };
+            let front = board;
             let back = Board {
-                at: [-apart, 0.0, 0.0],
+                at: [-placement.back, 0.0, 0.0],
                 turned: true,
                 ..board
             };
@@ -127,7 +123,7 @@ pub(crate) fn signals(
         } else {
             classes.insert(board.write(out, "board", &[])?);
         }
-        let front = signal.length.unwrap_or(0.0) / 2.0 + FRONT;
+        let front = placement.front + signal.length.unwrap_or(0.0) / 2.0 + FRONT;
         for (k, b) in signal.boards.iter().enumerate() {
             match b {
                 SignalBoard::Static(signs) => {

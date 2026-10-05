@@ -1,66 +1,85 @@
-//! What holds each signal up: a pole the map has, or one the exporter adds.
+//! What holds each signal up: a pole the map has, or a structure the
+//! exporter adds.
+//!
+//! Signals at one spot share a structure, whichever way they face. Over
+//! traffic, the structure is a cantilever, a span gantry or a space frame,
+//! chosen by its span, the sign area it carries and the lanes it crosses.
+//! The limits are AASHTO's, as state DOTs such as WSDOT and DelDOT apply
+//! them.
 
+use std::collections::HashSet;
 use std::f32::consts::TAU;
-use std::io::{self, Write};
 
 use xodr::{
-    LaneType, Mesh, MeshSampler, ObjectType, Point, Provenance, Referenced, RoadNetwork, Shape,
-    Signal, Vector,
+    LaneType, Mesh, MeshSampler, ObjectType, Point, Provenance, Referenced, RoadId, RoadNetwork,
+    Shape, Signal, Vector,
 };
 
-use crate::{close, open, write_mesh, MeshPrim, Paths, Tag};
+use crate::signals::{back, two_faced, FALLBACK_SIZE};
+use crate::structures::{Frame, Held, Kind, Structure, ABOVE, GAP};
+use crate::{Paths, Tag};
 
 /// A board less than this many metres above the road is paint, which no
-/// pole holds up.
+/// structure holds up.
 const PAINT: f32 = 0.1;
 
-/// Metres between a signal and a pole that holds it up, or two signals that
-/// share one, measured across the ground.
+/// Metres across the ground within which a pole object holds a signal up,
+/// and within which signals beside the road share a pole.
 const NEAR: f32 = 0.5;
 
-/// The radius of a pole the exporter adds, in metres.
-const RADIUS: f32 = 0.04;
+/// Metres along the way they face within which signals share a structure.
+const ALONG: f32 = 0.5;
 
-/// Metres between a pole's axis and the back of a board it holds.
-pub(crate) const GAP: f32 = RADIUS + 0.01;
-
-/// Sides on a pole the exporter adds.
-const SIDES: usize = 12;
-
-/// Metres between a pole and the nearest lane that carries traffic.
+/// Metres between a structure's foot and the nearest lane that carries
+/// traffic.
 const CLEAR: f32 = 0.5;
 
-/// How far from its board, in metres across the ground, a pole may stand.
-const REACH: f32 = 15.0;
-
-/// Metres between the rings of spots tried for a pole.
+/// Metres between the spots tried for a foot.
 const STEP: f32 = 0.25;
 
-/// Spots tried on each ring.
+/// How far out from its boards, in metres, a structure's leg may stand.
+const SEARCH: f32 = 40.0;
+
+/// How far from its boards, in metres, a fallback arm may stand.
+const REACH: f32 = 15.0;
+
+/// Spots tried on each ring around the boards, for a fallback arm.
 const DIRECTIONS: usize = 32;
 
-/// Metres between the top of the highest board a pole holds and the middle
-/// of its arm.
-const ABOVE: f32 = 0.25;
+/// The most a structure over traffic may span, carry and cross.
+#[derive(Clone, Copy)]
+struct Limits {
+    /// Metres: a cantilever's arm, or a gantry's span from leg to leg.
+    span: f32,
+    /// Square metres of sign.
+    area: f32,
+    /// Lanes under the arm or span: driving lanes for a cantilever, every
+    /// lane that carries traffic for a gantry.
+    lanes: usize,
+}
 
-/// The radius of the bend where a pole turns from rising to its arm, in
-/// metres.
-const BEND: f32 = 1.0;
+/// AASHTO's limits on a cantilever.
+const CANTILEVER: Limits = Limits {
+    span: 13.0,
+    area: 20.0,
+    lanes: 2,
+};
 
-/// The radius of the bend where an arm turns down behind the boards, in
-/// metres. Small, so the arm stays over the boards until it is behind them.
-const ELBOW: f32 = 0.1;
-
-/// Straight pieces in each bend.
-const BEND_STEPS: usize = 8;
+/// AASHTO's limits on a span gantry. A structure over them is a space
+/// frame.
+const GANTRY: Limits = Limits {
+    span: 27.5,
+    area: 55.0,
+    lanes: 5,
+};
 
 /// What holds a signal up.
 pub(crate) enum Support {
     /// A pole object the map has, by its prim path.
     Object(String),
-    /// A pole the exporter adds, by its index in the list of poles.
-    Pole(usize),
-    /// Nothing: road paint, or a board with no room beside the road.
+    /// A structure the exporter adds, by its index.
+    Added(usize),
+    /// Nothing: road paint, or a board with no room for a structure.
     None,
 }
 
@@ -69,7 +88,7 @@ impl Support {
     pub(crate) fn tags(&self) -> [(&'static str, Tag); 2] {
         let (kind, targets) = match self {
             Self::Object(path) => ("object", vec![path.clone()]),
-            Self::Pole(k) => ("synthesized", vec![pole_path(*k)]),
+            Self::Added(k) => ("synthesized", vec![format!("/Map/Supports/support_{k}")]),
             Self::None => ("none", vec![]),
         };
         [
@@ -79,159 +98,381 @@ impl Support {
     }
 }
 
-/// How a pole reaches `column`, behind the boards it holds.
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum Arm {
-    /// None: the pole stands at `column` and goes straight up.
-    Straight,
-    /// The pole stands beside the boards, in line with them. Its arm runs
-    /// behind them at the height of the highest board's middle, as on a
-    /// roadside cantilever.
-    Behind,
-    /// The pole stands anywhere else. Its arm runs [`ABOVE`] over the
-    /// highest board's top, so it can cross in front of the boards.
-    Over,
+/// What holds a signal up, and where its boards stand in its own frame, so
+/// they clear the structure. `front` is the X of `board`, and `back` how far
+/// behind the position `board_back` stands, on a two-faced signal.
+pub(crate) struct Placement {
+    pub(crate) support: Support,
+    pub(crate) front: f32,
+    pub(crate) back: f32,
 }
 
-/// A pole the exporter adds, standing at `base`, off every lane that
-/// carries traffic. It goes straight up, or it rises, bends by [`BEND`] and
-/// runs across to `column`, as [`Arm`] says. Then it drops behind the
-/// boards to `bottom`, turning down by [`ELBOW`].
-pub(crate) struct Pole {
-    base: Point,
-    column: Point,
-    facing: Vector,
-    arm: Arm,
-    /// Whether it holds a two-faced signal, between its boards. No other
-    /// signal shares it.
+/// A signal a structure holds, in the structure's frame.
+struct Member {
+    signal: usize,
+    /// `+1` if it faces along the frame's axis, `-1` if against.
+    faces: f32,
+    /// Metres along the axis from the frame's origin.
+    along: f32,
+    /// Metres across, along the frame's side.
+    u: f32,
     two_faced: bool,
-    /// The top of the highest board it holds.
+    /// How far behind its position the back of its box reaches.
+    back: f32,
+    width: f32,
+    area: f32,
+    middle: f32,
     top: f32,
-    /// The middle of the highest board it holds.
-    high: f32,
-    /// The middle of the lowest board it holds.
-    bottom: f32,
+    ground: f32,
 }
 
-impl Pole {
-    /// The pole's centerline, with sharp corners.
-    fn path(&self) -> Vec<Point> {
-        let at = |p: Point, z| Point::new(p.x, p.y, z);
-        let arm = match self.arm {
-            Arm::Straight => return vec![self.base, at(self.base, self.top)],
-            Arm::Behind => self.high,
-            Arm::Over => self.top + ABOVE,
-        };
-        let mut path = vec![self.base, at(self.base, arm), at(self.column, arm)];
-        if self.bottom < arm - 1e-3 {
-            path.push(at(self.column, self.bottom));
-        }
-        path
+/// Signals that share a structure: over traffic, or beside it.
+struct Group {
+    origin: Point,
+    axis: Vector,
+    over: bool,
+    members: Vec<Member>,
+}
+
+impl Group {
+    fn side(&self) -> Vector {
+        Vector::Z.cross(self.axis)
     }
 
-    /// Whether the pole can also hold `signal`, which faces `facing`: it
-    /// stands within [`NEAR`] of it, behind its box, and faces the same way.
-    fn holds(&self, signal: &Signal, facing: Vector) -> bool {
-        let position = signal.position;
-        let to = Vector::new(self.column.x - position.x, self.column.y - position.y, 0.0);
-        let back = crate::signals::back(signal);
-        !self.two_faced
-            && across(self.column, position) <= NEAR
-            && to.dot(facing) <= -(back + RADIUS)
-            && self.facing.dot(facing) > 0.99
+    /// The center line of a structure `clearance` metres from the back of
+    /// every board, between the two ways the boards face if they face both.
+    fn line(&self, clearance: f32) -> f32 {
+        let faces = self.members.iter().flat_map(|m| {
+            let both = m.two_faced.then_some(-m.faces);
+            std::iter::once(m.faces).chain(both).map(move |f| (f, m))
+        });
+        let (mut front, mut behind) = (f32::INFINITY, f32::NEG_INFINITY);
+        for (faces, m) in faces {
+            if faces > 0.0 {
+                front = front.min(m.along - m.back - clearance);
+            } else {
+                behind = behind.max(m.along + m.back + clearance);
+            }
+        }
+        match (front.is_finite(), behind.is_finite()) {
+            (true, true) => (front + behind) / 2.0,
+            (true, false) => front,
+            _ => behind,
+        }
+    }
+
+    /// How far each board must move toward its traffic, in its signal's
+    /// frame, to stand `clearance` from the line: `board`'s, then
+    /// `board_back`'s.
+    fn shifts(&self, line: f32, clearance: f32) -> Vec<(f32, f32)> {
+        self.members
+            .iter()
+            .map(|m| {
+                let ahead = m.faces * (m.along - line);
+                let front = (clearance + m.back - ahead).max(0.0);
+                let back = (clearance + m.back + ahead).max(0.0);
+                (front, back)
+            })
+            .collect()
+    }
+
+    /// The boards, for hangers.
+    fn held(&self) -> Vec<Held> {
+        let held = |m: &Member, faces| Held {
+            u: m.u,
+            faces,
+            middle: m.middle,
+        };
+        self.members
+            .iter()
+            .flat_map(|m| {
+                let both = m.two_faced.then(|| held(m, -m.faces));
+                std::iter::once(held(m, m.faces)).chain(both)
+            })
+            .collect()
+    }
+}
+
+/// How far a structure over traffic reaches, and the lanes it crosses.
+#[derive(Clone, Copy, Debug)]
+struct Reach {
+    length: f32,
+    lanes: usize,
+}
+
+/// Which structure to build over traffic.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Choice {
+    /// A cantilever whose leg stands on the left (`-1`) or right (`+1`).
+    Cantilever(i8),
+    Gantry,
+    SpaceFrame,
+    /// Neither leg has room, so no structure from AASHTO's list fits.
+    Arm,
+}
+
+/// The structure for `area` square metres of sign, given how far a
+/// cantilever from each side would reach and how far a gantry would span.
+/// The shorter cantilever that fits [`CANTILEVER`] wins, then a gantry that
+/// fits [`GANTRY`], then a space frame.
+fn choose(area: f32, left: Option<Reach>, right: Option<Reach>, span: Option<Reach>) -> Choice {
+    let fits = |r: &Reach, l: Limits| r.length <= l.span && area <= l.area && r.lanes <= l.lanes;
+    let cantilever = [(-1, left), (1, right)]
+        .into_iter()
+        .filter_map(|(side, r)| r.filter(|r| fits(r, CANTILEVER)).map(|r| (side, r.length)))
+        .min_by(|a, b| a.1.total_cmp(&b.1));
+    match (cantilever, span) {
+        (Some((side, _)), _) => Choice::Cantilever(side),
+        (None, Some(r)) if fits(&r, GANTRY) => Choice::Gantry,
+        (None, Some(_)) => Choice::SpaceFrame,
+        (None, None) => Choice::Arm,
     }
 }
 
 /// What holds up each signal, in the order of `net.signals()`, and the
-/// poles the exporter adds. `traffic` is the surface of the lanes that carry
-/// traffic, from [`traffic`]. A signal's pole is the first of:
+/// structures the exporter adds. A signal's support is the first of:
 ///
 /// 1. nothing, for paint on the road;
-/// 2. a pole object its `<reference>`s name;
-/// 3. a pole object within [`NEAR`] of it;
-/// 4. an added pole, shared with signals within [`NEAR`] that face the same
-///    way and stand in front of it. A two-faced signal shares with none;
-/// 5. nothing, if no spot off the traffic is within [`REACH`].
+/// 2. a pole object its `<reference>`s name, or one within [`NEAR`];
+/// 3. a structure it shares with the signals at its spot. Beside the road
+///    that is a pole. Over traffic it is what [`choose`] picks;
+/// 4. nothing, if no structure has room.
 pub(crate) fn supports(
     net: &RoadNetwork,
     provenance: &Provenance,
     paths: &Paths,
-    traffic: &MeshSampler,
-) -> (Vec<Support>, Vec<Pole>) {
-    let mut poles: Vec<Pole> = Vec::new();
-    let supports = net
-        .signals()
+    surface: &Mesh,
+) -> (Vec<Placement>, Vec<Structure>) {
+    let traffic_mesh = traffic(net, surface);
+    let traffic = traffic_mesh.sampler();
+    let lanes = Lanes::new(net, surface);
+    let signals = net.signals();
+    let mut placements: Vec<Placement> = signals
         .iter()
-        .map(|signal| {
-            let ground = ground(net, signal);
-            if signal.position.z - ground < PAINT {
-                return Support::None;
-            }
-            if let Some(path) = pole_object(net, paths, signal) {
-                return Support::Object(path);
-            }
-            let height = signal.height.unwrap_or(crate::signals::FALLBACK_SIZE);
-            let (top, middle) = (signal.position.z + height, signal.position.z + height / 2.0);
-            let (sin, cos) = signal.heading.sin_cos();
-            let facing = Vector::new(cos, sin, 0.0);
-            let two_faced = crate::signals::two_faced(provenance, signal);
-            let found = (!two_faced)
-                .then(|| poles.iter().position(|p| p.holds(signal, facing)))
-                .flatten();
-            if let Some(k) = found {
-                let pole = &mut poles[k];
-                pole.top = pole.top.max(top);
-                pole.high = pole.high.max(middle);
-                pole.bottom = pole.bottom.min(middle);
-                return Support::Pole(k);
-            }
-            let behind = match two_faced {
-                true => 0.0,
-                false => crate::signals::back(signal) + GAP,
-            };
-            let column = Point::new(signal.position.x, signal.position.y, ground) - facing * behind;
-            let found = match traffic.height_at(column.x, column.y) {
-                None => Some((column, Arm::Straight)),
-                Some(_) => beside_traffic(net, traffic, column, facing),
-            };
-            let Some((base, arm)) = found else {
-                return Support::None;
-            };
-            poles.push(Pole {
-                base,
-                column,
-                facing,
-                arm,
-                two_faced,
-                top,
-                high: middle,
-                bottom: middle,
-            });
-            Support::Pole(poles.len() - 1)
+        .map(|s| Placement {
+            support: Support::None,
+            front: 0.0,
+            back: if two_faced(provenance, s) {
+                back(s) + GAP
+            } else {
+                0.0
+            },
         })
         .collect();
-    (supports, poles)
+    let mut groups: Vec<Group> = vec![];
+    for (i, signal) in signals.iter().enumerate() {
+        let ground = ground(net, signal);
+        if signal.position.z - ground < PAINT {
+            continue;
+        }
+        if let Some(path) = pole_object(net, paths, signal) {
+            placements[i].support = Support::Object(path);
+            continue;
+        }
+        let (sin, cos) = signal.heading.sin_cos();
+        let facing = Vector::new(cos, sin, 0.0);
+        let p = signal.position;
+        let over = traffic.height_at(p.x, p.y).is_some();
+        let height = signal.height.unwrap_or(FALLBACK_SIZE);
+        let width = signal.width.unwrap_or(FALLBACK_SIZE);
+        let member = |g: &Group| {
+            let to = Vector::new(p.x - g.origin.x, p.y - g.origin.y, 0.0);
+            Member {
+                signal: i,
+                faces: facing.dot(g.axis).signum(),
+                along: to.dot(g.axis),
+                u: to.dot(g.side()),
+                two_faced: two_faced(provenance, signal),
+                back: back(signal),
+                width,
+                area: width * height,
+                middle: p.z + height / 2.0,
+                top: p.z + height,
+                ground,
+            }
+        };
+        let joins = |g: &Group| {
+            let m = member(g);
+            let reach = if over { SEARCH } else { NEAR };
+            g.over == over
+                && facing.dot(g.axis).abs() > 0.99
+                && m.along.abs() <= ALONG
+                && m.u.abs() <= reach
+        };
+        match groups.iter().position(joins) {
+            Some(k) => {
+                let m = member(&groups[k]);
+                groups[k].members.push(m);
+            }
+            None => {
+                let mut group = Group {
+                    origin: Point::new(p.x, p.y, ground),
+                    axis: facing,
+                    over,
+                    members: vec![],
+                };
+                group.members.push(member(&group));
+                groups.push(group);
+            }
+        }
+    }
+    let mut structures = vec![];
+    for group in &groups {
+        let Some((structure, frame_line, kind)) = build(net, &traffic, &lanes, group) else {
+            continue;
+        };
+        let shifts = group.shifts(frame_line, kind.clearance());
+        for (m, (front, back)) in group.members.iter().zip(shifts) {
+            placements[m.signal] = Placement {
+                support: Support::Added(structures.len()),
+                front,
+                back,
+            };
+        }
+        structures.push(structure);
+    }
+    (placements, structures)
+}
+
+/// The structure for `group`, its center line and its kind, or `None` if
+/// none has room.
+fn build(
+    net: &RoadNetwork,
+    traffic: &MeshSampler,
+    lanes: &Lanes,
+    group: &Group,
+) -> Option<(Structure, f32, Kind)> {
+    let frame = |line| Frame {
+        origin: group.origin,
+        axis: group.axis,
+        side: group.side(),
+        line,
+    };
+    let members = &group.members;
+    let top = members.iter().map(|m| m.top).fold(f32::MIN, f32::max);
+    let high = members.iter().map(|m| m.middle).fold(f32::MIN, f32::max);
+    let ground = members.iter().map(|m| m.ground).fold(f32::MAX, f32::min);
+    if !group.over {
+        let line = group.line(Kind::Pole.clearance());
+        let foot = frame(line).at(0.0, 0.0, ground);
+        let structure = Structure::pole(foot, top);
+        return Some((structure, line, Kind::Pole));
+    }
+    let lo = members
+        .iter()
+        .map(|m| m.u - m.width / 2.0)
+        .fold(f32::MAX, f32::min);
+    let hi = members
+        .iter()
+        .map(|m| m.u + m.width / 2.0)
+        .fold(f32::MIN, f32::max);
+    let area: f32 = members.iter().map(|m| m.area).sum();
+    let legs = |f: &Frame, depth: f32| {
+        let clear = |u| {
+            [-depth / 2.0, depth / 2.0]
+                .iter()
+                .all(|&a| clear(traffic, f.at(a, u, 0.0)))
+        };
+        (leg(lo, -1.0, clear), leg(hi, 1.0, clear))
+    };
+    let first = frame(group.line(Kind::Cantilever.clearance()));
+    let (left, right) = legs(&first, 0.0);
+    let reach = |from: f32, to: f32, drivable| Reach {
+        length: (to - from).abs(),
+        lanes: lanes.count(first.at(0.0, from, 0.0), first.at(0.0, to, 0.0), drivable),
+    };
+    let choice = choose(
+        area,
+        left.map(|u| reach(u, hi, true)),
+        right.map(|u| reach(lo, u, true)),
+        left.zip(right).map(|(l, r)| reach(l, r, false)),
+    );
+    let kind = match choice {
+        Choice::Cantilever(_) => Kind::Cantilever,
+        Choice::Gantry => Kind::Gantry,
+        Choice::SpaceFrame => Kind::SpaceFrame,
+        Choice::Arm => Kind::Arm,
+    };
+    let line = group.line(kind.clearance());
+    let f = frame(line);
+    let held = group.held();
+    let at_ground = |u: f32| {
+        let p = f.at(0.0, u, ground);
+        let road = net.road_position(p).and_then(|at| net.road_point(at));
+        (u, road.map_or(ground, |r| r.z))
+    };
+    let structure = match choice {
+        Choice::Cantilever(side) => {
+            let (left, right) = legs(&f, 0.0);
+            let (leg, end) = match side {
+                -1 => (left?, members.iter().map(|m| m.u).fold(f32::MIN, f32::max)),
+                _ => (right?, members.iter().map(|m| m.u).fold(f32::MAX, f32::min)),
+            };
+            let (_, z) = at_ground(leg);
+            Structure::cantilever(&f, f.at(0.0, leg, z), leg, end, high, &held)
+        }
+        Choice::Gantry | Choice::SpaceFrame => {
+            let (left, right) = legs(&f, kind.footprint());
+            Structure::span(kind, &f, at_ground(left?), at_ground(right?), high, &held)
+        }
+        Choice::Arm => {
+            let reach = (lo + hi) / 2.0;
+            let foot = anywhere(net, traffic, f.at(0.0, reach, ground))?;
+            Structure::arm(&f, foot, reach, top + ABOVE, &held)
+        }
+    };
+    Some((structure, line, kind))
+}
+
+/// The first `u` past `from`, going `dir`, where `clear(u)` holds, within
+/// [`SEARCH`].
+fn leg(from: f32, dir: f32, clear: impl Fn(f32) -> bool) -> Option<f32> {
+    (1..=(SEARCH / STEP) as usize)
+        .map(|i| from + dir * i as f32 * STEP)
+        .find(|&u| clear(u))
+}
+
+/// Whether no traffic is within [`CLEAR`] of `p`, across the ground.
+fn clear(traffic: &MeshSampler, p: Point) -> bool {
+    std::iter::once((p.x, p.y))
+        .chain(around(p.x, p.y, CLEAR))
+        .all(|(x, y)| traffic.height_at(x, y).is_none())
+}
+
+fn around(x: f32, y: f32, radius: f32) -> impl Iterator<Item = (f32, f32)> {
+    (0..DIRECTIONS).map(move |k| {
+        let (sin, cos) = (TAU * k as f32 / DIRECTIONS as f32).sin_cos();
+        (x + radius * cos, y + radius * sin)
+    })
+}
+
+/// The nearest spot to `center` with no traffic within [`CLEAR`], within
+/// [`REACH`] across the ground, at the height of the road nearest it.
+fn anywhere(net: &RoadNetwork, traffic: &MeshSampler, center: Point) -> Option<Point> {
+    let (x, y) = (1..=(REACH / STEP) as usize)
+        .flat_map(|i| around(center.x, center.y, i as f32 * STEP))
+        .find(|&(x, y)| clear(traffic, Point::new(x, y, center.z)))?;
+    let near = Point::new(x, y, center.z);
+    let road = net.road_position(near).and_then(|at| net.road_point(at));
+    Some(Point::new(x, y, road.map_or(center.z, |p| p.z)))
+}
+
+/// Whether a lane of `kind` carries traffic: every type but a sidewalk,
+/// border, curb, median or `none`. A structure may stand on those.
+fn carries_traffic(kind: LaneType) -> bool {
+    !matches!(
+        kind,
+        LaneType::Sidewalk | LaneType::Border | LaneType::Curb | LaneType::Median | LaneType::None
+    )
 }
 
 /// The part of `surface`, a [`RoadNetwork::surface_mesh`], whose lanes
-/// carry traffic: every lane but a sidewalk, border, curb, median or one of
-/// type `none`. A pole may stand on those.
+/// carry traffic.
 pub(crate) fn traffic(net: &RoadNetwork, surface: &Mesh) -> Mesh {
     let indices = surface
         .lanes
         .iter()
-        .filter(|span| {
-            net.lane(span.lane).is_some_and(|lane| {
-                !matches!(
-                    lane.kind,
-                    LaneType::Sidewalk
-                        | LaneType::Border
-                        | LaneType::Curb
-                        | LaneType::Median
-                        | LaneType::None
-                )
-            })
-        })
+        .filter(|span| net.lane(span.lane).is_some_and(|l| carries_traffic(l.kind)))
         .flat_map(|span| &surface.indices[span.indices.start as usize..span.indices.end as usize])
         .copied()
         .collect();
@@ -243,138 +484,95 @@ pub(crate) fn traffic(net: &RoadNetwork, surface: &Mesh) -> Mesh {
     }
 }
 
-/// Where a pole for a board over traffic stands, and how its arm reaches
-/// `column`. The spot is within [`REACH`] across the ground, has no traffic
-/// within [`CLEAR`] of it, and is at the height of the road nearest it.
-///
-/// It is the nearest spot in line with the board, along its width, so the
-/// arm runs behind the board. Failing that, it is the nearest spot in any
-/// direction, and the arm runs over the board.
-fn beside_traffic(
-    net: &RoadNetwork,
-    traffic: &MeshSampler,
-    column: Point,
-    facing: Vector,
-) -> Option<(Point, Arm)> {
-    let around = |x: f32, y: f32, radius: f32| {
-        (0..DIRECTIONS).map(move |k| {
-            let (sin, cos) = (TAU * k as f32 / DIRECTIONS as f32).sin_cos();
-            (x + radius * cos, y + radius * sin)
-        })
-    };
-    let clear = |&(x, y): &(f32, f32)| {
-        std::iter::once((x, y))
-            .chain(around(x, y, CLEAR))
-            .all(|(x, y)| traffic.height_at(x, y).is_none())
-    };
-    let rings = (REACH / STEP) as usize;
-    let side = Vector::Z.cross(facing);
-    let mut in_line = (1..=rings).flat_map(|i| {
-        let d = i as f32 * STEP;
-        [d, -d].map(|d| (column.x + side.x * d, column.y + side.y * d))
-    });
-    let mut anywhere = (1..=rings).flat_map(|i| around(column.x, column.y, i as f32 * STEP));
-    let ((x, y), arm) = in_line
-        .find(clear)
-        .map(|spot| (spot, Arm::Behind))
-        .or_else(|| anywhere.find(clear).map(|spot| (spot, Arm::Over)))?;
-    let near = Point::new(x, y, column.z);
-    let ground = net.road_position(near).and_then(|at| net.road_point(at));
-    Some((Point::new(x, y, ground.map_or(column.z, |p| p.z)), arm))
+/// The lanes that carry traffic, as triangles seen from above, to count the
+/// lanes a structure crosses. Lanes inside a junction don't count: its
+/// connecting lanes overlap on the same pavement, so a line across a
+/// junction would count each of them.
+struct Lanes {
+    lanes: Vec<LaneArea>,
 }
 
-/// One `Mesh` per added pole under `/Map/Supports`: a tube along its path,
-/// with round bends and a cap at the end.
-pub(crate) fn write_poles(poles: &[Pole], out: &mut impl Write) -> io::Result<()> {
-    open(out, 1, "def Scope", "Supports", &[], &[])?;
-    for (k, pole) in poles.iter().enumerate() {
-        let (points, normals, indices) = tube(&rounded(&pole.path(), &[BEND, ELBOW]));
-        let mesh = MeshPrim {
-            name: format!("support_{k}"),
-            tags: vec![("synthesized", Tag::Bool(true))],
-            points: &points,
-            normals: &normals,
-            face_size: 3,
-            indices,
-            colors: vec![[0.5; 3]],
-            double_sided: false,
-        };
-        write_mesh(out, 2, &mesh)?;
+struct LaneArea {
+    /// The road and `<lane id>`, so a lane split into sections counts once.
+    key: (RoadId, i32),
+    drivable: bool,
+    low: [f32; 2],
+    high: [f32; 2],
+    triangles: Vec<[[f32; 2]; 3]>,
+}
+
+impl Lanes {
+    fn new(net: &RoadNetwork, surface: &Mesh) -> Self {
+        let lanes = surface
+            .lanes
+            .iter()
+            .filter_map(|span| {
+                let lane = net.lane(span.lane).filter(|l| carries_traffic(l.kind))?;
+                let at = net.road_lane(span.lane)?;
+                if net.road(at.road)?.junction().is_some() {
+                    return None;
+                }
+                let indices =
+                    &surface.indices[span.indices.start as usize..span.indices.end as usize];
+                let corner = |i: u32| {
+                    let v = surface.vertices[i as usize];
+                    [v.x, v.y]
+                };
+                let triangles: Vec<[[f32; 2]; 3]> = indices
+                    .chunks_exact(3)
+                    .map(|t| [corner(t[0]), corner(t[1]), corner(t[2])])
+                    .collect();
+                let (mut low, mut high) = ([f32::MAX; 2], [f32::MIN; 2]);
+                for c in triangles.iter().flatten() {
+                    for k in 0..2 {
+                        low[k] = low[k].min(c[k]);
+                        high[k] = high[k].max(c[k]);
+                    }
+                }
+                Some(LaneArea {
+                    key: (at.road, at.od_id),
+                    drivable: lane.kind.is_drivable(),
+                    low,
+                    high,
+                    triangles,
+                })
+            })
+            .collect();
+        Self { lanes }
     }
-    close(out, 1)
-}
 
-/// `path` with each corner replaced by an arc. The arcs take their radii
-/// from `radii` in order, or less where a straight piece is too short.
-fn rounded(path: &[Point], radii: &[f32]) -> Vec<Point> {
-    let mut line = vec![path[0]];
-    for (w, &radius) in path.windows(3).zip(radii) {
-        let (corner, a, b) = (w[1], w[1] - w[0], w[2] - w[1]);
-        let (into, out) = (a.normalize_or(Vector::Z), b.normalize_or(Vector::Z));
-        let turn = into.dot(out).clamp(-1.0, 1.0).acos();
-        if turn < 1e-3 {
-            line.push(corner);
-            continue;
+    /// The lanes under the line from `a` to `b`, seen from above: driving
+    /// lanes only if `drivable`, else every lane that carries traffic. It
+    /// samples the middle of each [`STEP`], so a lane the line only touches
+    /// at an end doesn't count.
+    fn count(&self, a: Point, b: Point, drivable: bool) -> usize {
+        let steps = ((b - a).length() / STEP).ceil().max(1.0) as usize;
+        let mut hit = HashSet::new();
+        for k in 0..steps {
+            let p = a + (b - a) * ((k as f32 + 0.5) / steps as f32);
+            for lane in self.lanes.iter().filter(|l| l.drivable || !drivable) {
+                let inside = (0..2).all(|i| {
+                    let v = [p.x, p.y][i];
+                    lane.low[i] <= v && v <= lane.high[i]
+                });
+                if inside && lane.triangles.iter().any(|t| covers(t, [p.x, p.y])) {
+                    hit.insert(lane.key);
+                }
+            }
         }
-        let cut = (radius * (turn / 2.0).tan())
-            .min(a.length() / 2.0)
-            .min(b.length() / 2.0);
-        let arc = cut / (turn / 2.0).tan();
-        let inward = (out - into * into.dot(out)).normalize_or(Vector::Z);
-        let center = corner - into * cut + inward * arc;
-        line.extend((0..=BEND_STEPS).map(|i| {
-            let angle = turn * i as f32 / BEND_STEPS as f32;
-            center + (inward * -angle.cos() + into * angle.sin()) * arc
-        }));
+        hit.len()
     }
-    line.extend(path.last());
-    line.dedup_by(|a, b| (*a - *b).length() < 1e-4);
-    line
 }
 
-/// A tube of [`RADIUS`] along `line`, which lies in one upright plane, and
-/// a cap over its last end: points, normals and triangle indices.
-fn tube(line: &[Point]) -> (Vec<Point>, Vec<Vector>, Vec<u32>) {
-    let (first, last) = (line[0], line[line.len() - 1]);
-    let across = Vector::new(last.x - first.x, last.y - first.y, 0.0);
-    let side = Vector::Z.cross(across).normalize_or(Vector::X);
-    let tangent = |i: usize| {
-        let into = (i > 0).then(|| (line[i] - line[i - 1]).normalize_or_zero());
-        let out = line
-            .get(i + 1)
-            .map(|&next| (next - line[i]).normalize_or_zero());
-        (into.unwrap_or(Vector::ZERO) + out.unwrap_or(Vector::ZERO)).normalize_or(Vector::Z)
-    };
-    let ring = |center: Point, along: Vector| {
-        let normal = side.cross(along);
-        (0..SIDES).map(move |k| {
-            let (sin, cos) = (TAU * k as f32 / SIDES as f32).sin_cos();
-            let out = normal * cos + side * sin;
-            (center + out * RADIUS, out)
-        })
-    };
-    let (mut points, mut normals): (Vec<Point>, Vec<Vector>) = line
+/// Whether triangle `t` covers `p`, seen from above.
+fn covers(t: &[[f32; 2]; 3], p: [f32; 2]) -> bool {
+    let edge =
+        |a: [f32; 2], b: [f32; 2]| (p[0] - b[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (p[1] - b[1]);
+    let s = [edge(t[0], t[1]), edge(t[1], t[2]), edge(t[2], t[0])];
+    let (low, high) = s
         .iter()
-        .enumerate()
-        .flat_map(|(i, &center)| ring(center, tangent(i)))
-        .unzip();
-    let n = SIDES as u32;
-    let mut indices = Vec::new();
-    for r in 0..line.len() as u32 - 1 {
-        let (a, b) = (r * n, (r + 1) * n);
-        for i in 0..n {
-            let j = (i + 1) % n;
-            indices.extend([a + i, a + j, b + j, a + i, b + j, b + i]);
-        }
-    }
-    let end = tangent(line.len() - 1);
-    let cap = points.len() as u32;
-    points.extend(ring(last, end).map(|(p, _)| p));
-    normals.extend(std::iter::repeat_n(end, SIDES));
-    for i in 1..n - 1 {
-        indices.extend([cap, cap + i, cap + i + 1]);
-    }
-    (points, normals, indices)
+        .fold((f32::MAX, f32::MIN), |(l, h), &v| (l.min(v), h.max(v)));
+    !(low < 0.0 && high > 0.0)
 }
 
 /// The height of the road straight under `signal`'s board, or where it
@@ -414,95 +612,24 @@ fn across(a: Point, b: Point) -> f32 {
     Vector::new(a.x - b.x, a.y - b.y, 0.0).length()
 }
 
-fn pole_path(k: usize) -> String {
-    format!("/Map/Supports/support_{k}")
-}
-
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use super::*;
+    use crate::signals::unrotate;
 
-    /// The poles the exporter adds to `map`, and the surface of its traffic.
-    fn poles(map: &str) -> (Vec<Pole>, Mesh) {
-        let (net, provenance) =
-            xodr::load_file_with_provenance(format!("../tests/data/{map}.xodr")).expect("loads");
-        let surface = net.surface_mesh();
-        let sink = &mut io::sink();
-        let paths = Paths {
-            lanes: crate::roads(&net, &surface, sink).expect("writes"),
-            objects: crate::objects(&net, &provenance, &net.object_mesh(), sink).expect("writes"),
-        };
-        let traffic = traffic(&net, &surface);
-        let (_, poles) = supports(&net, &provenance, &paths, &traffic.sampler());
-        (poles, traffic)
-    }
-
-    #[test]
-    fn no_pole_stands_in_traffic() {
-        for map in [
-            "signals",
-            "lane_heights",
-            "signal_semantics",
-            "traffic_rule",
-        ] {
-            let (poles, traffic) = poles(map);
-            for pole in &poles {
-                let base = pole.base;
-                assert!(
-                    traffic.height_at(base.x, base.y).is_none(),
-                    "{map}: {base:?}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn a_pole_bends_over_traffic_to_a_board_above_it() {
-        let (poles, traffic) = poles("signals");
-        let bent: Vec<&Pole> = poles
-            .iter()
-            .filter(|p| traffic.height_at(p.column.x, p.column.y).is_some())
-            .collect();
-        assert!(bent.len() >= 2, "the gantry and the side light");
-        for pole in bent {
-            let path = rounded(&pole.path(), &[BEND, ELBOW]);
-            let end = path.last().expect("a path");
-            assert!(
-                across(*end, pole.column) < 1e-3,
-                "{end:?} reaches {:?}",
-                pole.column
-            );
-            assert!(across(path[0], pole.column) > CLEAR);
-        }
-    }
-
-    #[test]
-    fn a_bend_is_round() {
-        let corner = [
-            Point::ORIGIN,
-            Point::new(0.0, 0.0, 4.0),
-            Point::new(3.0, 0.0, 4.0),
-        ];
-        let line = rounded(&corner, &[BEND]);
-        let center = Point::new(BEND, 0.0, 4.0 - BEND);
-        let arc = &line[1..line.len() - 1];
-        assert_eq!(arc.len(), BEND_STEPS + 1);
-        for p in arc {
-            assert!(((*p - center).length() - BEND).abs() < 1e-4, "{p:?}");
-        }
-    }
-
-    #[test]
-    fn a_pole_never_goes_through_its_boards() {
-        let map = std::fs::read_to_string("../tests/data/signals.xodr").expect("reads");
-        clears_its_boards(&map);
-        let deep = r#"name="SideLight" length="0.6""#;
-        clears_its_boards(&map.replace(r#"name="SideLight""#, deep));
-    }
-
-    /// Check that no pole the exporter adds to `map` goes through a board it
-    /// holds. `map` is `signals.xodr`, maybe changed.
-    fn clears_its_boards(map: &str) {
+    /// The placements and structures the exporter makes for `map`, an
+    /// OpenDRIVE document, with the map and the surface of its traffic.
+    fn export(
+        map: &str,
+    ) -> (
+        RoadNetwork,
+        Provenance,
+        Vec<Placement>,
+        Vec<Structure>,
+        Mesh,
+    ) {
         let (net, provenance) = xodr::load_str_with_provenance(map).expect("loads");
         let surface = net.surface_mesh();
         let sink = &mut io::sink();
@@ -510,64 +637,215 @@ mod tests {
             lanes: crate::roads(&net, &surface, sink).expect("writes"),
             objects: crate::objects(&net, &provenance, &net.object_mesh(), sink).expect("writes"),
         };
+        let (placements, structures) = supports(&net, &provenance, &paths, &surface);
         let traffic = traffic(&net, &surface);
-        let (supports, poles) = supports(&net, &provenance, &paths, &traffic.sampler());
-        let (mut arms, mut two_faced) = (0, 0);
-        for (signal, support) in net.signals().iter().zip(&supports) {
-            let Support::Pole(k) = support else { continue };
-            let path = poles[*k].path();
-            arms += usize::from(path.len() > 2);
-            let both = crate::signals::two_faced(&provenance, signal);
-            two_faced += usize::from(both);
-            let depth = signal.length.unwrap_or(0.0) / 2.0;
-            let (width, height) = (signal.width.unwrap_or(0.0), signal.height.unwrap_or(0.0));
-            let gap = crate::signals::back(signal) + GAP;
-            for p in rounded(&path, &[BEND, ELBOW]) {
-                let [x, y, z] = crate::signals::unrotate(signal, p - signal.position);
-                let beside = y.abs() > width / 2.0 + RADIUS;
-                let off = z > height + RADIUS || z < -RADIUS;
-                let clear = match both {
-                    true => x.abs() + RADIUS <= gap - depth + 1e-4,
-                    false => x + RADIUS <= -depth + 1e-4,
-                };
-                assert!(beside || off || clear, "{} at {p:?}", signal.name);
-            }
-        }
-        assert!(arms >= 2, "the gantry and the side light");
-        assert_eq!(two_faced, 1, "the road works sign");
+        (net, provenance, placements, structures, traffic)
+    }
+
+    fn fixture(name: &str) -> String {
+        std::fs::read_to_string(format!("../tests/data/{name}.xodr")).expect("reads")
+    }
+
+    /// A straight road 100 m long with `lanes` driving lanes 3.5 m wide on
+    /// its right, and `signals`, `<signal>` elements.
+    fn road(lanes: usize, signals: &str) -> String {
+        let right: String = (1..=lanes)
+            .map(|k| {
+                format!(
+                    r#"<lane id="-{k}" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>"#
+                )
+            })
+            .collect();
+        format!(
+            r#"<OpenDRIVE><header revMajor="1" revMinor="6"/>
+            <road id="1" length="100" junction="-1">
+              <planView><geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+              <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>{right}</right></laneSection></lanes>
+              <signals>{signals}</signals>
+            </road></OpenDRIVE>"#
+        )
+    }
+
+    /// A sign at `t` across the road, `width` by `height`, facing `orientation`.
+    fn sign(id: u32, t: f32, width: f32, height: f32, orientation: &str) -> String {
+        format!(
+            r#"<signal id="{id}" s="50" t="{t}" zOffset="5" orientation="{orientation}" dynamic="no" country="DE" type="332" subtype="-1" width="{width}" height="{height}"/>"#
+        )
+    }
+
+    /// `signal` 2.5 m lower.
+    fn low(signal: String) -> String {
+        signal.replace(r#"zOffset="5""#, r#"zOffset="2.5""#)
+    }
+
+    fn kinds(map: &str) -> Vec<Kind> {
+        export(map).3.iter().map(|s| s.kind).collect()
     }
 
     #[test]
-    fn a_pole_over_traffic_is_a_cantilever_beside_its_board() {
-        let map = std::fs::read_to_string("../tests/data/signals.xodr").expect("reads");
-        let (net, provenance) = xodr::load_str_with_provenance(&map).expect("loads");
-        let surface = net.surface_mesh();
-        let sink = &mut io::sink();
-        let paths = Paths {
-            lanes: crate::roads(&net, &surface, sink).expect("writes"),
-            objects: crate::objects(&net, &provenance, &net.object_mesh(), sink).expect("writes"),
-        };
-        let traffic = traffic(&net, &surface);
-        let (supports, poles) = supports(&net, &provenance, &paths, &traffic.sampler());
+    fn the_structure_follows_the_aashto_limits() {
+        let at = |length, lanes| Some(Reach { length, lanes });
+        assert_eq!(
+            choose(20.0, at(13.0, 2), None, None),
+            Choice::Cantilever(-1)
+        );
+        assert_eq!(
+            choose(20.0, at(13.1, 2), at(9.0, 2), None),
+            Choice::Cantilever(1)
+        );
+        assert_eq!(
+            choose(20.0, at(5.0, 2), at(4.0, 2), None),
+            Choice::Cantilever(1)
+        );
+        assert_eq!(
+            choose(20.1, at(5.0, 2), at(5.0, 2), at(10.0, 3)),
+            Choice::Gantry
+        );
+        assert_eq!(choose(20.0, at(5.0, 3), None, at(27.5, 5)), Choice::Gantry);
+        assert_eq!(choose(55.0, None, None, at(27.5, 5)), Choice::Gantry);
+        assert_eq!(choose(55.1, None, None, at(10.0, 2)), Choice::SpaceFrame);
+        assert_eq!(choose(10.0, None, None, at(27.6, 5)), Choice::SpaceFrame);
+        assert_eq!(choose(10.0, None, None, at(20.0, 6)), Choice::SpaceFrame);
+        assert_eq!(choose(10.0, at(14.0, 1), None, None), Choice::Arm);
+        assert_eq!(choose(10.0, None, None, None), Choice::Arm);
+    }
+
+    #[test]
+    fn wider_roads_and_bigger_signs_get_bigger_structures() {
+        let cases = [
+            (2, sign(1, -3.5, 2.0, 1.0, "+"), Kind::Cantilever),
+            (4, sign(1, -7.0, 3.0, 1.5, "+"), Kind::Gantry),
+            (6, sign(1, -10.5, 3.0, 1.5, "+"), Kind::SpaceFrame),
+            (2, sign(1, -3.5, 5.0, 5.0, "+"), Kind::Gantry),
+            (2, sign(1, -3.5, 8.0, 7.0, "+"), Kind::SpaceFrame),
+            (2, sign(1, -9.0, 0.6, 0.6, "+"), Kind::Pole),
+        ];
+        for (lanes, signal, want) in cases {
+            assert_eq!(
+                kinds(&road(lanes, &signal)),
+                [want],
+                "{lanes} lanes, {signal}"
+            );
+        }
+    }
+
+    #[test]
+    fn signs_back_to_back_share_a_structure() {
+        for (t, kind) in [(-9.0, Kind::Pole), (-3.5, Kind::Cantilever)] {
+            let pair = sign(1, t, 2.0, 1.0, "+") + &sign(2, t, 2.0, 1.0, "-");
+            let map = road(2, &pair);
+            let (_, _, placements, structures, _) = export(&map);
+            assert_eq!(structures.len(), 1, "t {t}");
+            assert_eq!(structures[0].kind, kind);
+            for p in &placements {
+                assert!(matches!(p.support, Support::Added(0)));
+                assert!(
+                    (p.front - GAP).abs() < 1e-4,
+                    "each board steps {} m",
+                    p.front
+                );
+            }
+            clears_its_boards(&map);
+        }
+    }
+
+    #[test]
+    fn signs_across_the_road_share_a_gantry() {
+        let row = sign(1, -2.0, 2.5, 1.5, "+") + &sign(2, -8.0, 2.5, 1.5, "+");
+        let (_, _, placements, structures, _) = export(&road(3, &row));
+        assert_eq!(structures.len(), 1);
+        assert_eq!(structures[0].kind, Kind::Gantry);
+        assert!(placements
+            .iter()
+            .all(|p| matches!(p.support, Support::Added(0))));
+    }
+
+    #[test]
+    fn a_cantilever_runs_behind_its_board_at_its_middle() {
+        let (net, _, placements, structures, _) = export(&fixture("signals"));
         for name in ["Gantry", "SideLight"] {
-            let (signal, support) = net
+            let (signal, placement) = net
                 .signals()
                 .iter()
-                .zip(&supports)
+                .zip(&placements)
                 .find(|(s, _)| s.name == name)
                 .expect("the signal");
-            let Support::Pole(k) = support else {
-                panic!("{name} has an added pole")
+            let Support::Added(k) = placement.support else {
+                panic!("{name} has an added structure")
             };
-            let pole = &poles[*k];
-            assert_eq!(pole.arm, Arm::Behind, "{name}");
+            let structure = &structures[k];
+            assert_eq!(structure.kind, Kind::Cantilever, "{name}");
+            let arm = &structure.members[0].0;
             let middle = signal.position.z + signal.height.expect("a height") / 2.0;
             assert!(
-                (pole.path()[2].z - middle).abs() < 1e-4,
+                (arm[arm.len() - 1].z - middle).abs() < 1e-4,
                 "{name}'s arm is level"
             );
-            let along = pole.facing.dot(pole.base - pole.column);
-            assert!(along.abs() < 1e-3, "{name}'s pole is {along} m out of line");
+        }
+    }
+
+    #[test]
+    fn no_structure_stands_in_traffic_or_goes_through_a_board() {
+        let maps = [
+            fixture("signals"),
+            fixture("lane_heights"),
+            fixture("signal_semantics"),
+            fixture("traffic_rule"),
+            fixture("signals").replace(r#"name="SideLight""#, r#"name="SideLight" length="0.6""#),
+            road(
+                4,
+                &(sign(1, -7.0, 3.0, 1.5, "+") + &sign(2, -7.0, 3.0, 1.5, "-")),
+            ),
+            road(
+                6,
+                &(sign(1, -10.5, 3.0, 1.5, "+") + &sign(2, -10.5, 3.0, 1.5, "-")),
+            ),
+            road(
+                4,
+                &(sign(1, -7.0, 3.0, 1.5, "+") + &low(sign(2, -7.0, 3.0, 1.5, "-"))),
+            ),
+        ];
+        for map in &maps {
+            let (_, _, _, structures, traffic) = export(map);
+            for foot in structures.iter().flat_map(|s| &s.feet) {
+                assert!(traffic.height_at(foot.x, foot.y).is_none(), "{foot:?}");
+            }
+            clears_its_boards(map);
+        }
+    }
+
+    /// Check that no member of a structure the exporter adds to `map` goes
+    /// through a board it holds, measured in each signal's own frame.
+    fn clears_its_boards(map: &str) {
+        let (net, provenance, placements, structures, _) = export(map);
+        for (signal, placement) in net.signals().iter().zip(&placements) {
+            let Support::Added(k) = placement.support else {
+                continue;
+            };
+            let both = two_faced(&provenance, signal);
+            let depth = signal.length.unwrap_or(0.0) / 2.0;
+            let (width, height) = (
+                signal.width.unwrap_or(FALLBACK_SIZE),
+                signal.height.unwrap_or(FALLBACK_SIZE),
+            );
+            for (line, radius) in &structures[k].members {
+                for w in line.windows(2) {
+                    let steps = ((w[1] - w[0]).length() / 0.05).ceil().max(1.0) as usize;
+                    for i in 0..=steps {
+                        let p = w[0] + (w[1] - w[0]) * (i as f32 / steps as f32);
+                        let [x, y, z] = unrotate(signal, p - signal.position);
+                        let beside = y.abs() > width / 2.0 + radius;
+                        let off = z > height + radius || z < -radius;
+                        let front = x + radius <= placement.front - depth + 1e-3;
+                        let back = !both || x - radius >= -placement.back + depth - 1e-3;
+                        assert!(
+                            beside || off || (front && back),
+                            "{} at {p:?}, {x} m along",
+                            signal.name
+                        );
+                    }
+                }
+            }
         }
     }
 }

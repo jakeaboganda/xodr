@@ -14,9 +14,12 @@
   links to its lanes and the signals and objects it names. Each board
   inherits a type class that a catalogue layer can override. Controllers
   export too.
-- Each signal links to the pole that holds it up: one the map has, or one
-  the exporter adds. An added pole never stands in traffic. Over traffic it
-  stands beside it and bends over to the board. Road paint gets no pole.
+- Each signal links to what holds it up: a pole the map has, or a
+  structure the exporter adds. Beside the road that is a pole. Over traffic
+  it is a cantilever, a span gantry or a space frame, picked by its span,
+  sign area and lanes crossed, using AASHTO's limits. Signs at one spot
+  share a structure, whichever way they face. No structure stands in
+  traffic. Road paint gets none.
 - `usd/catalogues/sample.usda` sets the look and labels of the signal
   types in the test maps. `usd/flatten.py` stacks catalogues over a stage
   and flattens it, and `usd/check.py` checks stages with OpenUSD in CI.
