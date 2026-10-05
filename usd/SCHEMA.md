@@ -11,6 +11,8 @@ these stages in another tool, or to write them from another exporter.
 - A **relationship** is a named link from one prim to others, by path.
 - `Scope` groups prims. `Xform` groups prims and moves them. `Mesh` holds
   triangles or quads.
+- An `xformOp` attribute moves (`translate`), turns (`rotate...`) or scales
+  (`scale`) a prim. `xformOpOrder` lists them in the order they apply.
 - A **layer** is one file of scene description. A stage can stack layers.
   Where two layers set the same value, the stronger layer wins.
 - An **over** changes a prim that another layer defines.
@@ -54,10 +56,10 @@ prim is `/Map`.
 | `/Map/Controllers/controller_<n>` | `Scope` | One controller. |
 | `/_SignalTypes/<type class>` | class `Xform` | One per signal type. See [Signal types](#signal-types). |
 
-`<n>` is the id `xodr` gives the prim's road, lane, mark, object, signal or
-controller, or a count for added poles. It's not the OpenDRIVE id, which can
-hold characters USD doesn't allow in a name. The OpenDRIVE ids are in the
-attributes below.
+`<n>` is the id `xodr` gives the road, lane, mark, object, signal or
+controller. For an added structure it's a count. It isn't the OpenDRIVE id,
+which can hold characters USD doesn't allow in a name. The OpenDRIVE ids are
+in the attributes below.
 
 Lanes and marks with no triangles have no prim.
 
@@ -81,9 +83,8 @@ A board's scale is (1, width, height). X isn't scaled, so a type class can
 give its board a depth in metres. A board the map gives no size is 0.6 m
 across and 0.6 m up, and its signal has `xodr:sizeGuessed = 1`.
 
-On a signal with `board_back`, the two boards stand back to back. A
-structure the exporter adds goes between them. See
-[Structures](#structures).
+On a signal with `board_back`, the two boards stand back to back. Their
+boxes have a gap between them, at least 5 cm, for what holds them up.
 
 Every board has up to two label sets:
 
@@ -107,46 +108,70 @@ The exporter takes the first rule that applies:
 
 1. A board less than 0.1 m above the road is paint, such as a stop line. It
    gets `none`.
-2. A pole object the signal's `<reference>`s name gets `object`.
-3. A pole object within 0.5 m of the board, measured across the ground,
-   gets `object`.
+2. A pole object that the signal's `<reference>`s name gets `object`.
+3. A pole object within 0.5 m of the board, across the ground, gets
+   `object`.
 4. Anything else gets `synthesized`.
 
-Signals share a structure if they face the same way or opposite ways, and
-stand within 0.5 m of each other along the way they face. Beside the road
-they must also stand within 0.5 m across. Over traffic they may stand up
-to 40 m apart across, as signs on one gantry do.
+### Which signals share one
 
-A structure never stands in traffic. Every lane carries traffic except
-lanes of type `sidewalk`, `border`, `curb`, `median` and `none`. Each
-structure prim lists where it meets the ground in `xodr:feet`, and its
-kind in `xodr:structure`:
+Signals share a structure if they face the same way or opposite ways. Each
+must stand within 0.5 m of the group's first signal, along the way it
+faces. Beside the road it must also stand within 0.5 m across. Over
+traffic it may stand up to 40 m across, as signs on one gantry do.
+
+### Which kind it is
+
+A structure never stands on a lane that carries traffic. Every lane
+carries traffic except types `sidewalk`, `border`, `curb`, `median` and
+`none`.
 
 | `xodr:structure` | Used when | Shape |
 | --- | --- | --- |
-| `pole` | No traffic is under the boards. | A pole from the ground to the top of the highest board, 5 cm behind the boards. |
-| `cantilever` | The arm is at most 13 m, the signs at most 20 m², and the arm crosses at most 2 driving lanes. | A pole beside the road, in line with the boards, at least 0.5 m from traffic. It rises, bends with a 1 m radius, and runs behind the boards at the height of the highest board's middle. |
-| `gantry` | A cantilever doesn't fit, the span is at most 27.5 m, the signs at most 55 m², and the span crosses at most 5 lanes. | A leg each side of the road and a box truss 0.6 m deep and 0.8 m high between them, behind the boards. |
-| `spaceFrame` | A gantry doesn't fit either. | A tower of two braced columns each side and a box truss 1.2 m deep and 1.5 m high. |
-| `arm` | Only one side of the road has room for a leg, and a cantilever from it doesn't fit. | A pole at the nearest spot with room, within 15 m, whose arm runs 0.25 m above the highest board. |
+| `pole` | No lane that carries traffic is under the signals. | A pole from the ground to the top of the highest board. |
+| `cantilever` | The arm is at most 13 m. The signs are at most 20 m². The arm crosses at most 2 driving lanes. | A pole beside the road, in line with the boards. It rises, bends and runs behind the boards at the height of the highest board's middle. |
+| `gantry` | A cantilever doesn't fit. The span is at most 27.5 m. The signs are at most 55 m². The span crosses at most 5 lanes. | A leg each side of the road, and a box truss 0.6 m deep and 0.8 m high between them. |
+| `spaceFrame` | A gantry doesn't fit either. | A tower of two braced columns each side, and a box truss 1.2 m deep and 1.5 m high. |
+| `arm` | At most one side has room for a leg, and no cantilever fits. | A pole at the nearest spot with room, within 15 m. Its arm runs 0.25 m above the highest board. |
 
-The limits are AASHTO's, from its specification for structural supports for
-highway signs, as state DOTs such as WSDOT and DelDOT apply them. An arm is
-measured from the leg to the far edge of the boards, and a span from leg to
-leg. A cantilever counts the driving lanes under its arm. A gantry counts
-every lane under its span that carries traffic, shoulders included. Lanes
-inside a junction don't count, since its connecting lanes overlap. The sign
-area is the width times the height of each board.
+The limits come from the AASHTO LRFD Specifications for Structural Supports
+for Highway Signs. AASHTO sets US highway standards. US state road
+agencies, such as Washington's (WSDOT) and Delaware's (DelDOT), apply these
+limits.
 
-Boards lower than an arm or truss hang from it on a hanger. If no structure
-has room, the signals get `none`.
+The exporter measures them like this:
 
-To clear its structure, a board may move toward its traffic. Signs back to
-back, at one spot, each move 5 cm beyond their half of the box from a pole
-or arm, and further from a truss. The board's `xformOp:translate` holds the
-move.
+- An arm runs from the leg to the far edge of the boards.
+- A span runs from leg to leg.
+- A leg stands at least 0.5 m from any lane that carries traffic.
+- A cantilever counts the driving lanes under its arm.
+- A gantry counts every lane under its span that carries traffic,
+  shoulders included.
+- Lanes inside a junction don't count, because its connecting lanes
+  overlap.
+- The sign area is the width times the height of each board. Boards back
+  to back count once.
 
-Every added structure is grey and has `xodr:synthesized = 1`.
+If no structure has room, the signals get `none`.
+
+### How boards sit on it
+
+Boards lower than an arm or truss hang from it on a hanger.
+
+A board may move toward its traffic to clear its structure. The board's
+`xformOp:translate` holds the move. After it, the back of the board's box
+is this far from the structure's centre line:
+
+- 5 cm for a `pole`, `cantilever` or `arm`;
+- 0.37 m for a `gantry`;
+- 0.67 m for a `spaceFrame`.
+
+A board that is already far enough doesn't move.
+
+### What the prim holds
+
+Each structure prim lists where it meets the ground in `xodr:feet`, and its
+kind in `xodr:structure`. It's grey and has `xodr:synthesized = 1`.
 
 ## Signal types
 
@@ -170,8 +195,8 @@ that type picks up the change.
 Type classes use board units. Y runs from -0.5 to 0.5 across the board and
 Z from 0 to 1 up it. Each board scales these to its own width and height.
 X is in metres and isn't scaled. +X faces the traffic. Centre a board's
-depth on X = 0, and make it the depth the map gives as `length`, so a pole
-behind the box stays clear of it.
+depth on X = 0, and make it as deep as the map's `length`. Then the
+structure behind it stays clear.
 
 In a type class, a catalogue can:
 
@@ -253,8 +278,6 @@ Every attribute this schema adds starts with `xodr:`.
 | signal | `point3f[] xodr:appliesAt` | The points on the road where the signal applies: its own, then one per `<signalReference>`. |
 | signal | `rel xodr:lanes` | The lanes it applies to. |
 | signal | `token xodr:support`, `rel xodr:supportPrim` | What holds it up. See [Structures](#structures). |
-| structure | `token xodr:structure` | `pole`, `cantilever`, `gantry`, `spaceFrame` or `arm`. |
-| structure | `point3f[] xodr:feet` | Where it meets the ground. |
 | signal | `rel xodr:dependencies`, `string[] xodr:dependencyTypes` | The signals its `<dependency>`s name, and each `type`. |
 | signal | `rel xodr:references`, `string[] xodr:referenceTypes` | The signals and objects its `<reference>`s name, and each `type`. |
 | sign | `string xodr:name`, `xodr:country`, `xodr:type`, `xodr:subtype`, `xodr:text` | As on a signal. |
@@ -265,11 +288,14 @@ Every attribute this schema adds starts with `xodr:`.
 | controller | `string xodr:name` | The controller `name`. |
 | controller | `int xodr:sequence` | Its `sequence`. Only if the map gives one. |
 | controller | `rel xodr:signals`, `string[] xodr:controlTypes` | The signals it controls, and each `<control type>`. |
+| structure | `token xodr:structure` | `pole`, `cantilever`, `gantry`, `spaceFrame` or `arm`. |
+| structure | `point3f[] xodr:feet` | Where it meets the ground. |
+| structure | `bool xodr:synthesized` | Always 1: the exporter added it. |
 
 A relationship skips a target with no prim, such as an object with no
-volume. It lists a target once, even if the map names it twice, with the
-type the map gives it first. Its matching `...Types` array skips the same entries. An empty
-array or relationship is left out.
+volume. It lists each target once, even if the map names it twice. Its
+matching `...Types` array skips the same entries, and keeps the first type.
+An empty array or relationship is left out.
 
 ## Colour
 

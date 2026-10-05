@@ -83,7 +83,7 @@ impl Kind {
         }
     }
 
-    /// Metres between the structure's center line and the back of a board
+    /// Metres between the structure's centre line and the back of a board
     /// it holds.
     pub(crate) fn clearance(self) -> f32 {
         match self {
@@ -117,7 +117,7 @@ impl Truss {
 }
 
 /// A structure's frame: `axis` is the way the boards face, `side` runs
-/// along them, and the structure's center line is `line` metres along
+/// along them, and the structure's centre line is `line` metres along
 /// `axis` from `origin`.
 pub(crate) struct Frame {
     pub(crate) origin: Point,
@@ -127,7 +127,7 @@ pub(crate) struct Frame {
 }
 
 impl Frame {
-    /// The point `along` metres from the center line, `u` along it, at
+    /// The point `along` metres from the centre line, `u` along it, at
     /// height `z`.
     pub(crate) fn at(&self, along: f32, u: f32, z: f32) -> Point {
         let p = self.origin + self.axis * (self.line + along) + self.side * u;
@@ -147,7 +147,7 @@ pub(crate) struct Held {
 /// One structure: tubes, and the points where it meets the ground.
 pub(crate) struct Structure {
     pub(crate) kind: Kind,
-    /// Each tube's center line and radius.
+    /// Each tube's centre line and radius.
     pub(crate) members: Vec<(Vec<Point>, f32)>,
     pub(crate) feet: Vec<Point>,
 }
@@ -184,7 +184,7 @@ impl Structure {
     }
 
     /// A span gantry or a space frame, as `kind` says, between legs at
-    /// `left` and `right`, each `(u, ground)`. Its truss is centered at
+    /// `left` and `right`, each `(u, ground)`. Its truss is centred at
     /// `height`.
     pub(crate) fn span(
         kind: Kind,
@@ -243,7 +243,7 @@ impl Structure {
 }
 
 /// A hanger from `from` down to the middle of each board below it, `face`
-/// metres from the center line on the board's side.
+/// metres from the centre line on the board's side.
 fn hangers(frame: &Frame, held: &[Held], face: f32, from: f32) -> Vec<(Vec<Point>, f32)> {
     held.iter()
         .filter(|h| h.middle < from - 1e-3)

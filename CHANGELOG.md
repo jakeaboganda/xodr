@@ -15,17 +15,19 @@
   inherits a type class that a catalogue layer can override. Controllers
   export too.
 - Each signal links to what holds it up: a pole the map has, or a
-  structure the exporter adds. Beside the road that is a pole. Over traffic
-  it is a cantilever, a span gantry or a space frame, picked by its span,
-  sign area and lanes crossed, using AASHTO's limits. Signs at one spot
-  share a structure, whichever way they face. No structure stands in
-  traffic. Road paint gets none.
+  structure the exporter adds. Beside the road, that's a pole. Over
+  traffic, it's a cantilever, a span gantry or a space frame. AASHTO's
+  limits on span, sign area and lanes pick which.
+- Signs at one spot share a structure, whichever way they face. No
+  structure stands in traffic. Road paint gets none.
 - `usd/catalogues/sample.usda` sets the look and labels of the signal
   types in the test maps. `usd/flatten.py` stacks catalogues over a stage
   and flattens it, and `usd/check.py` checks stages with OpenUSD in CI.
 - `usd/run.sh` takes catalogues and flattens each stage before the page
-  draws it. The page shows signals and poles, their attributes and labels,
-  and frames a prim you double-click.
+  draws it. The page shows signals and the structures that hold them up,
+  with their attributes and labels. Double-click a prim to frame it.
+- `tests/data/structures.xodr` has a cantilever, two span gantries and a
+  space frame.
 
 ## 0.5.0 - 2026-10-03
 
