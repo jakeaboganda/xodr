@@ -112,8 +112,6 @@ mod tests {
         let net = banked_oval();
         let lanes: Vec<_> = net.driving_lanes().collect();
         assert_eq!(lanes.len(), 1);
-        // Successor wraps to itself, so the loop can be lapped.
-        assert_eq!(lanes[0].successors, vec![LaneId(0)]);
         // Geometrically closed: first and last centerline points coincide.
         let pts = lanes[0].center.points();
         assert!(

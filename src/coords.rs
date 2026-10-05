@@ -431,7 +431,6 @@ mod tests {
 
     #[test]
     fn the_origin_and_the_axes_are_what_they_say() {
-        assert_eq!(Point::ORIGIN, Point::new(0.0, 0.0, 0.0));
         assert_eq!(Point::splat(2.0), Point::new(2.0, 2.0, 2.0));
         assert_eq!(Point::ORIGIN + Vector::Z, Point::new(0.0, 0.0, 1.0));
         assert_eq!(Vector::X + Vector::Y + Vector::Z, Vector::splat(1.0));

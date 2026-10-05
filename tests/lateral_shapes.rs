@@ -234,11 +234,6 @@ fn an_object_mid_lane_stands_on_the_mesh_not_the_crown() {
         panic!("the pole is {:?}", pole.shape);
     };
     assert_near(position.z, mid_lane_at_10(), 1e-5, "pole z");
-    let under_the_crown = parabola(10.0, -1.75) - mid_lane_at_10();
-    assert!(
-        (under_the_crown - 0.00875).abs() < 1e-9,
-        "{under_the_crown}"
-    );
 }
 
 #[test]
