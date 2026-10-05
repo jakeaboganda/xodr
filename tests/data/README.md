@@ -67,6 +67,14 @@ sections, a road whose marks give `<type><line>`s, and one with
 
     uv run --with scenariogeneration==0.16.6 tests/data/road_marks.py
 
+`structures.xodr` comes from `structures.py`, which writes the XML
+itself. It has four straight roads with signs over traffic, one needing
+each structure the OpenUSD exporter adds: a cantilever, a span gantry for
+too many lanes, a space frame, and a span gantry for too much sign.
+Regenerate with
+
+    python3 tests/data/structures.py
+
 `traffic_rule.xodr` comes from `traffic_rule.py`, which writes the XML
 itself. It has the same pair of linked roads in right- and left-hand
 traffic, each with a signal, and a road whose `rule` the spec does not

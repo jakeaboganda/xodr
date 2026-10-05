@@ -17,6 +17,13 @@ With no output path, the stage goes next to the map.
 sh usd/run.sh usd/catalogues/sample.usda tests/data/signals.xodr
 ```
 
+To see each kind of structure the exporter adds for signs over traffic,
+open `tests/data/structures.xodr`:
+
+```sh
+sh usd/run.sh usd/catalogues/sample.usda tests/data/structures.xodr
+```
+
 The script exports each `.xodr`, stacks the `.usda` catalogues over it,
 flattens the result into `usd/web/`, and opens the first map at
 <http://localhost:8001>. Catalogues are optional. Set `PORT` to use another

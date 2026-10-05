@@ -158,3 +158,14 @@ fn a_sign_for_both_directions_has_a_board_each_way() {
     let speed = stage.find("\"SpeedLimit50\"").expect("a one-way sign");
     assert!(!stage[speed..start].contains("board_back"));
 }
+
+#[test]
+fn each_road_of_the_structures_map_gets_its_structure() {
+    let stage = stage("structures");
+    let kinds: Vec<&str> = stage
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("custom token xodr:structure = "))
+        .map(|k| k.trim_matches('"'))
+        .collect();
+    assert_eq!(kinds, ["cantilever", "gantry", "spaceFrame", "gantry"]);
+}
