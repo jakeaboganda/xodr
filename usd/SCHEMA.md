@@ -119,11 +119,15 @@ lanes of type `sidewalk`, `border`, `curb`, `median` and `none`.
 
 - If no traffic is under the board, the pole goes straight up from the
   ground to the top of the board, 5 cm behind its box.
-- If traffic is under the board, the pole stands at the nearest spot at
-  least 0.5 m from any traffic. It rises, bends with a 1 m radius, and runs
-  across 0.25 m above the top of the highest board it holds. Behind the
-  boards it turns down and drops to the middle of the lowest one. The arm
-  passes over the boards, so it never goes through one.
+- If traffic is under the board, the pole is a cantilever. It stands at
+  the nearest spot in line with the board, along its width, at least 0.5 m
+  from any traffic. It rises, bends with a 1 m radius, and runs behind the
+  board at the height of its middle. Lower boards on the same pole hang
+  from a drop at the arm's end.
+- If no spot in line with the board is clear within 15 m, the pole stands
+  at the nearest clear spot in any direction. Its arm runs 0.25 m above the
+  highest board's top, then drops behind the boards to the middle of the
+  lowest one.
 
 Added poles are grey, 8 cm across, and have `xodr:synthesized = 1`.
 

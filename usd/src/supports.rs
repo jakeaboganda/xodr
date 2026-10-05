@@ -79,21 +79,36 @@ impl Support {
     }
 }
 
+/// How a pole reaches `column`, behind the boards it holds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Arm {
+    /// None: the pole stands at `column` and goes straight up.
+    Straight,
+    /// The pole stands beside the boards, in line with them. Its arm runs
+    /// behind them at the height of the highest board's middle, as on a
+    /// roadside cantilever.
+    Behind,
+    /// The pole stands anywhere else. Its arm runs [`ABOVE`] over the
+    /// highest board's top, so it can cross in front of the boards.
+    Over,
+}
+
 /// A pole the exporter adds, standing at `base`, off every lane that
-/// carries traffic. Under `column`, behind every board it holds, it goes
-/// straight up to `top`. Anywhere else it rises to [`ABOVE`] over `top`,
-/// bends by [`BEND`], runs across to `column` and turns down by [`ELBOW`]
-/// to `bottom`. The arm passes over the boards, so it never goes through
-/// one.
+/// carries traffic. It goes straight up, or it rises, bends by [`BEND`] and
+/// runs across to `column`, as [`Arm`] says. Then it drops behind the
+/// boards to `bottom`, turning down by [`ELBOW`].
 pub(crate) struct Pole {
     base: Point,
     column: Point,
     facing: Vector,
+    arm: Arm,
     /// Whether it holds a two-faced signal, between its boards. No other
     /// signal shares it.
     two_faced: bool,
     /// The top of the highest board it holds.
     top: f32,
+    /// The middle of the highest board it holds.
+    high: f32,
     /// The middle of the lowest board it holds.
     bottom: f32,
 }
@@ -102,16 +117,16 @@ impl Pole {
     /// The pole's centerline, with sharp corners.
     fn path(&self) -> Vec<Point> {
         let at = |p: Point, z| Point::new(p.x, p.y, z);
-        if across(self.base, self.column) < 1e-3 {
-            return vec![self.base, at(self.base, self.top)];
+        let arm = match self.arm {
+            Arm::Straight => return vec![self.base, at(self.base, self.top)],
+            Arm::Behind => self.high,
+            Arm::Over => self.top + ABOVE,
+        };
+        let mut path = vec![self.base, at(self.base, arm), at(self.column, arm)];
+        if self.bottom < arm - 1e-3 {
+            path.push(at(self.column, self.bottom));
         }
-        let arm = self.top + ABOVE;
-        vec![
-            self.base,
-            at(self.base, arm),
-            at(self.column, arm),
-            at(self.column, self.bottom),
-        ]
+        path
     }
 
     /// Whether the pole can also hold `signal`, which faces `facing`: it
@@ -166,6 +181,7 @@ pub(crate) fn supports(
             if let Some(k) = found {
                 let pole = &mut poles[k];
                 pole.top = pole.top.max(top);
+                pole.high = pole.high.max(middle);
                 pole.bottom = pole.bottom.min(middle);
                 return Support::Pole(k);
             }
@@ -174,19 +190,21 @@ pub(crate) fn supports(
                 false => crate::signals::back(signal) + GAP,
             };
             let column = Point::new(signal.position.x, signal.position.y, ground) - facing * behind;
-            let base = match traffic.height_at(column.x, column.y) {
-                None => Some(column),
-                Some(_) => beside_traffic(net, traffic, column),
+            let found = match traffic.height_at(column.x, column.y) {
+                None => Some((column, Arm::Straight)),
+                Some(_) => beside_traffic(net, traffic, column, facing),
             };
-            let Some(base) = base else {
+            let Some((base, arm)) = found else {
                 return Support::None;
             };
             poles.push(Pole {
                 base,
                 column,
                 facing,
+                arm,
                 two_faced,
                 top,
+                high: middle,
                 bottom: middle,
             });
             Support::Pole(poles.len() - 1)
@@ -225,27 +243,44 @@ pub(crate) fn traffic(net: &RoadNetwork, surface: &Mesh) -> Mesh {
     }
 }
 
-/// The nearest spot to `column`, within [`REACH`] across the ground, with
-/// no traffic within [`CLEAR`] of it, at the height of the road nearest it.
-fn beside_traffic(net: &RoadNetwork, traffic: &MeshSampler, column: Point) -> Option<Point> {
+/// Where a pole for a board over traffic stands, and how its arm reaches
+/// `column`. The spot is within [`REACH`] across the ground, has no traffic
+/// within [`CLEAR`] of it, and is at the height of the road nearest it.
+///
+/// It is the nearest spot in line with the board, along its width, so the
+/// arm runs behind the board. Failing that, it is the nearest spot in any
+/// direction, and the arm runs over the board.
+fn beside_traffic(
+    net: &RoadNetwork,
+    traffic: &MeshSampler,
+    column: Point,
+    facing: Vector,
+) -> Option<(Point, Arm)> {
     let around = |x: f32, y: f32, radius: f32| {
         (0..DIRECTIONS).map(move |k| {
             let (sin, cos) = (TAU * k as f32 / DIRECTIONS as f32).sin_cos();
             (x + radius * cos, y + radius * sin)
         })
     };
-    let clear = |(x, y): (f32, f32)| {
+    let clear = |&(x, y): &(f32, f32)| {
         std::iter::once((x, y))
             .chain(around(x, y, CLEAR))
             .all(|(x, y)| traffic.height_at(x, y).is_none())
     };
     let rings = (REACH / STEP) as usize;
-    let (x, y) = (1..=rings)
-        .flat_map(|i| around(column.x, column.y, i as f32 * STEP))
-        .find(|&spot| clear(spot))?;
+    let side = Vector::Z.cross(facing);
+    let mut in_line = (1..=rings).flat_map(|i| {
+        let d = i as f32 * STEP;
+        [d, -d].map(|d| (column.x + side.x * d, column.y + side.y * d))
+    });
+    let mut anywhere = (1..=rings).flat_map(|i| around(column.x, column.y, i as f32 * STEP));
+    let ((x, y), arm) = in_line
+        .find(clear)
+        .map(|spot| (spot, Arm::Behind))
+        .or_else(|| anywhere.find(clear).map(|spot| (spot, Arm::Over)))?;
     let near = Point::new(x, y, column.z);
     let ground = net.road_position(near).and_then(|at| net.road_point(at));
-    Some(Point::new(x, y, ground.map_or(column.z, |p| p.z)))
+    Some((Point::new(x, y, ground.map_or(column.z, |p| p.z)), arm))
 }
 
 /// One `Mesh` per added pole under `/Map/Supports`: a tube along its path,
@@ -481,7 +516,7 @@ mod tests {
         for (signal, support) in net.signals().iter().zip(&supports) {
             let Support::Pole(k) = support else { continue };
             let path = poles[*k].path();
-            arms += usize::from(path.len() == 4);
+            arms += usize::from(path.len() > 2);
             let both = crate::signals::two_faced(&provenance, signal);
             two_faced += usize::from(both);
             let depth = signal.length.unwrap_or(0.0) / 2.0;
@@ -500,5 +535,39 @@ mod tests {
         }
         assert!(arms >= 2, "the gantry and the side light");
         assert_eq!(two_faced, 1, "the road works sign");
+    }
+
+    #[test]
+    fn a_pole_over_traffic_is_a_cantilever_beside_its_board() {
+        let map = std::fs::read_to_string("../tests/data/signals.xodr").expect("reads");
+        let (net, provenance) = xodr::load_str_with_provenance(&map).expect("loads");
+        let surface = net.surface_mesh();
+        let sink = &mut io::sink();
+        let paths = Paths {
+            lanes: crate::roads(&net, &surface, sink).expect("writes"),
+            objects: crate::objects(&net, &provenance, &net.object_mesh(), sink).expect("writes"),
+        };
+        let traffic = traffic(&net, &surface);
+        let (supports, poles) = supports(&net, &provenance, &paths, &traffic.sampler());
+        for name in ["Gantry", "SideLight"] {
+            let (signal, support) = net
+                .signals()
+                .iter()
+                .zip(&supports)
+                .find(|(s, _)| s.name == name)
+                .expect("the signal");
+            let Support::Pole(k) = support else {
+                panic!("{name} has an added pole")
+            };
+            let pole = &poles[*k];
+            assert_eq!(pole.arm, Arm::Behind, "{name}");
+            let middle = signal.position.z + signal.height.expect("a height") / 2.0;
+            assert!(
+                (pole.path()[2].z - middle).abs() < 1e-4,
+                "{name}'s arm is level"
+            );
+            let along = pole.facing.dot(pole.base - pole.column);
+            assert!(along.abs() < 1e-3, "{name}'s pole is {along} m out of line");
+        }
     }
 }
