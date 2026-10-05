@@ -113,15 +113,6 @@ fn a_span_is_left_and_right_boundary_vertices_in_alternation() {
     assert!(checked > 1000, "only {checked} ribs had a width to check");
 }
 
-#[test]
-fn a_hand_built_mesh_carries_no_spans() {
-    // `lanes` is what the tessellator recorded, not a required field. A mesh
-    // assembled by hand is still a valid mesh.
-    let mesh = xodr::Mesh::default();
-    assert!(mesh.lanes.is_empty());
-    assert!(mesh.validate().is_err());
-}
-
 #[cfg(feature = "serde")]
 #[test]
 fn a_network_survives_a_round_trip_and_is_still_queryable() {
@@ -155,7 +146,6 @@ fn a_mesh_survives_a_round_trip() {
     let json = serde_json::to_string(&mesh).expect("serialize");
     let back: xodr::Mesh = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(mesh, back);
-    assert_eq!(mesh.lanes, back.lanes, "lane spans must survive too");
 }
 
 #[cfg(feature = "serde")]

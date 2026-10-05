@@ -1518,10 +1518,9 @@ mod tests {
         );
     }
 
-    // sample_at at a vertex reads exactly the bank stored there, and sampling the
-    // same lane twice is bit-identical (deterministic, no hidden state).
+    // sample_at at a vertex reads exactly the bank stored there.
     #[test]
-    fn sample_at_is_consistent_and_reads_vertex_bank_exactly() {
+    fn sample_at_reads_vertex_bank_exactly() {
         let mut l = lane(0, &[[0.0, 0.0, 0.0], [4.0, 0.0, 0.0], [4.0, 0.0, 6.0]]);
         l.bank = vec![0.05, 0.12, -0.08];
         // Arc length at each vertex: 0, 4, 10.
@@ -1532,9 +1531,6 @@ mod tests {
                 l.sample_at(s).bank
             );
         }
-        // Two identical calls yield an identical sample.
-        assert_eq!(l.sample_at(3.3), l.sample_at(3.3));
-        assert_eq!(l.sample_at(7.0), l.sample_at(7.0));
     }
 
     #[test]

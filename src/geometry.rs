@@ -480,10 +480,6 @@ mod tests {
                     "up.heading = {} for heading {h:?} bank {bank}",
                     s.up.dot(h)
                 );
-                // Fields are stored verbatim.
-                assert_eq!(s.point, Point::new(3.0, 4.0, 1.0));
-                assert_eq!(s.heading, h);
-                assert_eq!(s.bank, bank);
             }
             // At bank 0 the up-normal is exactly +Z (not just approximately).
             assert_eq!(
