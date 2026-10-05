@@ -17,17 +17,18 @@ With no output path, the stage goes next to the map.
 sh usd/run.sh usd/catalogues/sample.usda tests/data/signals.xodr
 ```
 
-To see each kind of structure the exporter adds for signs over traffic,
-open `tests/data/structures.xodr`:
+The script exports each `.xodr` and stacks the `.usda` catalogues over it.
+It writes one flat file per map into `usd/web/`. Then it opens the first
+map at <http://localhost:8001>.
 
-```sh
-sh usd/run.sh usd/catalogues/sample.usda tests/data/structures.xodr
-```
+- Catalogues are optional.
+- Set `PORT` to use another port.
+- The first run installs OpenUSD's Python module into `target/usd-venv`.
 
-The script exports each `.xodr`, stacks the `.usda` catalogues over it,
-flattens the result into `usd/web/`, and opens the first map at
-<http://localhost:8001>. Catalogues are optional. Set `PORT` to use another
-port. The first run installs OpenUSD's Python module into `target/usd-venv`.
+To see every kind of structure that holds signs over traffic, open
+`tests/data/structures.xodr` the same way.
+
+In the page:
 
 - To open another stage, click `open .usda` or drop the file on the page.
   It must be flat, or its signals have no boards.
@@ -43,13 +44,14 @@ different colours gets its first line's colour.
 
 ## Use a catalogue
 
-A catalogue is a layer that sets how each signal type looks.
-[`catalogues/sample.usda`](catalogues/sample.usda) covers the types in the
-test maps. [SCHEMA.md](SCHEMA.md#catalogues) explains how to write one.
+[`catalogues/sample.usda`](catalogues/sample.usda) styles the signal types
+in the test maps. [SCHEMA.md](SCHEMA.md#catalogues) explains how to write a
+catalogue.
 
-Full USD tools such as `usdview` can stack a catalogue over a stage. Other
-readers need one flat file. To make one, install OpenUSD's Python module and
-run `flatten.py`:
+Full USD tools such as `usdview` stack a catalogue over a stage
+themselves. Other readers, such as three.js's `USDLoader`, need a flat
+file: one layer, with inherits and sublayers already applied. To make one,
+install OpenUSD's Python module and run `flatten.py`:
 
 ```sh
 pip install usd-core
@@ -58,8 +60,8 @@ python usd/flatten.py town07.flat.usda town07.usda usd/catalogues/sample.usda
 
 ## Check stages with OpenUSD
 
-`check.py` runs OpenUSD's validators and this repo's own checks on stages,
-alone, under a catalogue, and flattened. CI runs it on every test map:
+`check.py` checks stages with OpenUSD. It checks each stage alone, under a
+catalogue, and flattened. CI runs it on every test map:
 
 ```sh
 python usd/check.py usd/catalogues/sample.usda target/usd/*.usda

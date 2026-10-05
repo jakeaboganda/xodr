@@ -2,10 +2,9 @@
 //! exporter adds.
 //!
 //! Signals at one spot share a structure, whichever way they face. Over
-//! traffic, the structure is a cantilever, a span gantry or a space frame,
-//! chosen by its span, the sign area it carries and the lanes it crosses.
-//! The limits are AASHTO's, as state DOTs such as WSDOT and DelDOT apply
-//! them.
+//! traffic, the structure is a cantilever, a span gantry or a space frame.
+//! Its span, sign area and lanes crossed pick which, by the limits in the
+//! AASHTO LRFD Specifications for Structural Supports for Highway Signs.
 
 use std::collections::HashSet;
 use std::f32::consts::TAU;
@@ -98,9 +97,9 @@ impl Support {
     }
 }
 
-/// What holds a signal up, and where its boards stand in its own frame, so
-/// they clear the structure. `front` is the X of `board`, and `back` how far
-/// behind the position `board_back` stands, on a two-faced signal.
+/// What holds a signal up, and where its boards stand in its own frame.
+/// `front` is the X of `board`. `back` is how far behind the position
+/// `board_back` stands, on a two-faced signal.
 pub(crate) struct Placement {
     pub(crate) support: Support,
     pub(crate) front: f32,
@@ -114,7 +113,7 @@ struct Member {
     faces: f32,
     /// Metres along the axis from the frame's origin.
     along: f32,
-    /// Metres across, along the frame's side.
+    /// Metres sideways from the frame's origin, along `side`.
     u: f32,
     two_faced: bool,
     /// How far behind its position the back of its box reaches.
@@ -139,7 +138,7 @@ impl Group {
         Vector::Z.cross(self.axis)
     }
 
-    /// The center line of a structure `clearance` metres from the back of
+    /// The centre line of a structure `clearance` metres from the back of
     /// every board, between the two ways the boards face if they face both.
     fn line(&self, clearance: f32) -> f32 {
         let faces = self.members.iter().flat_map(|m| {
@@ -203,7 +202,8 @@ struct Reach {
 /// Which structure to build over traffic.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Choice {
-    /// A cantilever whose leg stands on the left (`-1`) or right (`+1`).
+    /// A cantilever whose leg stands at negative `u` (`-1`) or positive
+    /// `u` (`+1`).
     Cantilever(i8),
     Gantry,
     SpaceFrame,
@@ -336,7 +336,7 @@ pub(crate) fn supports(
     (placements, structures)
 }
 
-/// The structure for `group`, its center line and its kind, or `None` if
+/// The structure for `group`, its centre line and its kind, or `None` if
 /// none has room.
 fn build(
     net: &RoadNetwork,

@@ -2,8 +2,8 @@
 
     python usd/flatten.py OUT.usda STAGE.usda [CATALOGUE.usda ...]
 
-The flat file has no inherits or sublayers, so readers that can't compose
-USD, such as three.js's USDLoader, draw it as a full USD reader would. Needs
+The flat file has no inherits or sublayers. Readers that can't combine
+layers, such as three.js's USDLoader, then draw it as usdview would. Needs
 OpenUSD's Python module: pip install usd-core.
 """
 

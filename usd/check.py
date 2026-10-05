@@ -1,16 +1,18 @@
-"""Check stages from xodr_usd with OpenUSD, alone and under a catalogue.
+"""Check stages from xodr_usd with OpenUSD.
 
     python usd/check.py CATALOGUE.usda STAGE.usda [STAGE.usda ...]
 
-For each stage, alone and with the catalogue layered over it, this checks
-that OpenUSD's validators pass, that every relationship target exists, that
-every mesh is well formed, that every signal board has geometry, and that
-no structure the exporter added stands on a lane that carries traffic or
-goes through a board it holds. Then
-it flattens the stage and checks the boards still have geometry. It also
-checks that every type in the catalogue matches a board in some stage, to
-catch a misspelled type. Exits 1 if any check fails. Needs OpenUSD's Python
-module: pip install usd-core.
+It checks each stage alone, under the catalogue, and flattened, for:
+
+- OpenUSD's validators;
+- relationships to prims that don't exist;
+- broken meshes;
+- signal boards with no geometry;
+- added structures that stand in traffic or go through a board.
+
+It also fails on a catalogue type that no board uses, to catch typos.
+Exits 1 if any check fails. Needs OpenUSD's Python module:
+pip install usd-core.
 """
 
 import sys
@@ -46,7 +48,7 @@ def problems(stage):
         if prim.IsA(UsdGeom.Mesh):
             found += mesh_problems(prim)
         if prim.GetName().startswith("support_"):
-            found += pole_problems(prim, lanes)
+            found += structure_problems(prim, lanes)
         if prim.GetPath().GetParentPath().name.startswith("signal_"):
             if not any(p.IsA(UsdGeom.Mesh) for p in Usd.PrimRange(prim)):
                 found.append(f"{prim.GetPath()} has no geometry")
@@ -57,14 +59,14 @@ def problems(stage):
 
 def pierced(stage, signal):
     """A problem if the structure the exporter added for `signal` goes
-    through one of its boards, `board` or `board_back`. In a board's own frame it is
-    the square X = 0, -0.5 <= Y <= 0.5, 0 <= Z <= 1, so an edge of the pole
-    that crosses X = 0 inside it goes through."""
+    through `board` or `board_back`. In a board's own frame, the board is
+    the square X = 0, -0.5 <= Y <= 0.5, 0 <= Z <= 1. A structure edge that
+    crosses X = 0 inside that square goes through it."""
     support = signal.GetAttribute("xodr:support")
     if not support or support.Get() != "synthesized":
         return []
-    pole = stage.GetPrimAtPath(signal.GetRelationship("xodr:supportPrim").GetTargets()[0])
-    mesh = UsdGeom.Mesh(pole)
+    structure = stage.GetPrimAtPath(signal.GetRelationship("xodr:supportPrim").GetTargets()[0])
+    mesh = UsdGeom.Mesh(structure)
     indices = mesh.GetFaceVertexIndicesAttr().Get()
     cache = UsdGeom.XformCache()
     for board in (signal.GetChild("board"), signal.GetChild("board_back")):
@@ -79,11 +81,11 @@ def pierced(stage, signal):
                     continue
                 hit = a + (b - a) * (a[0] / (a[0] - b[0]))
                 if -0.5 <= hit[1] <= 0.5 and 0 <= hit[2] <= 1:
-                    return [f"{pole.GetPath()} goes through {board.GetPath()}"]
+                    return [f"{structure.GetPath()} goes through {board.GetPath()}"]
     return []
 
 
-# Lane types a pole may stand on. Every other lane carries traffic.
+# Lane types a structure may stand on. Every other lane carries traffic.
 NO_TRAFFIC = {"sidewalk", "border", "curb", "median", "none"}
 
 
@@ -102,7 +104,7 @@ def traffic_triangles(stage):
     return triangles
 
 
-def pole_problems(prim, lanes):
+def structure_problems(prim, lanes):
     """A problem for each foot of an added structure, from `xodr:feet`, on
     a lane in `lanes`."""
     feet = prim.GetAttribute("xodr:feet")

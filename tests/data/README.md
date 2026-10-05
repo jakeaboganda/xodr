@@ -68,9 +68,10 @@ sections, a road whose marks give `<type><line>`s, and one with
     uv run --with scenariogeneration==0.16.6 tests/data/road_marks.py
 
 `structures.xodr` comes from `structures.py`, which writes the XML
-itself. It has four straight roads with signs over traffic, one needing
-each structure the OpenUSD exporter adds: a cantilever, a span gantry for
-too many lanes, a space frame, and a span gantry for too much sign.
+itself. It has four straight roads with signs over traffic. Road 1 gets a
+cantilever. Road 2 has too many lanes for one, so it gets a span gantry.
+Road 3 gets a space frame. Road 4 has too much sign for a cantilever, so it
+gets a span gantry.
 Regenerate with
 
     python3 tests/data/structures.py
