@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <OpenDRIVE>
-    <header name="signals" revMajor="1" revMinor="5" date="2026-09-27 12:05:51.100130" north="0.0" south="0.0" east="0.0" west="0.0"/>
+    <header name="signals" revMajor="1" revMinor="5" date="2026-10-05 15:39:31.206822" north="0.0" south="0.0" east="0.0" west="0.0"/>
     <road rule="RHT" id="0" junction="-1" length="120">
         <link/>
         <planView>
@@ -54,7 +54,7 @@
             </laneSection>
         </lanes>
         <objects>
-            <object id="30" s="60" t="-5" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" height="4" name="Mast" type="pole" orientation="none" hdg="0" radius="0.1"/>
+            <object id="30" s="60" t="-7" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" height="4" name="Mast" type="pole" orientation="none" hdg="0" radius="0.1"/>
         </objects>
         <signals>
             <signal id="1" s="20" t="-7" subtype="55" dynamic="no" zOffset="2" pitch="0" roll="0" width="0.6" height="0.6" name="SpeedLimit50" type="274" orientation="+" country="DE" countryRevision="2017" hOffset="0" value="50" unit="km/h">
@@ -62,7 +62,7 @@
             </signal>
             <signal id="2" s="20" t="-7" subtype="12" dynamic="no" zOffset="1.6" pitch="0" roll="0" width="0.6" height="0.33" name="LorriesOnly" type="1048" orientation="+" country="DE" countryRevision="2017" hOffset="0"/>
             <signal id="3" s="40" t="7" subtype="-1" dynamic="no" zOffset="1.5" pitch="0" roll="0" width="1.2" height="0.8" name="TownSign" text="Gate Town" type="310" orientation="-" country="DE" hOffset="0.3"/>
-            <signal id="4" s="60" t="-5" subtype="-1" dynamic="yes" zOffset="4" pitch="0" roll="0" width="0.3" height="0.9" name="Light" length="0.3" type="1000001" orientation="+" country="OPENDRIVE" hOffset="43.982297150257104">
+            <signal id="4" s="60" t="-7" subtype="-1" dynamic="yes" zOffset="4" pitch="0" roll="0" width="0.3" height="0.9" name="Light" length="0.3" type="1000001" orientation="+" country="OPENDRIVE" hOffset="43.982297150257104">
                 <validity fromLane="-1" toLane="-1"/>
                 <reference elementType="signal" elementId="5" type="stopline"/>
                 <reference elementType="object" elementId="30" type="mast"/>
