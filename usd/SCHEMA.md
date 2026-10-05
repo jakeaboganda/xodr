@@ -103,10 +103,20 @@ The exporter takes the first rule that applies:
 2. A pole object the signal's `<reference>`s name gets `object`.
 3. A pole object within 0.5 m of the board, measured across the ground,
    gets `object`.
-4. A board over a driving lane, such as on a gantry, gets `none`.
-5. Anything else gets `synthesized`. The added pole goes from the road
-   under the board up to the board's middle, just behind it. Signals within
-   0.5 m of each other share one pole.
+4. Anything else gets `synthesized`. Signals within 0.5 m of each other
+   share one pole.
+5. If an added pole has nowhere to stand within 15 m, the signal gets
+   `none`.
+
+An added pole never stands in traffic. Every lane carries traffic except
+lanes of type `sidewalk`, `border`, `curb`, `median` and `none`.
+
+- If no traffic is under the board, the pole goes straight up from the
+  ground to the board's middle, just behind it.
+- If traffic is under the board, the pole stands at the nearest spot at
+  least 0.5 m from any traffic. It rises, bends with a 1 m radius, and runs
+  across to just behind the board, at the height of the board's middle. If
+  it holds several boards, it then drops to the lowest one's middle.
 
 Added poles are grey, 8 cm across, and have `xodr:synthesized = 1`.
 

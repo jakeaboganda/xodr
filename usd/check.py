@@ -4,7 +4,8 @@
 
 For each stage, alone and with the catalogue layered over it, this checks
 that OpenUSD's validators pass, that every relationship target exists, that
-every mesh is well formed, and that every signal board has geometry. Then
+every mesh is well formed, that every signal board has geometry, and that
+no pole the exporter added stands on a lane that carries traffic. Then
 it flattens the stage and checks the boards still have geometry. It also
 checks that every type in the catalogue matches a board in some stage, to
 catch a misspelled type. Exits 1 if any check fails. Needs OpenUSD's Python
@@ -35,6 +36,7 @@ def problems(stage):
     version = stage.GetRootLayer().customLayerData.get("xodr", {})
     if version.get("schemaVersion") != SCHEMA_VERSION:
         found.append(f"schema version is {version}, not {SCHEMA_VERSION}")
+    lanes = traffic_triangles(stage)
     for prim in stage.Traverse():
         for rel in prim.GetRelationships():
             for target in rel.GetTargets():
@@ -42,10 +44,53 @@ def problems(stage):
                     found.append(f"{rel.GetPath()} links to missing {target}")
         if prim.IsA(UsdGeom.Mesh):
             found += mesh_problems(prim)
+        if prim.GetName().startswith("support_"):
+            found += pole_problems(prim, lanes)
         if prim.GetPath().GetParentPath().name.startswith("signal_"):
             if not any(p.IsA(UsdGeom.Mesh) for p in Usd.PrimRange(prim)):
                 found.append(f"{prim.GetPath()} has no geometry")
     return found
+
+
+# Lane types a pole may stand on. Every other lane carries traffic.
+NO_TRAFFIC = {"sidewalk", "border", "curb", "median", "none"}
+
+
+def traffic_triangles(stage):
+    """Every triangle of a lane that carries traffic, as three (x, y)
+    corners."""
+    triangles = []
+    for prim in stage.Traverse():
+        kind = prim.GetAttribute("xodr:laneType")
+        if prim.GetName().startswith("lane_") and kind.Get() not in NO_TRAFFIC:
+            mesh = UsdGeom.Mesh(prim)
+            points = mesh.GetPointsAttr().Get()
+            indices = mesh.GetFaceVertexIndicesAttr().Get()
+            for k in range(0, len(indices), 3):
+                triangles.append([points[i][:2] for i in indices[k : k + 3]])
+    return triangles
+
+
+def pole_problems(prim, lanes):
+    """A problem if the foot of an added pole is on a lane in `lanes`."""
+    points = UsdGeom.Mesh(prim).GetPointsAttr().Get()
+    low = min(p[2] for p in points)
+    foot = [p for p in points if p[2] - low < 1e-4]
+    x = sum(p[0] for p in foot) / len(foot)
+    y = sum(p[1] for p in foot) / len(foot)
+
+    def covers(corners):
+        (ax, ay), (bx, by), (cx, cy) = corners
+        sides = [
+            (x - bx) * (ay - by) - (ax - bx) * (y - by),
+            (x - cx) * (by - cy) - (bx - cx) * (y - cy),
+            (x - ax) * (cy - ay) - (cx - ax) * (y - ay),
+        ]
+        return not (min(sides) < 0 < max(sides))
+
+    if any(covers(t) for t in lanes):
+        return [f"{prim.GetPath()} stands in traffic"]
+    return []
 
 
 def mesh_problems(prim):

@@ -39,11 +39,13 @@ pub fn write_stage(
     writeln!(out)?;
     writeln!(out, "def Xform \"Map\"")?;
     writeln!(out, "{{")?;
-    let lanes = roads(net, &net.surface_mesh(), out)?;
+    let surface = net.surface_mesh();
+    let lanes = roads(net, &surface, out)?;
     road_marks(net, out)?;
     let objects = objects(net, provenance, &net.object_mesh(), out)?;
     let paths = Paths { lanes, objects };
-    let (supports, poles) = supports::supports(net, &paths);
+    let traffic = supports::traffic(net, &surface);
+    let (supports, poles) = supports::supports(net, &paths, &traffic.sampler());
     supports::write_poles(&poles, out)?;
     let classes = signals::signals(net, provenance, &paths, &supports, out)?;
     signals::controllers(net, provenance, out)?;

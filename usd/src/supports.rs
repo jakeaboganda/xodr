@@ -3,7 +3,9 @@
 use std::f32::consts::TAU;
 use std::io::{self, Write};
 
-use xodr::{ObjectType, Point, Referenced, RoadNetwork, Shape, Signal, Vector};
+use xodr::{
+    LaneType, Mesh, MeshSampler, ObjectType, Point, Referenced, RoadNetwork, Shape, Signal, Vector,
+};
 
 use crate::{close, open, write_mesh, MeshPrim, Paths, Tag};
 
@@ -21,13 +23,31 @@ const RADIUS: f32 = 0.04;
 /// Sides on a pole the exporter adds.
 const SIDES: usize = 12;
 
+/// Metres between a pole and the nearest lane that carries traffic.
+const CLEAR: f32 = 0.5;
+
+/// How far from its board, in metres across the ground, a pole may stand.
+const REACH: f32 = 15.0;
+
+/// Metres between the rings of spots tried for a pole.
+const STEP: f32 = 0.25;
+
+/// Spots tried on each ring.
+const DIRECTIONS: usize = 32;
+
+/// The radius of a pole's bends, in metres.
+const BEND: f32 = 1.0;
+
+/// Straight pieces in each bend.
+const BEND_STEPS: usize = 8;
+
 /// What holds a signal up.
 pub(crate) enum Support {
     /// A pole object the map has, by its prim path.
     Object(String),
     /// A pole the exporter adds, by its index in the list of poles.
     Pole(usize),
-    /// Nothing: road paint, or a board over a driving lane.
+    /// Nothing: road paint, or a board with no room beside the road.
     None,
 }
 
@@ -46,23 +66,47 @@ impl Support {
     }
 }
 
-/// A pole the exporter adds: upright, from `base` up to `top` metres.
+/// A pole the exporter adds. It rises from `base`, off every lane that
+/// carries traffic, to `top`.
+/// If `base` isn't under `column`, it bends and runs across to `column`,
+/// then down to `bottom`, so it reaches every board it holds.
 pub(crate) struct Pole {
     base: Point,
+    /// Just behind the first board it holds.
+    column: Point,
     top: f32,
-    /// The signal that placed the pole. Signals near it share it.
-    anchor: Point,
+    bottom: f32,
+}
+
+impl Pole {
+    /// The pole's centerline, with sharp corners.
+    fn path(&self) -> Vec<Point> {
+        let at = |p: Point, z| Point::new(p.x, p.y, z);
+        let mut path = vec![self.base, at(self.base, self.top)];
+        if across(self.base, self.column) > 1e-3 {
+            path.push(at(self.column, self.top));
+            if self.bottom < self.top - 1e-3 {
+                path.push(at(self.column, self.bottom));
+            }
+        }
+        path
+    }
 }
 
 /// What holds up each signal, in the order of `net.signals()`, and the
-/// poles the exporter adds. A signal's pole is the first of:
+/// poles the exporter adds. `traffic` is the surface of the lanes that carry
+/// traffic, from [`traffic`]. A signal's pole is the first of:
 ///
 /// 1. nothing, for paint on the road;
 /// 2. a pole object its `<reference>`s name;
 /// 3. a pole object within [`NEAR`] of it;
-/// 4. nothing, for a board over a driving lane, such as on a gantry;
-/// 5. an added pole, shared with signals within [`NEAR`].
-pub(crate) fn supports(net: &RoadNetwork, paths: &Paths) -> (Vec<Support>, Vec<Pole>) {
+/// 4. an added pole, shared with signals within [`NEAR`];
+/// 5. nothing, if no spot off the traffic is within [`REACH`].
+pub(crate) fn supports(
+    net: &RoadNetwork,
+    paths: &Paths,
+    traffic: &MeshSampler,
+) -> (Vec<Support>, Vec<Pole>) {
     let mut poles: Vec<Pole> = Vec::new();
     let supports = net
         .signals()
@@ -75,27 +119,32 @@ pub(crate) fn supports(net: &RoadNetwork, paths: &Paths) -> (Vec<Support>, Vec<P
             if let Some(path) = pole_object(net, paths, signal) {
                 return Support::Object(path);
             }
-            let below = Point::new(signal.position.x, signal.position.y, ground);
-            if over_driving_lane(net, below) {
-                return Support::None;
-            }
             let height = signal.height.unwrap_or(crate::signals::FALLBACK_SIZE);
-            let top = signal.position.z + height / 2.0;
+            let middle = signal.position.z + height / 2.0;
             if let Some(k) = poles
                 .iter()
-                .position(|p| across(p.anchor, signal.position) <= NEAR)
+                .position(|p| across(p.column, signal.position) <= NEAR)
             {
                 let pole = &mut poles[k];
-                pole.top = pole.top.max(top);
-                pole.base.z = pole.base.z.min(ground);
+                pole.top = pole.top.max(middle);
+                pole.bottom = pole.bottom.min(middle);
                 return Support::Pole(k);
             }
             let (sin, cos) = signal.heading.sin_cos();
             let behind = Vector::new(-cos, -sin, 0.0) * (RADIUS + 0.01);
+            let column = Point::new(signal.position.x, signal.position.y, ground) + behind;
+            let base = match traffic.height_at(column.x, column.y) {
+                None => Some(column),
+                Some(_) => beside_traffic(net, traffic, column),
+            };
+            let Some(base) = base else {
+                return Support::None;
+            };
             poles.push(Pole {
-                base: below + behind,
-                top,
-                anchor: signal.position,
+                base,
+                column,
+                top: middle,
+                bottom: middle,
             });
             Support::Pole(poles.len() - 1)
         })
@@ -103,34 +152,65 @@ pub(crate) fn supports(net: &RoadNetwork, paths: &Paths) -> (Vec<Support>, Vec<P
     (supports, poles)
 }
 
-/// One `Mesh` per added pole under `/Map/Supports`.
+/// The part of `surface`, a [`RoadNetwork::surface_mesh`], whose lanes
+/// carry traffic: every lane but a sidewalk, border, curb, median or one of
+/// type `none`. A pole may stand on those.
+pub(crate) fn traffic(net: &RoadNetwork, surface: &Mesh) -> Mesh {
+    let indices = surface
+        .lanes
+        .iter()
+        .filter(|span| {
+            net.lane(span.lane).is_some_and(|lane| {
+                !matches!(
+                    lane.kind,
+                    LaneType::Sidewalk
+                        | LaneType::Border
+                        | LaneType::Curb
+                        | LaneType::Median
+                        | LaneType::None
+                )
+            })
+        })
+        .flat_map(|span| &surface.indices[span.indices.start as usize..span.indices.end as usize])
+        .copied()
+        .collect();
+    Mesh {
+        vertices: surface.vertices.clone(),
+        normals: surface.normals.clone(),
+        indices,
+        ..Mesh::default()
+    }
+}
+
+/// The nearest spot to `column`, within [`REACH`] across the ground, with
+/// no traffic within [`CLEAR`] of it, at the height of the road nearest it.
+fn beside_traffic(net: &RoadNetwork, traffic: &MeshSampler, column: Point) -> Option<Point> {
+    let around = |x: f32, y: f32, radius: f32| {
+        (0..DIRECTIONS).map(move |k| {
+            let (sin, cos) = (TAU * k as f32 / DIRECTIONS as f32).sin_cos();
+            (x + radius * cos, y + radius * sin)
+        })
+    };
+    let clear = |(x, y): (f32, f32)| {
+        std::iter::once((x, y))
+            .chain(around(x, y, CLEAR))
+            .all(|(x, y)| traffic.height_at(x, y).is_none())
+    };
+    let rings = (REACH / STEP) as usize;
+    let (x, y) = (1..=rings)
+        .flat_map(|i| around(column.x, column.y, i as f32 * STEP))
+        .find(|&spot| clear(spot))?;
+    let near = Point::new(x, y, column.z);
+    let ground = net.road_position(near).and_then(|at| net.road_point(at));
+    Some(Point::new(x, y, ground.map_or(column.z, |p| p.z)))
+}
+
+/// One `Mesh` per added pole under `/Map/Supports`: a tube along its path,
+/// with round bends and a cap at the end.
 pub(crate) fn write_poles(poles: &[Pole], out: &mut impl Write) -> io::Result<()> {
     open(out, 1, "def Scope", "Supports", &[], &[])?;
     for (k, pole) in poles.iter().enumerate() {
-        let ring = |z: f32| {
-            (0..SIDES).map(move |i| {
-                let (sin, cos) = (TAU * i as f32 / SIDES as f32).sin_cos();
-                (
-                    Point::new(pole.base.x + RADIUS * cos, pole.base.y + RADIUS * sin, z),
-                    Vector::new(cos, sin, 0.0),
-                )
-            })
-        };
-        let (mut points, mut normals): (Vec<Point>, Vec<Vector>) =
-            ring(pole.base.z).chain(ring(pole.top)).unzip();
-        let (cap, up): (Vec<Point>, Vec<Vector>) =
-            ring(pole.top).map(|(p, _)| (p, Vector::Z)).unzip();
-        points.extend(cap);
-        normals.extend(up);
-        let n = SIDES as u32;
-        let mut indices = Vec::new();
-        for i in 0..n {
-            let j = (i + 1) % n;
-            indices.extend([i, j, n + j, i, n + j, n + i]);
-        }
-        for i in 1..n - 1 {
-            indices.extend([2 * n, 2 * n + i, 2 * n + i + 1]);
-        }
+        let (points, normals, indices) = tube(&rounded(&pole.path()));
         let mesh = MeshPrim {
             name: format!("support_{k}"),
             tags: vec![("synthesized", Tag::Bool(true))],
@@ -144,6 +224,79 @@ pub(crate) fn write_poles(poles: &[Pole], out: &mut impl Write) -> io::Result<()
         write_mesh(out, 2, &mesh)?;
     }
     close(out, 1)
+}
+
+/// `path` with each corner replaced by an arc of radius [`BEND`], or less
+/// where a straight piece is too short for it.
+fn rounded(path: &[Point]) -> Vec<Point> {
+    let mut line = vec![path[0]];
+    for w in path.windows(3) {
+        let (corner, a, b) = (w[1], w[1] - w[0], w[2] - w[1]);
+        let (into, out) = (a.normalize_or(Vector::Z), b.normalize_or(Vector::Z));
+        let turn = into.dot(out).clamp(-1.0, 1.0).acos();
+        if turn < 1e-3 {
+            line.push(corner);
+            continue;
+        }
+        let cut = (BEND * (turn / 2.0).tan())
+            .min(a.length() / 2.0)
+            .min(b.length() / 2.0);
+        let radius = cut / (turn / 2.0).tan();
+        let inward = (out - into * into.dot(out)).normalize_or(Vector::Z);
+        let center = corner - into * cut + inward * radius;
+        line.extend((0..=BEND_STEPS).map(|i| {
+            let angle = turn * i as f32 / BEND_STEPS as f32;
+            center + (inward * -angle.cos() + into * angle.sin()) * radius
+        }));
+    }
+    line.extend(path.last());
+    line.dedup_by(|a, b| (*a - *b).length() < 1e-4);
+    line
+}
+
+/// A tube of [`RADIUS`] along `line`, which lies in one upright plane, and
+/// a cap over its last end: points, normals and triangle indices.
+fn tube(line: &[Point]) -> (Vec<Point>, Vec<Vector>, Vec<u32>) {
+    let (first, last) = (line[0], line[line.len() - 1]);
+    let across = Vector::new(last.x - first.x, last.y - first.y, 0.0);
+    let side = Vector::Z.cross(across).normalize_or(Vector::X);
+    let tangent = |i: usize| {
+        let into = (i > 0).then(|| (line[i] - line[i - 1]).normalize_or_zero());
+        let out = line
+            .get(i + 1)
+            .map(|&next| (next - line[i]).normalize_or_zero());
+        (into.unwrap_or(Vector::ZERO) + out.unwrap_or(Vector::ZERO)).normalize_or(Vector::Z)
+    };
+    let ring = |center: Point, along: Vector| {
+        let normal = side.cross(along);
+        (0..SIDES).map(move |k| {
+            let (sin, cos) = (TAU * k as f32 / SIDES as f32).sin_cos();
+            let out = normal * cos + side * sin;
+            (center + out * RADIUS, out)
+        })
+    };
+    let (mut points, mut normals): (Vec<Point>, Vec<Vector>) = line
+        .iter()
+        .enumerate()
+        .flat_map(|(i, &center)| ring(center, tangent(i)))
+        .unzip();
+    let n = SIDES as u32;
+    let mut indices = Vec::new();
+    for r in 0..line.len() as u32 - 1 {
+        let (a, b) = (r * n, (r + 1) * n);
+        for i in 0..n {
+            let j = (i + 1) % n;
+            indices.extend([a + i, a + j, b + j, a + i, b + j, b + i]);
+        }
+    }
+    let end = tangent(line.len() - 1);
+    let cap = points.len() as u32;
+    points.extend(ring(last, end).map(|(p, _)| p));
+    normals.extend(std::iter::repeat_n(end, SIDES));
+    for i in 1..n - 1 {
+        indices.extend([cap, cap + i, cap + i + 1]);
+    }
+    (points, normals, indices)
 }
 
 /// The height of the road straight under `signal`'s board, or where it
@@ -178,14 +331,6 @@ fn pole_object(net: &RoadNetwork, paths: &Paths, signal: &Signal) -> Option<Stri
     referenced.or_else(near).cloned()
 }
 
-/// Whether `point` is on a driving lane, seen from above.
-fn over_driving_lane(net: &RoadNetwork, point: Point) -> bool {
-    net.nearest_lane(point).is_some_and(|(id, at)| {
-        net.lane(id)
-            .is_some_and(|lane| at.offset.abs() <= lane.width_at(at.s) / 2.0)
-    })
-}
-
 /// The distance from `a` to `b` across the ground.
 fn across(a: Point, b: Point) -> f32 {
     Vector::new(a.x - b.x, a.y - b.y, 0.0).length()
@@ -193,4 +338,79 @@ fn across(a: Point, b: Point) -> f32 {
 
 fn pole_path(k: usize) -> String {
     format!("/Map/Supports/support_{k}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The poles the exporter adds to `map`, and the surface of its traffic.
+    fn poles(map: &str) -> (Vec<Pole>, Mesh) {
+        let (net, provenance) =
+            xodr::load_file_with_provenance(format!("../tests/data/{map}.xodr")).expect("loads");
+        let surface = net.surface_mesh();
+        let sink = &mut io::sink();
+        let paths = Paths {
+            lanes: crate::roads(&net, &surface, sink).expect("writes"),
+            objects: crate::objects(&net, &provenance, &net.object_mesh(), sink).expect("writes"),
+        };
+        let traffic = traffic(&net, &surface);
+        let (_, poles) = supports(&net, &paths, &traffic.sampler());
+        (poles, traffic)
+    }
+
+    #[test]
+    fn no_pole_stands_in_traffic() {
+        for map in [
+            "signals",
+            "lane_heights",
+            "signal_semantics",
+            "traffic_rule",
+        ] {
+            let (poles, traffic) = poles(map);
+            for pole in &poles {
+                let base = pole.base;
+                assert!(
+                    traffic.height_at(base.x, base.y).is_none(),
+                    "{map}: {base:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_pole_bends_over_traffic_to_a_board_above_it() {
+        let (poles, traffic) = poles("signals");
+        let bent: Vec<&Pole> = poles
+            .iter()
+            .filter(|p| traffic.height_at(p.column.x, p.column.y).is_some())
+            .collect();
+        assert!(bent.len() >= 2, "the gantry and the side light");
+        for pole in bent {
+            let path = rounded(&pole.path());
+            let end = path.last().expect("a path");
+            assert!(
+                across(*end, pole.column) < 1e-3,
+                "{end:?} reaches {:?}",
+                pole.column
+            );
+            assert!(across(path[0], pole.column) > CLEAR);
+        }
+    }
+
+    #[test]
+    fn a_bend_is_round() {
+        let corner = [
+            Point::ORIGIN,
+            Point::new(0.0, 0.0, 4.0),
+            Point::new(3.0, 0.0, 4.0),
+        ];
+        let line = rounded(&corner);
+        let center = Point::new(BEND, 0.0, 4.0 - BEND);
+        let arc = &line[1..line.len() - 1];
+        assert_eq!(arc.len(), BEND_STEPS + 1);
+        for p in arc {
+            assert!(((*p - center).length() - BEND).abs() < 1e-4, "{p:?}");
+        }
+    }
 }
