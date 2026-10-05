@@ -101,7 +101,7 @@ fn supports(stage: &str) -> Vec<(String, String)> {
 }
 
 #[test]
-fn a_signal_stands_on_a_pole_unless_it_is_paint_or_overhead() {
+fn a_signal_stands_on_a_pole_unless_it_is_paint() {
     let found = supports(&stage("signals"));
     let support = |name: &str| {
         found
@@ -112,7 +112,8 @@ fn a_signal_stands_on_a_pole_unless_it_is_paint_or_overhead() {
     };
     assert_eq!(support("Light"), "object");
     assert_eq!(support("StopLine"), "none");
-    assert_eq!(support("Gantry"), "none");
+    assert_eq!(support("Gantry"), "synthesized");
+    assert_eq!(support("SideLight"), "synthesized");
     assert_eq!(support("SpeedLimit50"), "synthesized");
     let stage = stage("signals");
     let speed = stage.find("\"SpeedLimit50\"").expect("the speed limit");
