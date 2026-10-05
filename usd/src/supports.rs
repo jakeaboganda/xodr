@@ -35,8 +35,17 @@ const STEP: f32 = 0.25;
 /// Spots tried on each ring.
 const DIRECTIONS: usize = 32;
 
-/// The radius of a pole's bends, in metres.
+/// Metres between the top of the highest board a pole holds and the middle
+/// of its arm.
+const ABOVE: f32 = 0.25;
+
+/// The radius of the bend where a pole turns from rising to its arm, in
+/// metres.
 const BEND: f32 = 1.0;
+
+/// The radius of the bend where an arm turns down behind the boards, in
+/// metres. Small, so the arm stays over the boards until it is behind them.
+const ELBOW: f32 = 0.1;
 
 /// Straight pieces in each bend.
 const BEND_STEPS: usize = 8;
@@ -66,15 +75,19 @@ impl Support {
     }
 }
 
-/// A pole the exporter adds. It rises from `base`, off every lane that
-/// carries traffic, to `top`.
-/// If `base` isn't under `column`, it bends and runs across to `column`,
-/// then down to `bottom`, so it reaches every board it holds.
+/// A pole the exporter adds, standing at `base`, off every lane that
+/// carries traffic. Under `column`, behind every board it holds, it goes
+/// straight up to `top`. Anywhere else it rises to [`ABOVE`] over `top`,
+/// bends by [`BEND`], runs across to `column` and turns down by [`ELBOW`]
+/// to `bottom`. The arm passes over the boards, so it never goes through
+/// one.
 pub(crate) struct Pole {
     base: Point,
-    /// Just behind the first board it holds.
     column: Point,
+    facing: Vector,
+    /// The top of the highest board it holds.
     top: f32,
+    /// The middle of the lowest board it holds.
     bottom: f32,
 }
 
@@ -82,14 +95,25 @@ impl Pole {
     /// The pole's centerline, with sharp corners.
     fn path(&self) -> Vec<Point> {
         let at = |p: Point, z| Point::new(p.x, p.y, z);
-        let mut path = vec![self.base, at(self.base, self.top)];
-        if across(self.base, self.column) > 1e-3 {
-            path.push(at(self.column, self.top));
-            if self.bottom < self.top - 1e-3 {
-                path.push(at(self.column, self.bottom));
-            }
+        if across(self.base, self.column) < 1e-3 {
+            return vec![self.base, at(self.base, self.top)];
         }
-        path
+        let arm = self.top + ABOVE;
+        vec![
+            self.base,
+            at(self.base, arm),
+            at(self.column, arm),
+            at(self.column, self.bottom),
+        ]
+    }
+
+    /// Whether the pole can hold a board at `position` facing `facing`: it
+    /// stands within [`NEAR`] of it, behind it, and faces the same way.
+    fn holds(&self, position: Point, facing: Vector) -> bool {
+        let to = Vector::new(self.column.x - position.x, self.column.y - position.y, 0.0);
+        across(self.column, position) <= NEAR
+            && to.dot(facing) <= -RADIUS
+            && self.facing.dot(facing) > 0.99
     }
 }
 
@@ -100,7 +124,8 @@ impl Pole {
 /// 1. nothing, for paint on the road;
 /// 2. a pole object its `<reference>`s name;
 /// 3. a pole object within [`NEAR`] of it;
-/// 4. an added pole, shared with signals within [`NEAR`];
+/// 4. an added pole, shared with signals within [`NEAR`] that face the same
+///    way and stand in front of it;
 /// 5. nothing, if no spot off the traffic is within [`REACH`].
 pub(crate) fn supports(
     net: &RoadNetwork,
@@ -120,19 +145,17 @@ pub(crate) fn supports(
                 return Support::Object(path);
             }
             let height = signal.height.unwrap_or(crate::signals::FALLBACK_SIZE);
-            let middle = signal.position.z + height / 2.0;
-            if let Some(k) = poles
-                .iter()
-                .position(|p| across(p.column, signal.position) <= NEAR)
-            {
+            let (top, middle) = (signal.position.z + height, signal.position.z + height / 2.0);
+            let (sin, cos) = signal.heading.sin_cos();
+            let facing = Vector::new(cos, sin, 0.0);
+            if let Some(k) = poles.iter().position(|p| p.holds(signal.position, facing)) {
                 let pole = &mut poles[k];
-                pole.top = pole.top.max(middle);
+                pole.top = pole.top.max(top);
                 pole.bottom = pole.bottom.min(middle);
                 return Support::Pole(k);
             }
-            let (sin, cos) = signal.heading.sin_cos();
-            let behind = Vector::new(-cos, -sin, 0.0) * (RADIUS + 0.01);
-            let column = Point::new(signal.position.x, signal.position.y, ground) + behind;
+            let column =
+                Point::new(signal.position.x, signal.position.y, ground) - facing * (RADIUS + 0.01);
             let base = match traffic.height_at(column.x, column.y) {
                 None => Some(column),
                 Some(_) => beside_traffic(net, traffic, column),
@@ -143,7 +166,8 @@ pub(crate) fn supports(
             poles.push(Pole {
                 base,
                 column,
-                top: middle,
+                facing,
+                top,
                 bottom: middle,
             });
             Support::Pole(poles.len() - 1)
@@ -210,7 +234,7 @@ fn beside_traffic(net: &RoadNetwork, traffic: &MeshSampler, column: Point) -> Op
 pub(crate) fn write_poles(poles: &[Pole], out: &mut impl Write) -> io::Result<()> {
     open(out, 1, "def Scope", "Supports", &[], &[])?;
     for (k, pole) in poles.iter().enumerate() {
-        let (points, normals, indices) = tube(&rounded(&pole.path()));
+        let (points, normals, indices) = tube(&rounded(&pole.path(), &[BEND, ELBOW]));
         let mesh = MeshPrim {
             name: format!("support_{k}"),
             tags: vec![("synthesized", Tag::Bool(true))],
@@ -226,11 +250,11 @@ pub(crate) fn write_poles(poles: &[Pole], out: &mut impl Write) -> io::Result<()
     close(out, 1)
 }
 
-/// `path` with each corner replaced by an arc of radius [`BEND`], or less
-/// where a straight piece is too short for it.
-fn rounded(path: &[Point]) -> Vec<Point> {
+/// `path` with each corner replaced by an arc. The arcs take their radii
+/// from `radii` in order, or less where a straight piece is too short.
+fn rounded(path: &[Point], radii: &[f32]) -> Vec<Point> {
     let mut line = vec![path[0]];
-    for w in path.windows(3) {
+    for (w, &radius) in path.windows(3).zip(radii) {
         let (corner, a, b) = (w[1], w[1] - w[0], w[2] - w[1]);
         let (into, out) = (a.normalize_or(Vector::Z), b.normalize_or(Vector::Z));
         let turn = into.dot(out).clamp(-1.0, 1.0).acos();
@@ -238,15 +262,15 @@ fn rounded(path: &[Point]) -> Vec<Point> {
             line.push(corner);
             continue;
         }
-        let cut = (BEND * (turn / 2.0).tan())
+        let cut = (radius * (turn / 2.0).tan())
             .min(a.length() / 2.0)
             .min(b.length() / 2.0);
-        let radius = cut / (turn / 2.0).tan();
+        let arc = cut / (turn / 2.0).tan();
         let inward = (out - into * into.dot(out)).normalize_or(Vector::Z);
-        let center = corner - into * cut + inward * radius;
+        let center = corner - into * cut + inward * arc;
         line.extend((0..=BEND_STEPS).map(|i| {
             let angle = turn * i as f32 / BEND_STEPS as f32;
-            center + (inward * -angle.cos() + into * angle.sin()) * radius
+            center + (inward * -angle.cos() + into * angle.sin()) * arc
         }));
     }
     line.extend(path.last());
@@ -387,7 +411,7 @@ mod tests {
             .collect();
         assert!(bent.len() >= 2, "the gantry and the side light");
         for pole in bent {
-            let path = rounded(&pole.path());
+            let path = rounded(&pole.path(), &[BEND, ELBOW]);
             let end = path.last().expect("a path");
             assert!(
                 across(*end, pole.column) < 1e-3,
@@ -405,12 +429,47 @@ mod tests {
             Point::new(0.0, 0.0, 4.0),
             Point::new(3.0, 0.0, 4.0),
         ];
-        let line = rounded(&corner);
+        let line = rounded(&corner, &[BEND]);
         let center = Point::new(BEND, 0.0, 4.0 - BEND);
         let arc = &line[1..line.len() - 1];
         assert_eq!(arc.len(), BEND_STEPS + 1);
         for p in arc {
             assert!(((*p - center).length() - BEND).abs() < 1e-4, "{p:?}");
         }
+    }
+
+    #[test]
+    fn an_arm_passes_over_the_boards_it_holds() {
+        let (net, provenance) =
+            xodr::load_file_with_provenance("../tests/data/signals.xodr").expect("loads");
+        let surface = net.surface_mesh();
+        let sink = &mut io::sink();
+        let paths = Paths {
+            lanes: crate::roads(&net, &surface, sink).expect("writes"),
+            objects: crate::objects(&net, &provenance, &net.object_mesh(), sink).expect("writes"),
+        };
+        let traffic = traffic(&net, &surface);
+        let (supports, poles) = supports(&net, &paths, &traffic.sampler());
+        let mut arms = 0;
+        for (signal, support) in net.signals().iter().zip(&supports) {
+            let Support::Pole(k) = support else { continue };
+            let path = poles[*k].path();
+            if path.len() < 4 {
+                continue;
+            }
+            arms += 1;
+            let top = signal.position.z + signal.height.unwrap_or(0.0);
+            let (sin, cos) = signal.heading.sin_cos();
+            let facing = Vector::new(cos, sin, 0.0);
+            let half = signal.width.unwrap_or(0.0) / 2.0 + RADIUS;
+            for p in rounded(&path, &[BEND, ELBOW]) {
+                let to = p - signal.position;
+                let beside = Vector::Z.cross(facing).dot(to).abs() > half;
+                let behind = facing.dot(to) < -RADIUS;
+                let over = p.z - RADIUS > top;
+                assert!(beside || behind || over, "{} at {p:?}", signal.name);
+            }
+        }
+        assert!(arms >= 2, "the gantry and the side light");
     }
 }
