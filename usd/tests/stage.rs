@@ -127,3 +127,18 @@ fn a_signal_finds_the_pole_object_under_it() {
     assert_eq!(found.len(), 19);
     assert!(found.iter().all(|(_, s)| s == "object"), "{found:?}");
 }
+
+#[test]
+fn a_signal_controlled_twice_is_linked_once() {
+    let map = std::fs::read_to_string("../tests/data/signals.xodr").expect("map reads");
+    let control = r#"<control signalId="4" type="0"/>"#;
+    let map = map.replace(control, &format!("{control}{control}"));
+    let (net, provenance) = xodr::load_str_with_provenance(&map).expect("map loads");
+    let mut out = Vec::new();
+    write_stage(&net, &provenance, &mut out).expect("stage writes");
+    let stage = String::from_utf8(out).expect("utf-8");
+    assert!(
+        stage.contains("rel xodr:signals = [</Map/Signals/signal_3>, </Map/Signals/signal_10>]")
+    );
+    assert!(stage.contains("custom string[] xodr:controlTypes = [\"0\", \"0\"]"));
+}
