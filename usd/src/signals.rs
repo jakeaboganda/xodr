@@ -7,13 +7,13 @@ use xodr::{
     Orientation, Point, Provenance, Referenced, RoadNetwork, Semantic, Signal, SignalBoard, Vector,
 };
 
-use crate::supports::Support;
+use crate::supports::{Support, GAP};
 use crate::{close, list, open, quote, tuple, write_mesh, MeshPrim, Paths, Tag};
 
 /// Metres across and up for a board the map gives no size.
 pub(crate) const FALLBACK_SIZE: f32 = 0.6;
 
-/// Metres a sign or display sits in front of its signal's board.
+/// Metres a sign or display sits in front of its signal's box.
 const FRONT: f32 = 0.01;
 
 /// One `Xform` per signal under `/Map/Signals`. `supports` is what holds
@@ -107,10 +107,27 @@ pub(crate) fn signals(
             subtype: &signal.subtype,
             semantics: &signal.semantics,
             at: [0.0; 3],
+            turned: false,
             width,
             height,
         };
-        classes.insert(board.write(out, "board", &[])?);
+        if two_faced(provenance, signal) {
+            let apart = back(signal) + GAP;
+            let front = Board {
+                at: [apart, 0.0, 0.0],
+                ..board
+            };
+            let back = Board {
+                at: [-apart, 0.0, 0.0],
+                turned: true,
+                ..board
+            };
+            classes.insert(front.write(out, "board", &[])?);
+            classes.insert(back.write(out, "board_back", &[])?);
+        } else {
+            classes.insert(board.write(out, "board", &[])?);
+        }
+        let front = signal.length.unwrap_or(0.0) / 2.0 + FRONT;
         for (k, b) in signal.boards.iter().enumerate() {
             match b {
                 SignalBoard::Static(signs) => {
@@ -138,7 +155,8 @@ pub(crate) fn signals(
                             kind: &sign.kind,
                             subtype: &sign.subtype,
                             semantics: &sign.semantics,
-                            at: local(signal, sign.position, FRONT),
+                            at: local(signal, sign.position, front),
+                            turned: false,
                             width: sign.width,
                             height: sign.height,
                         };
@@ -148,11 +166,11 @@ pub(crate) fn signals(
                 SignalBoard::Message(m) => {
                     let tags = [("display", Tag::Text(m.display.clone()))];
                     open(out, 3, "def Xform", &format!("display_{k}"), &[], &tags)?;
-                    let at = local(signal, m.position, FRONT);
+                    let at = local(signal, m.position, front);
                     let size = (m.width, m.height);
                     write_quad(out, 4, "screen", at, size, 0.1, vec![])?;
                     for (j, area) in m.areas.iter().enumerate() {
-                        let at = local(signal, area.position, 2.0 * FRONT);
+                        let at = local(signal, area.position, front + FRONT);
                         let size = (area.width, area.height);
                         let index = area.index.map(|i| ("index", Tag::Int(i.into())));
                         let tags = index.into_iter().collect();
@@ -223,6 +241,7 @@ pub(crate) fn type_classes(classes: &BTreeSet<String>, out: &mut impl Write) -> 
 }
 
 /// A board that inherits a type class: a signal's own, or a sign on it.
+#[derive(Clone, Copy)]
 struct Board<'a> {
     country: &'a str,
     kind: &'a str,
@@ -230,6 +249,8 @@ struct Board<'a> {
     semantics: &'a [Semantic],
     /// The middle of its bottom edge, in the signal's frame.
     at: [f32; 3],
+    /// Whether it faces back, -X in the signal's frame.
+    turned: bool,
     width: Option<f32>,
     height: Option<f32>,
 }
@@ -267,12 +288,17 @@ impl Board<'_> {
             self.width.unwrap_or(FALLBACK_SIZE),
             self.height.unwrap_or(FALLBACK_SIZE),
         ];
-        let mut ops = vec!["\"xformOp:scale\""];
+        let mut ops = vec![];
         if self.at != [0.0; 3] {
             writeln!(out, "{pad}double3 xformOp:translate = {}", tuple(self.at))?;
-            ops.insert(0, "\"xformOp:translate\"");
+            ops.push("\"xformOp:translate\"");
+        }
+        if self.turned {
+            writeln!(out, "{pad}float xformOp:rotateZ = 180")?;
+            ops.push("\"xformOp:rotateZ\"");
         }
         writeln!(out, "{pad}float3 xformOp:scale = {}", tuple(size))?;
+        ops.push("\"xformOp:scale\"");
         writeln!(out, "{pad}uniform token[] xformOpOrder = [{}]", list(ops))?;
         close(out, 3)?;
         Ok(class)
@@ -361,6 +387,24 @@ fn links(pairs: impl Iterator<Item = (String, String)>) -> (Vec<String>, Vec<Str
         .unzip()
 }
 
+/// How far behind its position the back of `signal`'s box reaches, across
+/// the ground, in metres: half its `length`, and more if it is pitched, since
+/// the board leans over its height.
+pub(crate) fn back(signal: &Signal) -> f32 {
+    let height = signal.height.unwrap_or(FALLBACK_SIZE);
+    signal.length.unwrap_or(0.0) / 2.0 + height * signal.pitch.sin().abs()
+}
+
+/// Whether `signal` faces both ways: the map gives it `orientation="none"`,
+/// so it applies to traffic in both directions.
+pub(crate) fn two_faced(provenance: &Provenance, signal: &Signal) -> bool {
+    provenance
+        .signals
+        .iter()
+        .find(|p| p.signal == signal.id)
+        .is_some_and(|p| p.orientation == Orientation::Both)
+}
+
 fn signal_path(id: usize) -> String {
     format!("/Map/Signals/signal_{id}")
 }
@@ -383,7 +427,7 @@ fn local(signal: &Signal, point: Point, front: f32) -> [f32; 3] {
 
 /// `d` turned back by the signal's heading, pitch and roll. The crate turns
 /// a board by roll, then pitch, then heading, as USD's `rotateXYZ` does.
-fn unrotate(signal: &Signal, d: Vector) -> [f32; 3] {
+pub(crate) fn unrotate(signal: &Signal, d: Vector) -> [f32; 3] {
     let (sh, ch) = signal.heading.sin_cos();
     let (sp, cp) = signal.pitch.sin_cos();
     let (sr, cr) = signal.roll.sin_cos();

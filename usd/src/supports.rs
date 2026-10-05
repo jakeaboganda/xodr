@@ -4,7 +4,8 @@ use std::f32::consts::TAU;
 use std::io::{self, Write};
 
 use xodr::{
-    LaneType, Mesh, MeshSampler, ObjectType, Point, Referenced, RoadNetwork, Shape, Signal, Vector,
+    LaneType, Mesh, MeshSampler, ObjectType, Point, Provenance, Referenced, RoadNetwork, Shape,
+    Signal, Vector,
 };
 
 use crate::{close, open, write_mesh, MeshPrim, Paths, Tag};
@@ -19,6 +20,9 @@ const NEAR: f32 = 0.5;
 
 /// The radius of a pole the exporter adds, in metres.
 const RADIUS: f32 = 0.04;
+
+/// Metres between a pole's axis and the back of a board it holds.
+pub(crate) const GAP: f32 = RADIUS + 0.01;
 
 /// Sides on a pole the exporter adds.
 const SIDES: usize = 12;
@@ -85,6 +89,9 @@ pub(crate) struct Pole {
     base: Point,
     column: Point,
     facing: Vector,
+    /// Whether it holds a two-faced signal, between its boards. No other
+    /// signal shares it.
+    two_faced: bool,
     /// The top of the highest board it holds.
     top: f32,
     /// The middle of the lowest board it holds.
@@ -107,12 +114,15 @@ impl Pole {
         ]
     }
 
-    /// Whether the pole can hold a board at `position` facing `facing`: it
-    /// stands within [`NEAR`] of it, behind it, and faces the same way.
-    fn holds(&self, position: Point, facing: Vector) -> bool {
+    /// Whether the pole can also hold `signal`, which faces `facing`: it
+    /// stands within [`NEAR`] of it, behind its box, and faces the same way.
+    fn holds(&self, signal: &Signal, facing: Vector) -> bool {
+        let position = signal.position;
         let to = Vector::new(self.column.x - position.x, self.column.y - position.y, 0.0);
-        across(self.column, position) <= NEAR
-            && to.dot(facing) <= -RADIUS
+        let back = crate::signals::back(signal);
+        !self.two_faced
+            && across(self.column, position) <= NEAR
+            && to.dot(facing) <= -(back + RADIUS)
             && self.facing.dot(facing) > 0.99
     }
 }
@@ -125,10 +135,11 @@ impl Pole {
 /// 2. a pole object its `<reference>`s name;
 /// 3. a pole object within [`NEAR`] of it;
 /// 4. an added pole, shared with signals within [`NEAR`] that face the same
-///    way and stand in front of it;
+///    way and stand in front of it. A two-faced signal shares with none;
 /// 5. nothing, if no spot off the traffic is within [`REACH`].
 pub(crate) fn supports(
     net: &RoadNetwork,
+    provenance: &Provenance,
     paths: &Paths,
     traffic: &MeshSampler,
 ) -> (Vec<Support>, Vec<Pole>) {
@@ -148,14 +159,21 @@ pub(crate) fn supports(
             let (top, middle) = (signal.position.z + height, signal.position.z + height / 2.0);
             let (sin, cos) = signal.heading.sin_cos();
             let facing = Vector::new(cos, sin, 0.0);
-            if let Some(k) = poles.iter().position(|p| p.holds(signal.position, facing)) {
+            let two_faced = crate::signals::two_faced(provenance, signal);
+            let found = (!two_faced)
+                .then(|| poles.iter().position(|p| p.holds(signal, facing)))
+                .flatten();
+            if let Some(k) = found {
                 let pole = &mut poles[k];
                 pole.top = pole.top.max(top);
                 pole.bottom = pole.bottom.min(middle);
                 return Support::Pole(k);
             }
-            let column =
-                Point::new(signal.position.x, signal.position.y, ground) - facing * (RADIUS + 0.01);
+            let behind = match two_faced {
+                true => 0.0,
+                false => crate::signals::back(signal) + GAP,
+            };
+            let column = Point::new(signal.position.x, signal.position.y, ground) - facing * behind;
             let base = match traffic.height_at(column.x, column.y) {
                 None => Some(column),
                 Some(_) => beside_traffic(net, traffic, column),
@@ -167,6 +185,7 @@ pub(crate) fn supports(
                 base,
                 column,
                 facing,
+                two_faced,
                 top,
                 bottom: middle,
             });
@@ -379,7 +398,7 @@ mod tests {
             objects: crate::objects(&net, &provenance, &net.object_mesh(), sink).expect("writes"),
         };
         let traffic = traffic(&net, &surface);
-        let (_, poles) = supports(&net, &paths, &traffic.sampler());
+        let (_, poles) = supports(&net, &provenance, &paths, &traffic.sampler());
         (poles, traffic)
     }
 
@@ -439,9 +458,17 @@ mod tests {
     }
 
     #[test]
-    fn an_arm_passes_over_the_boards_it_holds() {
-        let (net, provenance) =
-            xodr::load_file_with_provenance("../tests/data/signals.xodr").expect("loads");
+    fn a_pole_never_goes_through_its_boards() {
+        let map = std::fs::read_to_string("../tests/data/signals.xodr").expect("reads");
+        clears_its_boards(&map);
+        let deep = r#"name="SideLight" length="0.6""#;
+        clears_its_boards(&map.replace(r#"name="SideLight""#, deep));
+    }
+
+    /// Check that no pole the exporter adds to `map` goes through a board it
+    /// holds. `map` is `signals.xodr`, maybe changed.
+    fn clears_its_boards(map: &str) {
+        let (net, provenance) = xodr::load_str_with_provenance(map).expect("loads");
         let surface = net.surface_mesh();
         let sink = &mut io::sink();
         let paths = Paths {
@@ -449,27 +476,29 @@ mod tests {
             objects: crate::objects(&net, &provenance, &net.object_mesh(), sink).expect("writes"),
         };
         let traffic = traffic(&net, &surface);
-        let (supports, poles) = supports(&net, &paths, &traffic.sampler());
-        let mut arms = 0;
+        let (supports, poles) = supports(&net, &provenance, &paths, &traffic.sampler());
+        let (mut arms, mut two_faced) = (0, 0);
         for (signal, support) in net.signals().iter().zip(&supports) {
             let Support::Pole(k) = support else { continue };
             let path = poles[*k].path();
-            if path.len() < 4 {
-                continue;
-            }
-            arms += 1;
-            let top = signal.position.z + signal.height.unwrap_or(0.0);
-            let (sin, cos) = signal.heading.sin_cos();
-            let facing = Vector::new(cos, sin, 0.0);
-            let half = signal.width.unwrap_or(0.0) / 2.0 + RADIUS;
+            arms += usize::from(path.len() == 4);
+            let both = crate::signals::two_faced(&provenance, signal);
+            two_faced += usize::from(both);
+            let depth = signal.length.unwrap_or(0.0) / 2.0;
+            let (width, height) = (signal.width.unwrap_or(0.0), signal.height.unwrap_or(0.0));
+            let gap = crate::signals::back(signal) + GAP;
             for p in rounded(&path, &[BEND, ELBOW]) {
-                let to = p - signal.position;
-                let beside = Vector::Z.cross(facing).dot(to).abs() > half;
-                let behind = facing.dot(to) < -RADIUS;
-                let over = p.z - RADIUS > top;
-                assert!(beside || behind || over, "{} at {p:?}", signal.name);
+                let [x, y, z] = crate::signals::unrotate(signal, p - signal.position);
+                let beside = y.abs() > width / 2.0 + RADIUS;
+                let off = z > height + RADIUS || z < -RADIUS;
+                let clear = match both {
+                    true => x.abs() + RADIUS <= gap - depth + 1e-4,
+                    false => x + RADIUS <= -depth + 1e-4,
+                };
+                assert!(beside || off || clear, "{} at {p:?}", signal.name);
             }
         }
         assert!(arms >= 2, "the gantry and the side light");
+        assert_eq!(two_faced, 1, "the road works sign");
     }
 }

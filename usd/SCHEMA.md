@@ -63,7 +63,8 @@ Lanes and marks with no triangles have no prim.
 
 ## Signals
 
-A signal prim sits at the middle of its board's bottom edge. Its local +X
+A signal prim sits at the middle of the bottom of its box. The box is
+`length` deep, centred on the prim, as OpenDRIVE places it. Its local +X
 points toward the traffic the board faces, +Y to the board's left, and +Z
 up. `xformOp:rotateXYZ` holds roll, pitch and heading, in degrees.
 
@@ -72,12 +73,17 @@ Each signal has these children:
 | Child | Type | Contents |
 | --- | --- | --- |
 | `board` | `Xform` | The signal's own board. It inherits the signal's type class and is scaled to the board's size. |
-| `sign_<b>_<k>` | `Xform` | Sign `k` on static board `b`, like `board` but for the sign's own type. 1 cm in front of `board`. |
+| `board_back` | `Xform` | Only on a signal the map gives `orientation="none"`, which applies both ways. Like `board`, but turned to face -X. |
+| `sign_<b>_<k>` | `Xform` | Sign `k` on static board `b`, like `board` but for the sign's own type. 1 cm in front of the box. |
 | `display_<b>` | `Xform` | Variable message board `b`: a `screen` mesh, and an `area_<k>` mesh for each display area, in metres. |
 
 A board's scale is (1, width, height). X isn't scaled, so a type class can
 give its board a depth in metres. A board the map gives no size is 0.6 m
 across and 0.6 m up, and its signal has `xodr:sizeGuessed = 1`.
+
+On a signal with `board_back`, the two boards stand back to back, each
+5 cm beyond its half of the box. A pole the exporter adds goes up between
+them.
 
 Every board has up to two label sets:
 
@@ -112,7 +118,7 @@ An added pole never stands in traffic. Every lane carries traffic except
 lanes of type `sidewalk`, `border`, `curb`, `median` and `none`.
 
 - If no traffic is under the board, the pole goes straight up from the
-  ground to the top of the board, just behind it.
+  ground to the top of the board, 5 cm behind its box.
 - If traffic is under the board, the pole stands at the nearest spot at
   least 0.5 m from any traffic. It rises, bends with a 1 m radius, and runs
   across 0.25 m above the top of the highest board it holds. Behind the
@@ -142,7 +148,9 @@ that type picks up the change.
 
 Type classes use board units. Y runs from -0.5 to 0.5 across the board and
 Z from 0 to 1 up it. Each board scales these to its own width and height.
-X is in metres and isn't scaled. +X faces the traffic.
+X is in metres and isn't scaled. +X faces the traffic. Centre a board's
+depth on X = 0, and make it the depth the map gives as `length`, so a pole
+behind the box stays clear of it.
 
 In a type class, a catalogue can:
 
