@@ -49,7 +49,7 @@ prim is `/Map`.
 | `/Map/Roads/road_<n>/lane_<n>` | `Mesh` | One lane's surface, with normals. |
 | `/Map/RoadMarks/mark_<n>` | `Mesh` | One painted road mark, 5 mm above its lane. One quad per piece of paint. |
 | `/Map/Objects/object_<n>` | `Mesh` | One object, double-sided. Objects with no volume have no prim. |
-| `/Map/Supports/support_<n>` | `Mesh` | One pole the exporter added. See [Poles](#poles). |
+| `/Map/Supports/support_<n>` | `Mesh` | One structure the exporter added. See [Structures](#structures). |
 | `/Map/Signals/signal_<n>` | `Xform` | One signal, at its board's position and turn. See [Signals](#signals). |
 | `/Map/Controllers/controller_<n>` | `Scope` | One controller. |
 | `/_SignalTypes/<type class>` | class `Xform` | One per signal type. See [Signal types](#signal-types). |
@@ -81,9 +81,9 @@ A board's scale is (1, width, height). X isn't scaled, so a type class can
 give its board a depth in metres. A board the map gives no size is 0.6 m
 across and 0.6 m up, and its signal has `xodr:sizeGuessed = 1`.
 
-On a signal with `board_back`, the two boards stand back to back, each
-5 cm beyond its half of the box. A pole the exporter adds goes up between
-them.
+On a signal with `board_back`, the two boards stand back to back. A
+structure the exporter adds goes between them. See
+[Structures](#structures).
 
 Every board has up to two label sets:
 
@@ -94,12 +94,13 @@ Every board has up to two label sets:
 
 A sign with no `country` uses its signal's for its type class and code.
 
-## Poles
+## Structures
 
 Each signal records what holds it up, in `xodr:support`:
 
 - `object`: a pole object from the map. `xodr:supportPrim` links to it.
-- `synthesized`: a pole the exporter added. `xodr:supportPrim` links to it.
+- `synthesized`: a structure the exporter added. `xodr:supportPrim` links
+  to it.
 - `none`: nothing holds it up.
 
 The exporter takes the first rule that applies:
@@ -109,27 +110,43 @@ The exporter takes the first rule that applies:
 2. A pole object the signal's `<reference>`s name gets `object`.
 3. A pole object within 0.5 m of the board, measured across the ground,
    gets `object`.
-4. Anything else gets `synthesized`. A signal shares a pole within 0.5 m
-   if it faces the same way and the pole is behind its board.
-5. If an added pole has nowhere to stand within 15 m, the signal gets
-   `none`.
+4. Anything else gets `synthesized`.
 
-An added pole never stands in traffic. Every lane carries traffic except
-lanes of type `sidewalk`, `border`, `curb`, `median` and `none`.
+Signals share a structure if they face the same way or opposite ways, and
+stand within 0.5 m of each other along the way they face. Beside the road
+they must also stand within 0.5 m across. Over traffic they may stand up
+to 40 m apart across, as signs on one gantry do.
 
-- If no traffic is under the board, the pole goes straight up from the
-  ground to the top of the board, 5 cm behind its box.
-- If traffic is under the board, the pole is a cantilever. It stands at
-  the nearest spot in line with the board, along its width, at least 0.5 m
-  from any traffic. It rises, bends with a 1 m radius, and runs behind the
-  board at the height of its middle. Lower boards on the same pole hang
-  from a drop at the arm's end.
-- If no spot in line with the board is clear within 15 m, the pole stands
-  at the nearest clear spot in any direction. Its arm runs 0.25 m above the
-  highest board's top, then drops behind the boards to the middle of the
-  lowest one.
+A structure never stands in traffic. Every lane carries traffic except
+lanes of type `sidewalk`, `border`, `curb`, `median` and `none`. Each
+structure prim lists where it meets the ground in `xodr:feet`, and its
+kind in `xodr:structure`:
 
-Added poles are grey, 8 cm across, and have `xodr:synthesized = 1`.
+| `xodr:structure` | Used when | Shape |
+| --- | --- | --- |
+| `pole` | No traffic is under the boards. | A pole from the ground to the top of the highest board, 5 cm behind the boards. |
+| `cantilever` | The arm is at most 13 m, the signs at most 20 m², and the arm crosses at most 2 driving lanes. | A pole beside the road, in line with the boards, at least 0.5 m from traffic. It rises, bends with a 1 m radius, and runs behind the boards at the height of the highest board's middle. |
+| `gantry` | A cantilever doesn't fit, the span is at most 27.5 m, the signs at most 55 m², and the span crosses at most 5 lanes. | A leg each side of the road and a box truss 0.6 m deep and 0.8 m high between them, behind the boards. |
+| `spaceFrame` | A gantry doesn't fit either. | A tower of two braced columns each side and a box truss 1.2 m deep and 1.5 m high. |
+| `arm` | Only one side of the road has room for a leg, and a cantilever from it doesn't fit. | A pole at the nearest spot with room, within 15 m, whose arm runs 0.25 m above the highest board. |
+
+The limits are AASHTO's, from its specification for structural supports for
+highway signs, as state DOTs such as WSDOT and DelDOT apply them. An arm is
+measured from the leg to the far edge of the boards, and a span from leg to
+leg. A cantilever counts the driving lanes under its arm. A gantry counts
+every lane under its span that carries traffic, shoulders included. Lanes
+inside a junction don't count, since its connecting lanes overlap. The sign
+area is the width times the height of each board.
+
+Boards lower than an arm or truss hang from it on a hanger. If no structure
+has room, the signals get `none`.
+
+To clear its structure, a board may move toward its traffic. Signs back to
+back, at one spot, each move 5 cm beyond their half of the box from a pole
+or arm, and further from a truss. The board's `xformOp:translate` holds the
+move.
+
+Every added structure is grey and has `xodr:synthesized = 1`.
 
 ## Signal types
 
@@ -235,7 +252,9 @@ Every attribute this schema adds starts with `xodr:`.
 | signal | `float xodr:length` | The board's thickness. Only if the map gives one. |
 | signal | `point3f[] xodr:appliesAt` | The points on the road where the signal applies: its own, then one per `<signalReference>`. |
 | signal | `rel xodr:lanes` | The lanes it applies to. |
-| signal | `token xodr:support`, `rel xodr:supportPrim` | What holds it up. See [Poles](#poles). |
+| signal | `token xodr:support`, `rel xodr:supportPrim` | What holds it up. See [Structures](#structures). |
+| structure | `token xodr:structure` | `pole`, `cantilever`, `gantry`, `spaceFrame` or `arm`. |
+| structure | `point3f[] xodr:feet` | Where it meets the ground. |
 | signal | `rel xodr:dependencies`, `string[] xodr:dependencyTypes` | The signals its `<dependency>`s name, and each `type`. |
 | signal | `rel xodr:references`, `string[] xodr:referenceTypes` | The signals and objects its `<reference>`s name, and each `type`. |
 | sign | `string xodr:name`, `xodr:country`, `xodr:type`, `xodr:subtype`, `xodr:text` | As on a signal. |

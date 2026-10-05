@@ -5,8 +5,8 @@
 For each stage, alone and with the catalogue layered over it, this checks
 that OpenUSD's validators pass, that every relationship target exists, that
 every mesh is well formed, that every signal board has geometry, and that
-no pole the exporter added stands on a lane that carries traffic or goes
-through a board it holds. Then
+no structure the exporter added stands on a lane that carries traffic or
+goes through a board it holds. Then
 it flattens the stage and checks the boards still have geometry. It also
 checks that every type in the catalogue matches a board in some stage, to
 catch a misspelled type. Exits 1 if any check fails. Needs OpenUSD's Python
@@ -56,8 +56,8 @@ def problems(stage):
 
 
 def pierced(stage, signal):
-    """A problem if the pole the exporter added for `signal` goes through
-    one of its boards, `board` or `board_back`. In a board's own frame it is
+    """A problem if the structure the exporter added for `signal` goes
+    through one of its boards, `board` or `board_back`. In a board's own frame it is
     the square X = 0, -0.5 <= Y <= 0.5, 0 <= Z <= 1, so an edge of the pole
     that crosses X = 0 inside it goes through."""
     support = signal.GetAttribute("xodr:support")
@@ -103,25 +103,26 @@ def traffic_triangles(stage):
 
 
 def pole_problems(prim, lanes):
-    """A problem if the foot of an added pole is on a lane in `lanes`."""
-    points = UsdGeom.Mesh(prim).GetPointsAttr().Get()
-    low = min(p[2] for p in points)
-    foot = [p for p in points if p[2] - low < 1e-4]
-    x = sum(p[0] for p in foot) / len(foot)
-    y = sum(p[1] for p in foot) / len(foot)
+    """A problem for each foot of an added structure, from `xodr:feet`, on
+    a lane in `lanes`."""
+    feet = prim.GetAttribute("xodr:feet")
+    if not feet or not feet.Get():
+        return [f"{prim.GetPath()} has no xodr:feet"]
+    found = []
+    for x, y, _ in feet.Get():
 
-    def covers(corners):
-        (ax, ay), (bx, by), (cx, cy) = corners
-        sides = [
-            (x - bx) * (ay - by) - (ax - bx) * (y - by),
-            (x - cx) * (by - cy) - (bx - cx) * (y - cy),
-            (x - ax) * (cy - ay) - (cx - ax) * (y - ay),
-        ]
-        return not (min(sides) < 0 < max(sides))
+        def covers(corners):
+            (ax, ay), (bx, by), (cx, cy) = corners
+            sides = [
+                (x - bx) * (ay - by) - (ax - bx) * (y - by),
+                (x - cx) * (by - cy) - (bx - cx) * (y - cy),
+                (x - ax) * (cy - ay) - (cx - ax) * (y - ay),
+            ]
+            return not (min(sides) < 0 < max(sides))
 
-    if any(covers(t) for t in lanes):
-        return [f"{prim.GetPath()} stands in traffic"]
-    return []
+        if any(covers(t) for t in lanes):
+            found.append(f"{prim.GetPath()} stands in traffic at ({x:.2f}, {y:.2f})")
+    return found
 
 
 def mesh_problems(prim):
