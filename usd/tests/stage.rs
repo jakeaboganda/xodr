@@ -101,7 +101,7 @@ fn supports(stage: &str) -> Vec<(String, String)> {
 }
 
 #[test]
-fn a_signal_stands_on_a_pole_unless_it_is_paint() {
+fn a_signal_is_held_up_unless_it_is_paint() {
     let found = supports(&stage("signals"));
     let support = |name: &str| {
         found
@@ -116,10 +116,19 @@ fn a_signal_stands_on_a_pole_unless_it_is_paint() {
     assert_eq!(support("SideLight"), "synthesized");
     assert_eq!(support("SpeedLimit50"), "synthesized");
     let stage = stage("signals");
-    let speed = stage.find("\"SpeedLimit50\"").expect("the speed limit");
-    let plate = stage.find("\"LorriesOnly\"").expect("the plate");
+    let prim = |name: &str| {
+        let start = stage.find(&format!("\"{name}\"")).expect(name);
+        let end = stage[start..]
+            .find("def Xform \"signal_")
+            .map_or(stage.len(), |i| start + i);
+        &stage[start..end]
+    };
     let pole = "rel xodr:supportPrim = [</Map/Supports/support_0>]";
-    assert!(stage[speed..plate].contains(pole) && stage[plate..].contains(pole));
+    assert!(
+        prim("SpeedLimit50").contains(pole),
+        "the speed limit's pole"
+    );
+    assert!(prim("LorriesOnly").contains(pole), "the plate shares it");
 }
 
 #[test]

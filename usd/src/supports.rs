@@ -249,14 +249,16 @@ pub(crate) fn supports(
     let signals = net.signals();
     let mut placements: Vec<Placement> = signals
         .iter()
-        .map(|s| Placement {
-            support: Support::None,
-            front: 0.0,
-            back: if two_faced(provenance, s) {
-                back(s) + GAP
-            } else {
-                0.0
-            },
+        .map(|s| {
+            let apart = match two_faced(provenance, s) {
+                true => back(s) + GAP,
+                false => 0.0,
+            };
+            Placement {
+                support: Support::None,
+                front: apart,
+                back: apart,
+            }
         })
         .collect();
     let mut groups: Vec<Group> = vec![];
@@ -366,62 +368,76 @@ fn build(
         .iter()
         .map(|m| m.u + m.width / 2.0)
         .fold(f32::MIN, f32::max);
-    let area: f32 = members.iter().map(|m| m.area).sum();
-    let legs = |f: &Frame, depth: f32| {
+    let face = |d: f32| {
+        let facing = members.iter().filter(|m| m.faces == d || m.two_faced);
+        facing.map(|m| m.area).sum::<f32>()
+    };
+    let area = face(1.0).max(face(-1.0));
+    let measure = |kind: Kind| {
+        let f = frame(group.line(kind.clearance()));
         let clear = |u| {
+            let depth = kind.footprint();
             [-depth / 2.0, depth / 2.0]
                 .iter()
                 .all(|&a| clear(traffic, f.at(a, u, 0.0)))
         };
-        (leg(lo, -1.0, clear), leg(hi, 1.0, clear))
+        let (left, right) = (leg(lo, -1.0, clear), leg(hi, 1.0, clear));
+        (f, left, right)
     };
-    let first = frame(group.line(Kind::Cantilever.clearance()));
-    let (left, right) = legs(&first, 0.0);
-    let reach = |from: f32, to: f32, drivable| Reach {
+    let reach = |f: &Frame, from: f32, to: f32, drivable| Reach {
         length: (to - from).abs(),
-        lanes: lanes.count(first.at(0.0, from, 0.0), first.at(0.0, to, 0.0), drivable),
+        lanes: lanes.count(f.at(0.0, from, 0.0), f.at(0.0, to, 0.0), drivable),
     };
+    let (cf, cl, cr) = measure(Kind::Cantilever);
+    let (gf, gl, gr) = measure(Kind::Gantry);
     let choice = choose(
         area,
-        left.map(|u| reach(u, hi, true)),
-        right.map(|u| reach(lo, u, true)),
-        left.zip(right).map(|(l, r)| reach(l, r, false)),
+        cl.map(|u| reach(&cf, u, hi, true)),
+        cr.map(|u| reach(&cf, lo, u, true)),
+        gl.zip(gr).map(|(l, r)| reach(&gf, l, r, false)),
     );
-    let kind = match choice {
-        Choice::Cantilever(_) => Kind::Cantilever,
-        Choice::Gantry => Kind::Gantry,
-        Choice::SpaceFrame => Kind::SpaceFrame,
-        Choice::Arm => Kind::Arm,
-    };
-    let line = group.line(kind.clearance());
-    let f = frame(line);
     let held = group.held();
-    let at_ground = |u: f32| {
+    let at_ground = |f: &Frame, u: f32| {
         let p = f.at(0.0, u, ground);
         let road = net.road_position(p).and_then(|at| net.road_point(at));
         (u, road.map_or(ground, |r| r.z))
     };
-    let structure = match choice {
-        Choice::Cantilever(side) => {
-            let (left, right) = legs(&f, 0.0);
-            let (leg, end) = match side {
-                -1 => (left?, members.iter().map(|m| m.u).fold(f32::MIN, f32::max)),
-                _ => (right?, members.iter().map(|m| m.u).fold(f32::MAX, f32::min)),
-            };
-            let (_, z) = at_ground(leg);
-            Structure::cantilever(&f, f.at(0.0, leg, z), leg, end, high, &held)
-        }
-        Choice::Gantry | Choice::SpaceFrame => {
-            let (left, right) = legs(&f, kind.footprint());
-            Structure::span(kind, &f, at_ground(left?), at_ground(right?), high, &held)
-        }
-        Choice::Arm => {
-            let reach = (lo + hi) / 2.0;
-            let foot = anywhere(net, traffic, f.at(0.0, reach, ground))?;
-            Structure::arm(&f, foot, reach, top + ABOVE, &held)
-        }
+    let span = |kind, f: Frame, left, right| {
+        let structure = Structure::span(
+            kind,
+            &f,
+            at_ground(&f, left),
+            at_ground(&f, right),
+            high,
+            &held,
+        );
+        Some((structure, f.line, kind))
     };
-    Some((structure, line, kind))
+    let arm = || {
+        let f = frame(group.line(Kind::Arm.clearance()));
+        let reach = (lo + hi) / 2.0;
+        let foot = anywhere(net, traffic, f.at(0.0, reach, ground))?;
+        let structure = Structure::arm(&f, foot, reach, top + ABOVE, &held);
+        Some((structure, f.line, Kind::Arm))
+    };
+    match choice {
+        Choice::Cantilever(side) => {
+            let (leg, end) = match side {
+                -1 => (cl?, members.iter().map(|m| m.u).fold(f32::MIN, f32::max)),
+                _ => (cr?, members.iter().map(|m| m.u).fold(f32::MAX, f32::min)),
+            };
+            let (_, z) = at_ground(&cf, leg);
+            let foot = cf.at(0.0, leg, z);
+            let structure = Structure::cantilever(&cf, foot, leg, end, high, &held);
+            Some((structure, cf.line, Kind::Cantilever))
+        }
+        Choice::Gantry => span(Kind::Gantry, gf, gl?, gr?),
+        Choice::SpaceFrame => match measure(Kind::SpaceFrame) {
+            (f, Some(left), Some(right)) => span(Kind::SpaceFrame, f, left, right),
+            _ => arm(),
+        },
+        Choice::Arm => arm(),
+    }
 }
 
 /// The first `u` past `from`, going `dir`, where `clear(u)` holds, within
@@ -847,5 +863,35 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn two_way_boards_never_overlap_whatever_holds_them() {
+        let two_way = sign(1, -9.0, 0.6, 0.6, "none").replace("/>", r#" length="0.3"/>"#);
+        let pole = r#"<objects><object id="9" type="pole" s="50" t="-9" zOffset="0" radius="0.05" height="5"/></objects>"#;
+        let maps = [
+            road(2, &two_way),
+            road(2, &two_way).replace("<signals>", &format!("{pole}<signals>")),
+            road(2, &two_way.replace(r#"zOffset="5""#, r#"zOffset="0""#)),
+        ];
+        for map in &maps {
+            let (net, _, placements, _, _) = export(map);
+            let length = net.signals()[0].length.expect("a length");
+            let p = &placements[0];
+            assert!(
+                p.front + p.back >= length - 1e-4,
+                "{} and {} overlap",
+                p.front,
+                p.back
+            );
+        }
+    }
+
+    #[test]
+    fn signs_back_to_back_count_their_area_once() {
+        let pair = sign(1, -3.5, 4.0, 3.0, "+") + &sign(2, -3.5, 4.0, 3.0, "-");
+        let two_way = sign(1, -3.5, 4.0, 3.0, "none");
+        assert_eq!(kinds(&road(2, &pair)), [Kind::Cantilever]);
+        assert_eq!(kinds(&road(2, &two_way)), [Kind::Cantilever]);
     }
 }
