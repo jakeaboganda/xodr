@@ -225,7 +225,8 @@ Every attribute this schema adds starts with `xodr:`.
 | controller | `rel xodr:signals`, `string[] xodr:controlTypes` | The signals it controls, and each `<control type>`. |
 
 A relationship skips a target with no prim, such as an object with no
-volume. Its matching `...Types` array skips the same entries. An empty
+volume. It lists a target once, even if the map names it twice, with the
+type the map gives it first. Its matching `...Types` array skips the same entries. An empty
 array or relationship is left out.
 
 ## Colour

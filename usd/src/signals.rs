@@ -71,31 +71,18 @@ pub(crate) fn signals(
         let lanes = lanes.filter_map(|l| paths.lanes.get(l).cloned());
         tags.push(("lanes", Tag::Targets(lanes.collect())));
         let dependencies = signal.dependencies.iter();
-        tags.push((
-            "dependencies",
-            Tag::Targets(
-                dependencies
-                    .clone()
-                    .map(|d| signal_path(d.signal.0))
-                    .collect(),
-            ),
-        ));
-        tags.push((
-            "dependencyTypes",
-            Tag::Texts(dependencies.map(|d| d.kind.clone()).collect()),
-        ));
-        let references: Vec<(String, String)> = signal
-            .references
-            .iter()
-            .filter_map(|r| {
-                let path = match r.to {
-                    Referenced::Signal(id) => Some(signal_path(id.0)),
-                    Referenced::Object(id) => paths.objects.get(&id).cloned(),
-                };
-                Some((path?, r.kind.clone()))
-            })
-            .collect();
-        let (targets, kinds) = references.into_iter().unzip();
+        let dependencies = dependencies.map(|d| (signal_path(d.signal.0), d.kind.clone()));
+        let (targets, kinds) = links(dependencies);
+        tags.push(("dependencies", Tag::Targets(targets)));
+        tags.push(("dependencyTypes", Tag::Texts(kinds)));
+        let references = signal.references.iter().filter_map(|r| {
+            let path = match r.to {
+                Referenced::Signal(id) => Some(signal_path(id.0)),
+                Referenced::Object(id) => paths.objects.get(&id).cloned(),
+            };
+            Some((path?, r.kind.clone()))
+        });
+        let (targets, kinds) = links(references);
         tags.push(("references", Tag::Targets(targets)));
         tags.push(("referenceTypes", Tag::Texts(kinds)));
 
@@ -198,14 +185,9 @@ pub(crate) fn controllers(
             tags.push(("sequence", Tag::Int(sequence.into())));
         }
         let signals = c.signals.iter();
-        tags.push((
-            "signals",
-            Tag::Targets(signals.clone().map(|s| signal_path(s.signal.0)).collect()),
-        ));
-        tags.push((
-            "controlTypes",
-            Tag::Texts(signals.map(|s| s.kind.clone()).collect()),
-        ));
+        let (targets, kinds) = links(signals.map(|s| (signal_path(s.signal.0), s.kind.clone())));
+        tags.push(("signals", Tag::Targets(targets)));
+        tags.push(("controlTypes", Tag::Texts(kinds)));
         open(
             out,
             2,
@@ -368,6 +350,15 @@ fn meaning(semantic: &Semantic) -> String {
         "" => name.to_string(),
         kind => format!("{name}:{kind}"),
     }
+}
+
+/// A relationship's targets and the type of each, in order. USD allows a
+/// target once, so a target named again is dropped with its type.
+fn links(pairs: impl Iterator<Item = (String, String)>) -> (Vec<String>, Vec<String>) {
+    let mut seen = BTreeSet::new();
+    pairs
+        .filter(|(target, _)| seen.insert(target.clone()))
+        .unzip()
 }
 
 fn signal_path(id: usize) -> String {
