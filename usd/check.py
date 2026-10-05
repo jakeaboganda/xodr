@@ -5,7 +5,8 @@
 For each stage, alone and with the catalogue layered over it, this checks
 that OpenUSD's validators pass, that every relationship target exists, that
 every mesh is well formed, that every signal board has geometry, and that
-no pole the exporter added stands on a lane that carries traffic. Then
+no pole the exporter added stands on a lane that carries traffic or goes
+through a board it holds. Then
 it flattens the stage and checks the boards still have geometry. It also
 checks that every type in the catalogue matches a board in some stage, to
 catch a misspelled type. Exits 1 if any check fails. Needs OpenUSD's Python
@@ -49,7 +50,35 @@ def problems(stage):
         if prim.GetPath().GetParentPath().name.startswith("signal_"):
             if not any(p.IsA(UsdGeom.Mesh) for p in Usd.PrimRange(prim)):
                 found.append(f"{prim.GetPath()} has no geometry")
+        if prim.GetName().startswith("signal_"):
+            found += pierced(stage, prim)
     return found
+
+
+def pierced(stage, signal):
+    """A problem if the pole the exporter added for `signal` goes through
+    its board. In the board's own frame the board is the square X = 0,
+    -0.5 <= Y <= 0.5, 0 <= Z <= 1, so an edge of the pole that crosses X = 0
+    inside it goes through."""
+    support = signal.GetAttribute("xodr:support")
+    board = signal.GetChild("board")
+    if not support or support.Get() != "synthesized" or not board:
+        return []
+    pole = stage.GetPrimAtPath(signal.GetRelationship("xodr:supportPrim").GetTargets()[0])
+    cache = UsdGeom.XformCache()
+    local = cache.GetLocalToWorldTransform(board).GetInverse()
+    mesh = UsdGeom.Mesh(pole)
+    points = [local.Transform(Gf.Vec3d(p)) for p in mesh.GetPointsAttr().Get()]
+    indices = mesh.GetFaceVertexIndicesAttr().Get()
+    for k in range(0, len(indices), 3):
+        corners = [points[i] for i in indices[k : k + 3]]
+        for a, b in zip(corners, corners[1:] + corners[:1]):
+            if (a[0] > 0) == (b[0] > 0):
+                continue
+            hit = a + (b - a) * (a[0] / (a[0] - b[0]))
+            if -0.5 <= hit[1] <= 0.5 and 0 <= hit[2] <= 1:
+                return [f"{pole.GetPath()} goes through {board.GetPath()}"]
+    return []
 
 
 # Lane types a pole may stand on. Every other lane carries traffic.
