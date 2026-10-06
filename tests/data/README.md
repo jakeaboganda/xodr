@@ -76,6 +76,13 @@ Regenerate with
 
     python3 tests/data/structures.py
 
+`gantries.xodr` comes from `gantries.py`, which writes the XML itself. It
+is a demo of signs on gantries: a motorway with a lane-control gantry, a
+space frame over both carriageways and a message-board gantry, and an urban
+road with a traffic-light gantry. Regenerate with
+
+    python3 tests/data/gantries.py
+
 `traffic_rule.xodr` comes from `traffic_rule.py`, which writes the XML
 itself. It has the same pair of linked roads in right- and left-hand
 traffic, each with a signal, and a road whose `rule` the spec does not
