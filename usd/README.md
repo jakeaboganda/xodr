@@ -26,7 +26,8 @@ map at <http://localhost:8001>.
 - The first run installs OpenUSD's Python module into `target/usd-venv`.
 
 To see every kind of structure that holds signs over traffic, open
-`tests/data/structures.xodr` the same way.
+`tests/data/structures.xodr` the same way. For realistic gantry scenes,
+open `tests/data/gantries.xodr`.
 
 In the page:
 
@@ -45,7 +46,7 @@ different colours gets its first line's colour.
 ## Use a catalogue
 
 [`catalogues/sample.usda`](catalogues/sample.usda) styles the signal types
-in the test maps. [SCHEMA.md](SCHEMA.md#catalogues) explains how to write a
+in the test maps. `catalogues/sample.py` writes it. [SCHEMA.md](SCHEMA.md#catalogues) explains how to write a
 catalogue.
 
 Full USD tools such as `usdview` stack a catalogue over a stage
