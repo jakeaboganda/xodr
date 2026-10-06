@@ -178,3 +178,14 @@ fn each_road_of_the_structures_map_gets_its_structure() {
         .collect();
     assert_eq!(kinds, ["cantilever", "gantry", "spaceFrame", "gantry"]);
 }
+
+#[test]
+fn the_gantries_map_gets_its_gantries() {
+    let stage = stage("gantries");
+    let kinds: Vec<&str> = stage
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("custom token xodr:structure = "))
+        .map(|k| k.trim_matches('"'))
+        .collect();
+    assert_eq!(kinds, ["gantry", "spaceFrame", "gantry", "gantry"]);
+}

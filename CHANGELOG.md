@@ -28,6 +28,8 @@
   with their attributes and labels. Double-click a prim to frame it.
 - `tests/data/structures.xodr` has a cantilever, two span gantries and a
   space frame.
+- `tests/data/gantries.xodr` is a demo of gantry scenes: lane control,
+  a sign bridge, a message board and traffic lights.
 
 ## 0.5.0 - 2026-10-03
 
