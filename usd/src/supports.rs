@@ -475,7 +475,7 @@ fn anywhere(net: &RoadNetwork, traffic: &MeshSampler, center: Point) -> Option<P
 
 /// Whether a lane of `kind` carries traffic: every type but a sidewalk,
 /// border, curb, median or `none`. A structure may stand on those.
-fn carries_traffic(kind: LaneType) -> bool {
+pub(crate) fn carries_traffic(kind: LaneType) -> bool {
     !matches!(
         kind,
         LaneType::Sidewalk | LaneType::Border | LaneType::Curb | LaneType::Median | LaneType::None

@@ -11,4 +11,5 @@ name = "xodr_usd"
 path = "src/main.rs"
 
 [dependencies]
+spade = "2.15"
 xodr = { path = ".." }

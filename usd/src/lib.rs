@@ -12,6 +12,7 @@ use xodr::{
 mod signals;
 mod structures;
 mod supports;
+mod wrap;
 
 /// The version of `usd/SCHEMA.md` this writer follows.
 pub const SCHEMA_VERSION: u32 = 1;
@@ -42,6 +43,7 @@ pub fn write_stage(
     writeln!(out, "{{")?;
     let surface = net.surface_mesh();
     let lanes = roads(net, &surface, out)?;
+    junctions(net, &surface, &lanes, out)?;
     road_marks(net, out)?;
     let objects = objects(net, provenance, &net.object_mesh(), out)?;
     let paths = Paths { lanes, objects };
@@ -113,6 +115,88 @@ fn roads(
     }
     close(out, 1)?;
     Ok(paths)
+}
+
+/// One `Scope` per junction, with one `Mesh` per lane type: the part of the
+/// [`wrap`](wrap::wrap) over the junction's lanes that lanes of that type
+/// own, linked to the junction's lanes of that type.
+fn junctions(
+    net: &RoadNetwork,
+    mesh: &Mesh,
+    paths: &HashMap<LaneId, String>,
+    out: &mut impl Write,
+) -> io::Result<()> {
+    open(out, 1, "def Scope", "Junctions", &[], &[])?;
+    for (k, (junction, lanes)) in junction_lanes(net, mesh).into_iter().enumerate() {
+        let tags = [("junction", Tag::Text(junction.to_string()))];
+        open(out, 2, "def Scope", &format!("junction_{k}"), &[], &tags)?;
+        let wrap = wrap::wrap(&lanes.facets);
+        let mut by_kind: BTreeMap<&str, (LaneType, Vec<&wrap::Face>)> = BTreeMap::new();
+        for face in &wrap.faces {
+            let kind = lanes.facets[face.facet].kind;
+            by_kind
+                .entry(kind.as_str())
+                .or_insert((kind, Vec::new()))
+                .1
+                .push(face);
+        }
+        for (kind, faces) in by_kind.into_values() {
+            let part = wrap.part(faces);
+            let targets = (lanes.lanes.iter())
+                .filter(|&&(k, _)| k == kind)
+                .filter_map(|(_, lane)| paths.get(lane).cloned());
+            write_mesh(
+                out,
+                3,
+                &MeshPrim {
+                    name: kind.as_str().replace('-', "_"),
+                    tags: vec![
+                        ("laneType", Tag::Text(kind.as_str().to_string())),
+                        ("lanes", Tag::Targets(targets.collect())),
+                    ],
+                    points: &part.vertices,
+                    normals: &part.normals,
+                    face_size: 3,
+                    indices: part.faces.iter().flat_map(|f| f.corners).collect(),
+                    colors: vec![lane_color(kind)],
+                    double_sided: false,
+                },
+            )?;
+        }
+        close(out, 2)?;
+    }
+    close(out, 1)
+}
+
+/// The triangles of one junction's lanes, and its lanes with their types.
+#[derive(Default)]
+struct JunctionLanes {
+    facets: Vec<wrap::Facet>,
+    lanes: Vec<(LaneType, LaneId)>,
+}
+
+/// The [`JunctionLanes`] of each junction with lanes in `mesh`, by its
+/// OpenDRIVE id.
+fn junction_lanes<'n>(net: &'n RoadNetwork, mesh: &Mesh) -> BTreeMap<&'n str, JunctionLanes> {
+    let mut out: BTreeMap<&str, JunctionLanes> = BTreeMap::new();
+    for span in &mesh.lanes {
+        let road = net.road_lane(span.lane).and_then(|at| net.road(at.road));
+        let Some(junction) = road.and_then(|r| r.junction()) else {
+            continue;
+        };
+        let kind = net.lane(span.lane).expect("a span's lane").kind;
+        let lanes = out.entry(junction).or_default();
+        lanes.lanes.push((kind, span.lane));
+        let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
+        lanes
+            .facets
+            .extend(indices.chunks_exact(3).map(|t| wrap::Facet {
+                corners: [0, 1, 2].map(|k| mesh.vertices[t[k] as usize]),
+                normals: [0, 1, 2].map(|k| mesh.normals[t[k] as usize]),
+                kind,
+            }));
+    }
+    out
 }
 
 /// One `Mesh` per painted road mark: a quad per piece, [`LIFT`] above the lane.
