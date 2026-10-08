@@ -6,9 +6,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::{self, Write};
 
 use xodr::{
-    LaneId, LaneSpan, LaneType, Mesh, ObjectId, Point, Provenance, RoadId, RoadNetwork, Vector,
+    JunctionArea, Lane, LaneId, LaneProvenance, LaneSpan, LaneType, Mesh, ObjectId, Point,
+    Provenance, RoadId, RoadNetwork, Vector, Warning,
 };
 
+mod area;
 mod signals;
 mod structures;
 mod supports;
@@ -43,7 +45,7 @@ pub fn write_stage(
     writeln!(out, "{{")?;
     let surface = net.surface_mesh();
     let lanes = roads(net, &surface, out)?;
-    junctions(net, &surface, &lanes, out)?;
+    junctions(net, provenance, &surface, &lanes, out)?;
     road_marks(net, out)?;
     let objects = objects(net, provenance, &net.object_mesh(), out)?;
     let paths = Paths { lanes, objects };
@@ -130,15 +132,17 @@ fn roads(
 /// own, linked to the junction's lanes of that type.
 fn junctions(
     net: &RoadNetwork,
+    provenance: &Provenance,
     mesh: &Mesh,
     paths: &HashMap<LaneId, String>,
     out: &mut impl Write,
 ) -> io::Result<()> {
     open(out, 1, "def Scope", "Junctions", &[], &[])?;
-    for (k, (junction, lanes)) in junction_lanes(net, mesh).into_iter().enumerate() {
+    let junctions = junction_lanes(net, provenance, mesh);
+    for (k, (junction, lanes)) in junctions.into_iter().enumerate() {
         let tags = [("junction", Tag::Text(junction.to_string()))];
         open(out, 2, "def Scope", &format!("junction_{k}"), &[], &tags)?;
-        let wrap = wrap::wrap(&lanes.facets);
+        let wrap = junction_wrap(&lanes);
         let mut by_kind: BTreeMap<&str, (LaneType, Vec<&wrap::Face>)> = BTreeMap::new();
         for face in &wrap.faces {
             let kind = lanes.facets[face.facet].kind;
@@ -178,33 +182,118 @@ fn junctions(
 
 /// The triangles of one junction's lanes, and its lanes with their types.
 #[derive(Default)]
-struct JunctionLanes {
+struct JunctionLanes<'n> {
     facets: Vec<wrap::Facet>,
     lanes: Vec<(LaneType, LaneId)>,
+    /// The junction's area, if its facets are set to be raised onto its
+    /// elevation grid (see [`area::lay`]).
+    grid: Option<&'n JunctionArea>,
+}
+
+/// The wrap over `lanes`, on the junction's elevation grid if it has one.
+fn junction_wrap(lanes: &JunctionLanes) -> wrap::Wrap {
+    let wrap = wrap::wrap(&lanes.facets);
+    match lanes.grid {
+        Some(area) => area::raise(area, &wrap),
+        None => wrap,
+    }
 }
 
 /// The [`JunctionLanes`] of each junction with lanes in `mesh`, by its
-/// OpenDRIVE id.
-fn junction_lanes<'n>(net: &'n RoadNetwork, mesh: &Mesh) -> BTreeMap<&'n str, JunctionLanes> {
-    let mut out: BTreeMap<&str, JunctionLanes> = BTreeMap::new();
+/// OpenDRIVE id. A junction with a [`boundary`] has its facets laid out as
+/// the spec gives its ground, by [`area::lay`].
+fn junction_lanes<'n>(
+    net: &'n RoadNetwork,
+    provenance: &Provenance,
+    mesh: &Mesh,
+) -> BTreeMap<&'n str, JunctionLanes<'n>> {
+    let records: HashMap<LaneId, &LaneProvenance> =
+        provenance.lanes.iter().map(|p| (p.lane, p)).collect();
+    let mut out: BTreeMap<&str, JunctionLanes<'n>> = BTreeMap::new();
+    let mut lifts: BTreeMap<&str, Vec<[f32; 3]>> = BTreeMap::new();
     for span in &mesh.lanes {
         let road = net.road_lane(span.lane).and_then(|at| net.road(at.road));
         let Some(junction) = road.and_then(|r| r.junction()) else {
             continue;
         };
-        let kind = net.lane(span.lane).expect("a span's lane").kind;
+        let lane = net.lane(span.lane).expect("a span's lane");
         let lanes = out.entry(junction).or_default();
-        lanes.lanes.push((kind, span.lane));
+        lanes.lanes.push((lane.kind, span.lane));
+        let heights = records
+            .get(&span.lane)
+            .map_or_else(Vec::new, |record| heights(lane, record, span, mesh));
+        let lift = |v: u32| {
+            let k = (v - span.vertices.start) as usize;
+            heights.get(k).copied().unwrap_or(0.0)
+        };
         let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
-        lanes
-            .facets
-            .extend(indices.chunks_exact(3).map(|t| wrap::Facet {
+        for t in indices.chunks_exact(3) {
+            lanes.facets.push(wrap::Facet {
                 corners: [0, 1, 2].map(|k| mesh.vertices[t[k] as usize]),
                 normals: [0, 1, 2].map(|k| mesh.normals[t[k] as usize]),
-                kind,
-            }));
+                kind: lane.kind,
+                fill: false,
+            });
+            lifts
+                .entry(junction)
+                .or_default()
+                .push([0, 1, 2].map(|k| lift(t[k])));
+        }
+    }
+    for (junction, lanes) in &mut out {
+        if let Some(area) = boundary(net, provenance, junction) {
+            let facets = std::mem::take(&mut lanes.facets);
+            let lifts = lifts.get(junction).map_or(&[][..], Vec::as_slice);
+            let (facets, raised) = area::lay(area, facets, lifts);
+            lanes.facets = facets;
+            lanes.grid = raised.then_some(area);
+        }
     }
     out
+}
+
+/// The area of `junction`, if it has a `<boundary>` the load placed with
+/// every segment. One with a segment dropped lays out as a junction without
+/// one, since the load joins straight across where the segment was.
+fn boundary<'n>(
+    net: &'n RoadNetwork,
+    provenance: &Provenance,
+    junction: &str,
+) -> Option<&'n JunctionArea> {
+    let broken = provenance.warnings.iter().any(|w| {
+        matches!(w, Warning::BoundarySegmentDropped { junction_id, .. } if junction_id == junction)
+    });
+    (net.junction_areas().iter())
+        .find(|a| a.od_id == junction && !a.boundary.is_empty())
+        .filter(|_| !broken)
+}
+
+/// The `<height>` of `lane` at each vertex of `span`, parallel to the span's
+/// vertices: its inner height on its inner edge and its outer height on its
+/// outer edge, at the centerline vertex nearest each rib.
+fn heights(lane: &Lane, record: &LaneProvenance, span: &LaneSpan, mesh: &Mesh) -> Vec<f32> {
+    let centre = lane.center.points();
+    if record.heights.len() != centre.len() {
+        return Vec::new();
+    }
+    let inner_left = record.od_id < 0;
+    (span.vertices.start..span.vertices.end)
+        .map(|v| {
+            let left = (v - span.vertices.start).is_multiple_of(2);
+            let rib = if left { v } else { v - 1 } as usize;
+            let middle = mesh.vertices[rib].lerp(mesh.vertices[rib + 1], 0.5);
+            let distance = |i: &usize| centre[*i].distance_squared_to(middle);
+            let nearest = (0..centre.len())
+                .min_by(|a, b| distance(a).total_cmp(&distance(b)))
+                .expect("a centerline");
+            let height = record.heights[nearest];
+            if left == inner_left {
+                height.inner
+            } else {
+                height.outer
+            }
+        })
+        .collect()
 }
 
 /// One `Mesh` per painted road mark: a quad per piece, [`LIFT`] above the lane.
