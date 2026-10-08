@@ -1300,7 +1300,7 @@ mod tests {
         let junctions = crate::junction_lanes(&net, &mesh);
         assert_eq!(
             junctions.len(),
-            12,
+            13,
             "the direct junction has no lanes of its own"
         );
         for (id, lanes) in &junctions {

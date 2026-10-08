@@ -43,11 +43,20 @@ at 10000 j.
     0.5 m stub off arm 1100.
 12. and 13. Two tees 26 m apart, sharing the 6 m road 1200 as an arm, so
     two wraps meet near each other.
+14. The crossroads of junction 1, with its corner sidewalks raised 0.1 m on
+    their inner edge and 0.2 m on their outer edge, a <boundary> along
+    their outer edge and across each arm, and an
+    <elevationGrid> on a reference line along +X through its middle: a
+    0.3 m hump that falls to 0 by 10 m out. The boundary takes in the
+    slivers between the corner sidewalks and the right turns, which no lane
+    covers.
 
 scenariogeneration doesn't write sidewalks in a junction, banked or
 sloped connecting roads, or arms anywhere but round the origin, so those
 are set on its road objects before it writes them. Junction 11 is added
 after adjust_roads_and_lanes, whose lane linking can't follow its lanes.
+It writes no junction <boundary> or <elevationGrid> either, so junction
+14's are added to its output as text.
 """
 
 import math
@@ -94,6 +103,9 @@ def junction(j, arms):
     return creator
 
 
+corner_roads = {}
+
+
 def crossroads(j, sidewalks):
     radius = 14.0
     angles = [0, math.pi / 2, math.pi, 3 * math.pi / 2]
@@ -109,8 +121,12 @@ def crossroads(j, sidewalks):
             b = (a + 1) % 4
             creator.add_connection(roads[a].id, roads[b].id, -3, 3)
             corners.append(creator.junction_roads[-1])
+    corner_roads[j] = [road.id for road in corners]
     for road in corners:
-        road.lanes.lanesections[0].rightlanes[0].lane_type = xodr.LaneType.sidewalk
+        sidewalk = road.lanes.lanesections[0].rightlanes[0]
+        sidewalk.lane_type = xodr.LaneType.sidewalk
+        if j == 14:
+            sidewalk.add_height(0.1, 0.2)
     if sidewalks:
         turn = next(r for r in creator.junction_roads
                     if r.predecessor.element_id == roads[0].id
@@ -329,7 +345,8 @@ creators = [
 sloped, sloped_arms = slope(6)
 raised, across = flyover(10)
 pair, shared = neighbours(12)
-creators += [sloped, passing(7), crossroads(8, sidewalks=False), raised, *pair]
+creators += [sloped, passing(7), crossroads(8, sidewalks=False), raised, *pair,
+             crossroads(14, sidewalks=True)]
 added = set()
 for creator in creators:
     for road in creator.incoming_roads:
@@ -344,3 +361,31 @@ climb(6, sloped, sloped_arms)
 rise(raised, across, 5.0)
 kerbs(11)
 odr.write_xml(str(Path(__file__).with_suffix(".xodr")))
+
+
+def area(j):
+    """Junction j's <planView>, <boundary> and <elevationGrid>, as text."""
+    ox, oy = origin(j)
+    segments = []
+    for k in range(4):
+        segments.append(f'<segment type="joint" roadId="{100 * j + k}" contactPoint="end" '
+                        'jointLaneStart="3" jointLaneEnd="-3"/>')
+        segments.append(f'<segment type="lane" roadId="{corner_roads[j][k]}" boundaryLane="-1" '
+                        'sStart="start" sEnd="end"/>')
+    hump = lambda x, y: max(0.0, 0.3 * (1 - math.hypot(x, y) / 10))
+    rows = []
+    for i in range(9):
+        x = -20 + 5 * i
+        side = lambda sign: " ".join(f"{hump(x, sign * 5 * k):.2f}" for k in range(1, 5))
+        rows.append(f'<elevation left="{side(1)}" center="{hump(x, 0):.2f}" right="{side(-1)}"/>')
+    return (
+        f'<planView><geometry s="0" x="{ox - 20}" y="{oy}" hdg="0" length="40"><line/></geometry></planView>'
+        f'<boundary>{"".join(segments)}</boundary>'
+        f'<elevationGrid sStart="0" gridSpacing="5">{"".join(rows)}</elevationGrid>'
+    )
+
+
+path = Path(__file__).with_suffix(".xodr")
+xml = path.read_text()
+close = xml.index("</junction>", xml.index('<junction name="junction 14"'))
+path.write_text(xml[:close] + area(14) + xml[close:])

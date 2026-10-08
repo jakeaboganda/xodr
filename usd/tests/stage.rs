@@ -227,12 +227,12 @@ fn each_junction_gets_a_wrap_per_lane_type() {
     let wraps = wraps(&stage("junction_wraps"));
     assert_eq!(
         wraps.len(),
-        12,
+        13,
         "the direct junction has no lanes of its own"
     );
     for (id, names) in wraps {
         let want = match id.as_str() {
-            "1" => vec!["driving", "sidewalk"],
+            "1" | "14" => vec!["driving", "sidewalk"],
             "11" => vec!["border", "driving", "shoulder", "sidewalk"],
             _ => vec!["driving"],
         };
