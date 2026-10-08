@@ -258,3 +258,25 @@ fn a_wrap_links_to_its_junction_lanes_of_its_type() {
         assert!(lane.contains("xodr:laneType = \"sidewalk\""), "{target}");
     }
 }
+
+#[test]
+fn a_lane_in_a_junction_is_a_prim_without_geometry() {
+    let (net, _) =
+        load_file_with_provenance("../tests/data/junction_wraps.xodr").expect("map loads");
+    let stage = stage("junction_wraps");
+    let in_junction = |lane| {
+        net.road_lane(lane)
+            .and_then(|at| net.road(at.road))
+            .is_some_and(|r| r.junction().is_some())
+    };
+    let spans = net.surface_mesh().lanes;
+    let (inside, outside): (Vec<_>, Vec<_>) = spans
+        .iter()
+        .filter(|s| !s.indices.is_empty())
+        .partition(|s| in_junction(s.lane));
+    assert!(!inside.is_empty());
+    for span in inside {
+        assert!(stage.contains(&format!("def Scope \"lane_{}\"", span.lane.0)));
+    }
+    assert_eq!(meshes(&stage, "lane"), outside.len());
+}

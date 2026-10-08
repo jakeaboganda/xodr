@@ -27,7 +27,7 @@ except ImportError:
 
 from flatten import compose
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def problems(stage):
