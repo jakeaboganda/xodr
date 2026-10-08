@@ -189,3 +189,72 @@ fn the_gantries_map_gets_its_gantries() {
         .collect();
     assert_eq!(kinds, ["gantry", "spaceFrame", "gantry", "gantry"]);
 }
+
+/// The text of the prim named `name`, from its `def` line to its closing
+/// brace.
+fn prim<'a>(stage: &'a str, name: &str) -> &'a str {
+    let at = stage.find(&format!("\"{name}\"\n")).expect("the prim");
+    let line = stage[..at].rfind('\n').map_or(0, |k| k + 1);
+    let indent = stage[line..at].len() - stage[line..at].trim_start().len();
+    let close = format!("\n{}}}", " ".repeat(indent));
+    let end = stage[at..].find(&close).expect("a closing brace");
+    &stage[line..at + end + close.len()]
+}
+
+/// Each junction's OpenDRIVE id, with the names of its wrap's meshes.
+fn wraps(stage: &str) -> Vec<(String, Vec<String>)> {
+    let junctions = prim(stage, "Junctions");
+    let mut out = Vec::new();
+    for k in 0.. {
+        let name = format!("junction_{k}");
+        if !junctions.contains(&format!("\"{name}\"\n")) {
+            break;
+        }
+        let junction = prim(junctions, &name);
+        let id = junction.split("xodr:junction = \"").nth(1).expect("an id");
+        let names = junction.split("def Mesh \"").skip(1);
+        let names = names.map(|m| m[..m.find('"').expect("a name")].to_string());
+        out.push((
+            id[..id.find('"').expect("an id")].to_string(),
+            names.collect(),
+        ));
+    }
+    out
+}
+
+#[test]
+fn each_junction_gets_a_wrap_per_lane_type() {
+    let wraps = wraps(&stage("junction_wraps"));
+    assert_eq!(
+        wraps.len(),
+        12,
+        "the direct junction has no lanes of its own"
+    );
+    for (id, names) in wraps {
+        let want = match id.as_str() {
+            "1" => vec!["driving", "sidewalk"],
+            "11" => vec!["border", "driving", "shoulder", "sidewalk"],
+            _ => vec!["driving"],
+        };
+        assert_eq!(names, want, "junction {id}");
+    }
+}
+
+#[test]
+fn a_wrap_links_to_its_junction_lanes_of_its_type() {
+    let stage = stage("junction_wraps");
+    let junction = prim(&stage, "junction_0");
+    assert!(junction.contains("xodr:junction = \"1\""));
+    let sidewalk = prim(junction, "sidewalk");
+    let line = sidewalk
+        .lines()
+        .find(|l| l.contains("rel xodr:lanes"))
+        .expect("links to lanes");
+    let targets: Vec<&str> = line.split(['<', '>']).skip(1).step_by(2).collect();
+    assert_eq!(targets.len(), 4, "one corner sidewalk per corner");
+    for target in targets {
+        let name = target.rsplit('/').next().expect("a name");
+        let lane = prim(&stage, name);
+        assert!(lane.contains("xodr:laneType = \"sidewalk\""), "{target}");
+    }
+}

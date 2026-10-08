@@ -90,12 +90,12 @@ NO_TRAFFIC = {"sidewalk", "border", "curb", "median", "none"}
 
 
 def traffic_triangles(stage):
-    """Every triangle of a lane that carries traffic, as three (x, y)
-    corners."""
+    """Every triangle of a lane or junction wrap that carries traffic, as
+    three (x, y) corners."""
     triangles = []
     for prim in stage.Traverse():
         kind = prim.GetAttribute("xodr:laneType")
-        if prim.GetName().startswith("lane_") and kind.Get() not in NO_TRAFFIC:
+        if prim.IsA(UsdGeom.Mesh) and kind and kind.Get() not in NO_TRAFFIC:
             mesh = UsdGeom.Mesh(prim)
             points = mesh.GetPointsAttr().Get()
             indices = mesh.GetFaceVertexIndicesAttr().Get()
@@ -128,8 +128,8 @@ def structure_problems(prim, lanes):
 
 
 def mesh_problems(prim):
-    """Every problem with one mesh: indices, extent and, on lanes and
-    marks, faces that point down."""
+    """Every problem with one mesh: indices, extent and, on lanes, junction
+    wraps and marks, faces that point down."""
     mesh = UsdGeom.Mesh(prim)
     points = mesh.GetPointsAttr().Get()
     indices = mesh.GetFaceVertexIndicesAttr().Get()
@@ -140,7 +140,7 @@ def mesh_problems(prim):
     extent = mesh.GetExtentAttr().Get()
     if not Gf.IsClose(mesh.ComputeExtent(points)[0], extent[0], 1e-3):
         found.append(f"{prim.GetPath()} has the wrong extent")
-    if prim.GetName().startswith(("lane_", "mark_")):
+    if prim.HasAttribute("xodr:laneType") or prim.GetName().startswith("mark_"):
         start = 0
         for n in counts:
             a, b, c = (Gf.Vec3d(points[indices[start + k]]) for k in range(3))

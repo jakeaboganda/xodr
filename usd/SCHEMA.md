@@ -49,6 +49,9 @@ prim is `/Map`.
 | `/Map` | `Xform` | Everything below. |
 | `/Map/Roads/road_<n>` | `Scope` | One per road. |
 | `/Map/Roads/road_<n>/lane_<n>` | `Mesh` | One lane's surface, with normals. |
+| `/Map/Junctions` | `Scope` | Every junction's wrap. |
+| `/Map/Junctions/junction_<n>` | `Scope` | One per junction with lanes. |
+| `/Map/Junctions/junction_<n>/<laneType>` | `Mesh` | The part of the junction's wrap that lanes of one type own, with normals. See [Junctions](#junctions). |
 | `/Map/RoadMarks/mark_<n>` | `Mesh` | One painted road mark, 5 mm above its lane. One quad per piece of paint. |
 | `/Map/Objects/object_<n>` | `Mesh` | One object, double-sided. Objects with no volume have no prim. |
 | `/Map/Supports/support_<n>` | `Mesh` | One structure the exporter added. See [Structures](#structures). |
@@ -57,11 +60,36 @@ prim is `/Map`.
 | `/_SignalTypes/<type class>` | class `Xform` | One per signal type. See [Signal types](#signal-types). |
 
 `<n>` is the id `xodr` gives the road, lane, mark, object, signal or
-controller. For an added structure it's a count. It isn't the OpenDRIVE id,
-which can hold characters USD doesn't allow in a name. The OpenDRIVE ids are
-in the attributes below.
+controller. For an added structure it's a count. For a junction it's a
+count in order of the junctions' OpenDRIVE ids, compared as text. It isn't
+the OpenDRIVE id, which can hold characters USD doesn't allow in a name.
+The OpenDRIVE ids are in the attributes below.
+
+`<laneType>` is the lane type, such as `driving` or `on_ramp`, with `_` for
+`-`.
 
 Lanes and marks with no triangles have no prim.
+
+## Junctions
+
+A junction's connecting lanes lie over one another. The stage replaces
+them with a wrap: one surface over the junction's lanes that covers each
+point once, on the lane that owns the ground there. It follows every slope
+and bank, and creases where two lanes cross in height.
+
+- The highest lane owns the ground. But a lane that carries traffic owns
+  it over a higher one that doesn't, such as a sidewalk, when that is less
+  than 1 cm higher.
+- A lane more than 2 m over another, such as a bridge, is a level of its
+  own. Each level is covered once, so a road under a bridge keeps its
+  ground.
+- The wrap is within 1 cm of the lane that owns each point.
+- The wrap is split into one mesh per lane type, by the type of the lane
+  that owns each part. The meshes meet edge to edge.
+- Where one lane ends on top of a lower one, the wrap has a step, with no
+  wall.
+- Each vertex where a road meets the edge of a junction's lanes is a
+  vertex of the wrap.
 
 ## Signals
 
@@ -253,6 +281,9 @@ Every attribute this schema adds starts with `xodr:`.
 | lane | `int xodr:section` | The lane section, counting from 0 along the road. |
 | lane | `int xodr:laneId` | The `<lane id>`: negative on the right, positive on the left. |
 | lane | `string xodr:laneType` | The lane `type`, such as `driving`. |
+| junction | `string xodr:junction` | The `<junction id>`. |
+| wrap | `string xodr:laneType` | The lane type of the lanes that own it. |
+| wrap | `rel xodr:lanes` | The junction's lanes of that type. |
 | mark | `string xodr:type` | The mark `type`, such as `solid`. |
 | mark | `string xodr:weight` | `standard` or `bold`. |
 | mark | `string xodr:color` | The mark `color`, such as `yellow`. |
@@ -299,7 +330,8 @@ An empty array or relationship is left out.
 
 ## Colour
 
-Every mesh has a `primvars:displayColor` and no material. Driving lanes are
-dark grey, sidewalks and curbs light grey, and other lanes mid grey. Paint
+Every mesh has a `primvars:displayColor` and no material. Lanes and wraps
+take the colour of their lane type: driving dark grey, sidewalks and curbs
+light grey, and other types mid grey. Paint
 uses the colour its line names, or white. Objects and signal boards are
 grey.
