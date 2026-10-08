@@ -28,7 +28,7 @@ The stage records the schema version in its layer metadata:
 ```usda
 customLayerData = {
     dictionary xodr = {
-        int schemaVersion = 1
+        int schemaVersion = 2
     }
 }
 ```
@@ -48,7 +48,7 @@ prim is `/Map`.
 | --- | --- | --- |
 | `/Map` | `Xform` | Everything below. |
 | `/Map/Roads/road_<n>` | `Scope` | One per road. |
-| `/Map/Roads/road_<n>/lane_<n>` | `Mesh` | One lane's surface, with normals. |
+| `/Map/Roads/road_<n>/lane_<n>` | `Mesh` or `Scope` | One lane's surface, with normals. A lane inside a junction is a `Scope` with no geometry, since its junction's wrap covers it. |
 | `/Map/Junctions` | `Scope` | Every junction's wrap. |
 | `/Map/Junctions/junction_<n>` | `Scope` | One per junction with lanes. |
 | `/Map/Junctions/junction_<n>/<laneType>` | `Mesh` | The part of the junction's wrap that lanes of one type own, with normals. See [Junctions](#junctions). |

@@ -15,7 +15,7 @@ mod supports;
 mod wrap;
 
 /// The version of `usd/SCHEMA.md` this writer follows.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// Metres between a road mark and its lane, so the lane doesn't hide it.
 const LIFT: f32 = 0.005;
@@ -61,7 +61,9 @@ struct Paths {
     objects: HashMap<ObjectId, String>,
 }
 
-/// One `Scope` per road, with one `Mesh` per lane. Returns each lane's path.
+/// One `Scope` per road, with one `Mesh` per lane. A lane in a junction is
+/// a `Scope` with no geometry, since the junction's wrap covers it. Returns
+/// each lane's path.
 fn roads(
     net: &RoadNetwork,
     mesh: &Mesh,
@@ -88,20 +90,26 @@ fn roads(
         for span in spans {
             let (lane, at) = (net.lane(span.lane), net.road_lane(span.lane));
             let (lane, at) = (lane.expect("a span's lane"), at.expect("a span's lane"));
-            let vertices = span.vertices.start as usize..span.vertices.end as usize;
-            let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
             let name = format!("lane_{}", span.lane.0);
             paths.insert(span.lane, format!("/Map/Roads/{road_name}/{name}"));
+            let tags = vec![
+                ("section", Tag::Int(at.section as i64)),
+                ("laneId", Tag::Int(at.od_id.into())),
+                ("laneType", Tag::Text(lane.kind.as_str().to_string())),
+            ];
+            if road.junction().is_some() {
+                open(out, 3, "def Scope", &name, &[], &tags)?;
+                close(out, 3)?;
+                continue;
+            }
+            let vertices = span.vertices.start as usize..span.vertices.end as usize;
+            let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
             write_mesh(
                 out,
                 3,
                 &MeshPrim {
                     name,
-                    tags: vec![
-                        ("section", Tag::Int(at.section as i64)),
-                        ("laneId", Tag::Int(at.od_id.into())),
-                        ("laneType", Tag::Text(lane.kind.as_str().to_string())),
-                    ],
+                    tags,
                     points: &mesh.vertices[vertices.clone()],
                     normals: &mesh.normals[vertices],
                     face_size: 3,
