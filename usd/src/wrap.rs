@@ -31,7 +31,7 @@ const FLAT: f64 = TOLERANCE / 6.0;
 /// Metres within which faces on different facets share a corner: as far
 /// apart as two facets of a kind get with no crease between them, so no
 /// gap opens there.
-const SEAM: f64 = 2.0 * FLAT;
+pub(crate) const SEAM: f64 = 2.0 * FLAT;
 
 /// Metres a lane must clear another to be a level of its own.
 const CLEARANCE: f64 = 2.0;
@@ -45,13 +45,16 @@ const MIN_AREA: f32 = 1e-6;
 const EDGE_ON: f64 = 1e-12;
 
 /// Metres on a side of a cell of the indexes over facets and outlines.
-const CELL: f64 = 4.0;
+pub(crate) const CELL: f64 = 4.0;
 
 /// One triangle of a lane, with its corners' normals.
 pub(crate) struct Facet {
     pub corners: [Point; 3],
     pub normals: [Vector; 3],
     pub kind: LaneType,
+    /// Whether it is ground a junction's `<boundary>` takes in rather than a
+    /// lane: it owns only ground no lane in its level covers.
+    pub fill: bool,
 }
 
 /// The surface over a set of [`Facet`]s.
@@ -543,19 +546,23 @@ impl Welder {
 }
 
 /// A square of a grid over the plan, by its column and row.
-type Cell = (i64, i64);
+pub(crate) type Cell = (i64, i64);
 
-fn cell(p: Point2<f64>, size: f64) -> Cell {
+pub(crate) fn cell(p: Point2<f64>, size: f64) -> Cell {
     ((p.x / size).floor() as i64, (p.y / size).floor() as i64)
 }
 
 /// Every cell `size` on a side that the box from `low` to `high` touches.
-fn cells_between(low: Point2<f64>, high: Point2<f64>, size: f64) -> impl Iterator<Item = Cell> {
+pub(crate) fn cells_between(
+    low: Point2<f64>,
+    high: Point2<f64>,
+    size: f64,
+) -> impl Iterator<Item = Cell> {
     let (low, high) = (cell(low, size), cell(high, size));
     (low.0..=high.0).flat_map(move |i| (low.1..=high.1).map(move |j| (i, j)))
 }
 
-fn plan(p: Point) -> Point2<f64> {
+pub(crate) fn plan(p: Point) -> Point2<f64> {
     Point2::new(f64::from(p.x), f64::from(p.y))
 }
 
@@ -612,6 +619,10 @@ impl<'a> Ground<'a> {
         over.sort_by(|a, b| b.1.total_cmp(&a.1));
         over.chunk_by(|a, b| a.1 - b.1 <= CLEARANCE)
             .map(|level| {
+                let lanes = level.iter().any(|&(k, _)| !self.facets[k].fill);
+                let level: Vec<_> = (level.iter())
+                    .filter(|&&(k, _)| !(lanes && self.facets[k].fill))
+                    .collect();
                 let top = level[0].1;
                 let candidates = level.iter().filter(|(_, z)| *z >= top - TOLERANCE);
                 let (k, _) = candidates
@@ -700,7 +711,7 @@ impl Plane {
 }
 
 /// Twice the signed area of `a b c`, positive counter-clockwise.
-fn cross(a: Point2<f64>, b: Point2<f64>, c: Point2<f64>) -> f64 {
+pub(crate) fn cross(a: Point2<f64>, b: Point2<f64>, c: Point2<f64>) -> f64 {
     (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
 }
 
@@ -722,7 +733,8 @@ fn creases(ground: &Ground) -> Vec<[Point2<f64>; 2]> {
             }
             let overlap = clip(&a.corners, b);
             let gaps: Vec<f64> = overlap.iter().map(|&p| a.height(p) - b.height(p)).collect();
-            let switches = switches(ground.traffic(j), ground.traffic(k));
+            let fill = ground.facets[j].fill || ground.facets[k].fill;
+            let switches = switches(ground.traffic(j), ground.traffic(k), fill);
             out.extend(
                 switches
                     .into_iter()
@@ -739,14 +751,17 @@ fn creases(ground: &Ground) -> Vec<[Point2<f64>; 2]> {
 /// carries traffic and one that doesn't, the owner changes where the other
 /// clears it by [`TOLERANCE`]; between two of a kind, where they cross, but
 /// only once they part by more than twice [`FLAT`]. Levels part at
-/// [`CLEARANCE`] either way.
-fn switches(a: bool, b: bool) -> [(f64, f64); 3] {
+/// [`CLEARANCE`] either way. Fill never owns ground a lane in its level
+/// covers, so with fill only the levels change, and the lines are those.
+fn switches(a: bool, b: bool, fill: bool) -> Vec<(f64, f64)> {
     let tie = match (a, b) {
         (true, false) => (-TOLERANCE, 0.0),
         (false, true) => (TOLERANCE, 0.0),
         _ => (0.0, 2.0 * FLAT),
     };
-    [tie, (CLEARANCE, 0.0), (-CLEARANCE, 0.0)]
+    let levels = [(CLEARANCE, 0.0), (-CLEARANCE, 0.0)];
+    let tie = (!fill).then_some(tie);
+    tie.into_iter().chain(levels).collect()
 }
 
 /// The line across `overlap` where `gaps`, the gap in height at each of
@@ -815,11 +830,13 @@ mod tests {
                 corners: [al, ar, br],
                 normals: up,
                 kind,
+                fill: false,
             },
             Facet {
                 corners: [al, br, bl],
                 normals: up,
                 kind,
+                fill: false,
             },
         ]
     }
@@ -866,36 +883,31 @@ mod tests {
     /// are close enough in height that either may own the ground. `None`
     /// overall within 2 mm of a line where the levels or the owner change.
     fn expected(facets: &[Facet], q: (f64, f64)) -> Option<Vec<(f64, Option<LaneType>)>> {
-        let mut over: Vec<(f64, LaneType)> = facets
+        let mut over: Vec<(f64, LaneType, bool)> = facets
             .iter()
-            .filter_map(|f| Some((height_in(f.corners, inside(f.corners, q)?), f.kind)))
+            .filter_map(|f| Some((height_in(f.corners, inside(f.corners, q)?), f.kind, f.fill)))
             .collect();
         over.sort_by(|a, b| b.0.total_cmp(&a.0));
         for (i, a) in over.iter().enumerate() {
             for b in &over[i + 1..] {
                 let gap = a.0 - b.0;
-                let switch = if carries_traffic(a.1) == carries_traffic(b.1) {
-                    0.0
-                } else {
-                    TOLERANCE
-                };
-                if (gap - CLEARANCE).abs() < 2e-3 || (switch > 0.0 && (gap - switch).abs() < 2e-3) {
+                let tie = !a.2 && !b.2 && carries_traffic(a.1) != carries_traffic(b.1);
+                if (gap - CLEARANCE).abs() < 2e-3 || (tie && (gap - TOLERANCE).abs() < 2e-3) {
                     return None;
                 }
             }
         }
         let levels = over.chunk_by(|a, b| a.0 - b.0 <= CLEARANCE).map(|level| {
+            let lanes = level.iter().any(|l| !l.2);
+            let level: Vec<_> = level.iter().filter(|l| !(lanes && l.2)).collect();
             let top = level[0].0;
-            let candidates: Vec<_> = level
-                .iter()
-                .filter(|(z, _)| *z >= top - TOLERANCE)
-                .collect();
-            let traffic = candidates.iter().find(|(_, kind)| carries_traffic(*kind));
-            let &&(z, kind) = traffic.unwrap_or(&candidates[0]);
-            let rival = candidates.iter().any(|(other, k)| {
-                *k != kind
-                    && carries_traffic(*k) == carries_traffic(kind)
-                    && (other - z).abs() <= 2.0 * FLAT
+            let candidates: Vec<_> = level.iter().filter(|l| l.0 >= top - TOLERANCE).collect();
+            let traffic = candidates.iter().find(|l| carries_traffic(l.1));
+            let &&&(z, kind, _) = traffic.unwrap_or(&candidates[0]);
+            let rival = candidates.iter().any(|l| {
+                l.1 != kind
+                    && carries_traffic(l.1) == carries_traffic(kind)
+                    && (l.0 - z).abs() <= 2.0 * FLAT
             });
             (z, (!rival).then_some(kind))
         });
@@ -906,6 +918,16 @@ mod tests {
     /// `facets`, skipping points within 5 mm of a facet's edge. Returns how
     /// many points it checked.
     fn check(facets: &[Facet], wrap: &Wrap, step: f64) -> usize {
+        check_raised(facets, wrap, step, &|_, _| 0.0)
+    }
+
+    /// [`check`], with `raise` added to the height [`expected`] gives.
+    fn check_raised(
+        facets: &[Facet],
+        wrap: &Wrap,
+        step: f64,
+        raise: &dyn Fn(f64, f64) -> f64,
+    ) -> usize {
         let bucket = |x: f64, y: f64| ((x / 2.0).floor() as i64, (y / 2.0).floor() as i64);
         let index = |triangles: &mut dyn Iterator<Item = [Point; 3]>| {
             let mut cells: HashMap<(i64, i64), Vec<usize>> = HashMap::new();
@@ -976,6 +998,7 @@ mod tests {
                         "({x}, {y}) has {got:?}, not {want:?}"
                     );
                     for ((z, kind), (want_z, want_kind)) in got.into_iter().zip(want) {
+                        let want_z = want_z + raise(x, y);
                         assert!(
                             (z - want_z).abs() <= TOLERANCE + 1e-3,
                             "({x}, {y}) is at {z}, its owner at {want_z}"
@@ -999,6 +1022,7 @@ mod tests {
             corners: f.corners,
             normals: f.normals,
             kind: f.kind,
+            fill: f.fill,
         }
     }
 
@@ -1196,6 +1220,43 @@ mod tests {
     }
 
     #[test]
+    fn fill_owns_only_ground_no_lane_covers() {
+        let mut facets = strip(p(0.0, 0.0, 0.0), p(20.0, 0.0, 0.0), 4.0, Driving);
+        facets.extend(
+            strip(p(10.0, -10.0, 0.5), p(10.0, 10.0, 0.5), 8.0, Driving)
+                .into_iter()
+                .map(|f| Facet { fill: true, ..f }),
+        );
+        let wrap = wrap(&facets);
+        assert!(check(&facets, &wrap, 0.25) > 1000);
+        let on = |x, y| {
+            let hit = over(&wrap, &facets, x, y);
+            assert_eq!(hit.len(), 1, "({x}, {y})");
+            hit[0].0
+        };
+        assert!(on(10.3, 0.7).abs() < 1e-4, "the lane owns its ground");
+        assert!((on(10.3, 5.0) - 0.5).abs() < 1e-4, "the fill owns the rest");
+    }
+
+    #[test]
+    fn fill_keeps_the_ground_under_a_bridge() {
+        let mut facets = strip(p(-10.0, 0.0, 5.0), p(10.0, 0.0, 5.0), 4.0, Driving);
+        facets.extend(
+            strip(p(0.0, -10.0, 0.0), p(0.0, 10.0, 0.0), 8.0, Driving)
+                .into_iter()
+                .map(|f| Facet { fill: true, ..f }),
+        );
+        let wrap = wrap(&facets);
+        assert!(check(&facets, &wrap, 0.25) > 1000);
+        let both = over(&wrap, &facets, 0.3, 0.7);
+        assert_eq!(both.len(), 2, "{both:?}");
+        assert!(
+            (both[0].0 - 5.0).abs() < 1e-4 && both[1].0.abs() < 1e-4,
+            "{both:?}"
+        );
+    }
+
+    #[test]
     fn a_sidewalk_above_traffic_owns_the_ground() {
         let mut facets = strip(p(0.0, 0.0, 0.0), p(20.0, 0.0, 0.0), 4.0, Driving);
         facets.extend(strip(
@@ -1255,8 +1316,8 @@ mod tests {
 
     #[test]
     fn a_wrap_comes_out_the_same_every_time() {
-        let (net, mesh) = fixture();
-        let lanes = crate::junction_lanes(&net, &mesh)
+        let (net, provenance, mesh) = fixture();
+        let lanes = crate::junction_lanes(&net, &provenance, &mesh)
             .remove("1")
             .expect("junction 1");
         let [a, b] = [wrap(&lanes.facets), wrap(&lanes.facets)];
@@ -1287,17 +1348,20 @@ mod tests {
         }
     }
 
-    /// `tests/data/junction_wraps.xodr`, and its surface.
-    fn fixture() -> (xodr::RoadNetwork, xodr::Mesh) {
-        let net = xodr::load_file("../tests/data/junction_wraps.xodr").expect("map loads");
+    /// `tests/data/junction_wraps.xodr`, what the load made of it, and its
+    /// surface.
+    fn fixture() -> (xodr::RoadNetwork, xodr::Provenance, xodr::Mesh) {
+        let (net, provenance) =
+            xodr::load_file_with_provenance("../tests/data/junction_wraps.xodr")
+                .expect("map loads");
         let mesh = net.surface_mesh();
-        (net, mesh)
+        (net, provenance, mesh)
     }
 
     #[test]
     fn every_fixture_junction_is_covered_once_per_level_by_its_owner() {
-        let (net, mesh) = fixture();
-        let junctions = crate::junction_lanes(&net, &mesh);
+        let (net, provenance, mesh) = fixture();
+        let junctions = crate::junction_lanes(&net, &provenance, &mesh);
         assert_eq!(
             junctions.len(),
             13,
@@ -1335,7 +1399,7 @@ mod tests {
 
     #[test]
     fn a_fixture_wrap_keeps_every_vertex_where_it_meets_a_road() {
-        let (net, mesh) = fixture();
+        let (net, provenance, mesh) = fixture();
         let outside = mesh.lanes.iter().filter(|span| {
             let road = net.road_lane(span.lane).and_then(|at| net.road(at.road));
             !span.indices.is_empty() && road.is_some_and(|r| r.junction().is_none())
@@ -1356,7 +1420,7 @@ mod tests {
             dx * dx + dy * dy <= 4.0 * WELD * WELD
         };
         let mut seams = 0;
-        for (id, lanes) in crate::junction_lanes(&net, &mesh) {
+        for (id, lanes) in crate::junction_lanes(&net, &provenance, &mesh) {
             let wrap = wrap(&lanes.facets);
             let corners: Vec<Point> = lanes.facets.iter().flat_map(|f| f.corners).collect();
             let covered = |x: f64, y: f64| {
@@ -1400,8 +1464,8 @@ mod tests {
     }
 
     fn junction(id: &str) -> (Vec<Facet>, Wrap) {
-        let (net, mesh) = fixture();
-        let lanes = crate::junction_lanes(&net, &mesh)
+        let (net, provenance, mesh) = fixture();
+        let lanes = crate::junction_lanes(&net, &provenance, &mesh)
             .remove(id)
             .expect("the junction");
         let wrap = wrap(&lanes.facets);
@@ -1448,5 +1512,72 @@ mod tests {
         assert_eq!(kerb.len(), 1);
         assert_eq!(kerb[0].1, Sidewalk);
         assert!((kerb[0].0 - 0.15).abs() < 1e-3, "{kerb:?}");
+    }
+
+    #[test]
+    fn the_boundary_lays_the_lanes_on_the_grid() {
+        let (net, provenance, mesh) = fixture();
+        let area = (net.junction_areas().iter())
+            .find(|a| a.od_id == "14")
+            .expect("junction 14's area");
+        let lanes = crate::junction_lanes(&net, &provenance, &mesh)
+            .remove("14")
+            .expect("junction 14");
+        let wrap = crate::junction_wrap(&lanes);
+        let grid = |x: f64, y: f64| area.height_at(x, y).expect("on the grid");
+        assert!(check_raised(&lanes.facets, &wrap, 0.3, &grid) > 1000);
+        let (x, y) = (5200.37, 0.41);
+        let middle = over(&wrap, &lanes.facets, x, y);
+        assert!((middle[0].0 - grid(x, y)).abs() <= TOLERANCE, "{middle:?}");
+        assert!(grid(x, y) > 0.25, "the hump is under the lanes");
+        let raise = |p: Point| f64::from(p.z) - grid(f64::from(p.x), f64::from(p.y));
+        let mut kerbs = Vec::new();
+        let mut gaps = 0;
+        for face in &wrap.faces {
+            let facet = &lanes.facets[face.facet];
+            if facet.kind == Sidewalk {
+                kerbs.extend(corners(&wrap, face));
+            }
+            if facet.fill {
+                for p in corners(&wrap, face) {
+                    assert!(raise(p).abs() <= TOLERANCE, "fill at {p:?}");
+                }
+                gaps += 1;
+            }
+        }
+        assert!(gaps > 0, "no fill");
+        for &p in &kerbs {
+            let r = raise(p);
+            assert!(
+                (0.1 - TOLERANCE..=0.2 + TOLERANCE).contains(&r),
+                "a kerb at {p:?}"
+            );
+        }
+        let out = |p: &&Point| (p.x - 5200.0).hypot(p.y);
+        let inner = kerbs
+            .iter()
+            .min_by(|a, b| out(a).total_cmp(&out(b)))
+            .expect("kerbs");
+        let outer = kerbs
+            .iter()
+            .max_by(|a, b| out(a).total_cmp(&out(b)))
+            .expect("kerbs");
+        assert!(
+            (raise(*inner) - 0.1).abs() <= TOLERANCE,
+            "the inner edge at {inner:?}"
+        );
+        assert!(
+            (raise(*outer) - 0.2).abs() <= TOLERANCE,
+            "the outer edge at {outer:?}"
+        );
+    }
+
+    #[test]
+    fn a_boundary_missing_a_segment_lays_out_as_none() {
+        let (net, provenance) =
+            xodr::load_file_with_provenance("../tests/data/junction_areas.xodr")
+                .expect("map loads");
+        assert!(crate::boundary(&net, &provenance, "7").is_some());
+        assert!(crate::boundary(&net, &provenance, "8").is_none());
     }
 }

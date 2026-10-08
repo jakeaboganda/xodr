@@ -90,6 +90,32 @@ and bank, and creases where two lanes cross in height.
   wall.
 - Each vertex where a road meets the edge of a junction's lanes is a
   vertex of the wrap.
+- A junction without a `<boundary>` covers only the ground its lanes do,
+  so it can have holes between them.
+
+### A junction with a boundary
+
+A junction whose `<boundary>` the load placed with every segment is laid
+out as ASAM OpenDRIVE 1.8 gives its ground.
+
+- The wrap covers everything inside the boundary. Ground no lane covers is
+  part of the `driving` mesh.
+- With an `<elevationGrid>`, the wrap stands on the grid, each lane raised
+  by its `<height>`. Which lane owns the ground follows from those heights,
+  since the grid lies under every lane alike.
+- Where the grid falls short of a lane or the boundary by no more than one
+  square, the wrap holds the grid's height from where it does reach. A grid
+  that falls further short isn't used.
+- On a grid, the wrap is within 1 cm of the owner raised onto the grid,
+  plus the grid's curve across pieces a quarter of its spacing wide: a few
+  millimetres.
+- Without a grid, the lanes keep their own heights, and the ground no lane
+  covers takes the boundary's height.
+- A boundary that lost a segment on load lays out as no boundary.
+- The boundary's `transitionLength` isn't read. Where the grid and a road
+  don't meet, the wrap has a step at the boundary.
+- Road marks, objects and signals in the junction keep the height of the
+  lanes as the load baked them, which a grid can differ from.
 
 ## Signals
 
