@@ -28,6 +28,13 @@
   with their attributes and labels. Double-click a prim to frame it.
 - `tests/data/structures.xodr` has a cantilever, two span gantries and a
   space frame.
+- Each junction's overlapping lanes export as one wrap: a surface that
+  covers each point once, on the lane that owns the ground there, split
+  into one mesh per lane type. A lane more than 2 m over another, such as a
+  bridge, keeps its own level. Lanes inside a junction keep their prim and
+  attributes but no geometry. Schema version 2.
+- `tests/data/junction_wraps.xodr` has thirteen junctions, each laid out
+  to stress the wrap.
 - `tests/data/gantries.xodr` is a demo of gantry scenes: lane control,
   a sign bridge, a message board and traffic lights.
 
