@@ -33,7 +33,10 @@
   into one mesh per lane type. A lane more than 2 m over another, such as a
   bridge, keeps its own level. Lanes inside a junction keep their prim and
   attributes but no geometry. Schema version 2.
-- `tests/data/junction_wraps.xodr` has thirteen junctions, each laid out
+- A junction with a `<boundary>` exports as the spec lays out its ground:
+  the wrap covers everything inside the boundary, and stands on the
+  `<elevationGrid>` with each lane's `<height>` on top.
+- `tests/data/junction_wraps.xodr` has fourteen junctions, each laid out
   to stress the wrap.
 - `tests/data/gantries.xodr` is a demo of gantry scenes: lane control,
   a sign bridge, a message board and traffic lights.
