@@ -507,9 +507,9 @@ fn signal_lanes(
     found
         .into_iter()
         .filter(|id| {
-            lanes
-                .get(id.0)
-                .is_none_or(|lane| lane.direction == wanted || lane.direction == Direction::Both)
+            debug_assert_eq!(lanes[id.0].id, *id, "a lane's id is its place in `lanes`");
+            let direction = lanes[id.0].direction;
+            direction == wanted || direction == Direction::Both
         })
         .collect()
 }
