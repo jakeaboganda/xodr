@@ -218,7 +218,8 @@ The importer keeps `<surface><CRG>` records on roads and junctions, in all
 four modes, for elevation and friction. `RoadSurface` loads the OpenCRG files
 they name and gives a vehicle model the height, normal and friction under a
 point in `f64`. Off the CRG it answers from the surface mesh, which the CRG
-does not change.
+does not change. Where several records of one purpose cover a point, the
+last in the file wins. A junction's records win over its roads'.
 
 The crate parses CRG files with [`opencrg`](https://crates.io/crates/opencrg)
 and re-exports it, so `xodr::opencrg` also reads a `.crg` file on its

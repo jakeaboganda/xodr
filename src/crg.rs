@@ -1,6 +1,7 @@
 //! Road surfaces from OpenCRG files. [`CrgSurface`] is a `<CRG>` record from
 //! the map, and [`RoadSurface`] evaluates the files under a point.
 
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use opencrg::{CrgGrid, SearchHint, Uv, Xy};
@@ -397,7 +398,7 @@ impl<'a> RoadSurface<'a> {
             }
         }
         for list in by_lane.values_mut() {
-            list.sort_by_key(|&i| net.crg_surfaces()[i].road.is_some());
+            list.sort_by_key(|&i| (net.crg_surfaces()[i].road.is_some(), Reverse(i)));
         }
         Self {
             net,
@@ -408,9 +409,11 @@ impl<'a> RoadSurface<'a> {
         }
     }
 
-    /// The surface under `(x, y)`: the first elevation CRG, in map order,
-    /// that covers the point, or the surface mesh. Junction CRGs come before
-    /// road CRGs. `None` off the road, where the mesh has no triangle.
+    /// The surface under `(x, y)`: the last elevation CRG, in map order,
+    /// that covers the point, or the surface mesh. The same goes for
+    /// friction. The spec has the last of the records that overlap for one
+    /// purpose win. A junction's records win over its roads'. `None` off
+    /// the road, where the mesh has no triangle.
     ///
     /// Where surfaces stack, as on a bridge, the lane is the one the mesh
     /// finds highest.

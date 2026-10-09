@@ -58,6 +58,14 @@
   traffic changes lanes into it and out of it. Match on `LaneType` with a
   wildcard arm.
 
+### CRG surfaces
+
+- Where several `<CRG>` records of one purpose cover a point, the last in
+  the file wins, not the first, as rule `road.crg.use_last_entry` has it. A
+  junction's records still win over its roads'. The spec doesn't rank them.
+- `tests/data/crg_order.xodr` has roads and a junction with overlapping
+  records.
+
 ### Object types
 
 - Breaking: new `ObjectType::RoadSurface` for `type="roadSurface"`, which

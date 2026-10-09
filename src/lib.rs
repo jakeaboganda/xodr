@@ -877,6 +877,12 @@
 //! it covers the point, and the surface mesh answers everywhere else. The CRG
 //! does not change the mesh.
 //!
+//! Where several records of one purpose cover a point, the last in the file
+//! wins, as rule `road.crg.use_last_entry` has it, and the rest are ignored.
+//! Elevation and friction count apart. A junction's records win over the
+//! records of its roads, which the spec doesn't rank. Before this the
+//! first record won.
+//!
 //! The modes follow the road surface section of ASAM OpenDRIVE 1.9:
 //!
 //! - `attached` lays the CRG grid along the road's reference line and adds
