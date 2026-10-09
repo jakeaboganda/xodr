@@ -398,7 +398,7 @@ impl<'a> RoadSurface<'a> {
             }
         }
         for list in by_lane.values_mut() {
-            list.sort_by_key(|&i| (net.crg_surfaces()[i].road.is_some(), Reverse(i)));
+            list.sort_by_key(|&i| Reverse(i));
         }
         Self {
             net,
@@ -410,10 +410,11 @@ impl<'a> RoadSurface<'a> {
     }
 
     /// The surface under `(x, y)`: the last elevation CRG, in map order,
-    /// that covers the point, or the surface mesh. The same goes for
-    /// friction. The spec has the last of the records that overlap for one
-    /// purpose win. A junction's records win over its roads'. `None` off
-    /// the road, where the mesh has no triangle.
+    /// that covers the point, or the surface mesh. Friction is the last
+    /// friction CRG that covers it, or `None`. The spec has the last of
+    /// the records that overlap for one purpose win. The map lists a
+    /// junction's records after its roads', so they win. `None` off the
+    /// road, where the mesh has no triangle.
     ///
     /// Where surfaces stack, as on a bridge, the lane is the one the mesh
     /// finds highest.
