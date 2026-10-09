@@ -1,0 +1,1006 @@
+<?xml version='1.0' encoding='utf-8'?>
+<OpenDRIVE>
+    <header name="ignored" revMajor="1" revMinor="5" date="2026-01-01T00:00:00" north="0.0" south="0.0" east="0.0" west="0.0">
+        <license name="CC0" resource="https://example.org/license">terms</license>
+        <dataQuality>
+            <error xyAbsolute="0.1" zAbsolute="0.1" />
+        </dataQuality>
+        <userData code="tool" value="ignored" />
+        <defaultRegulations>
+            <roadRegulations type="town" />
+        </defaultRegulations>
+    </header>
+    <road rule="RHT" id="1" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0" singleSide="false">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link>
+                            <predecessor id="-1" layer="permanent" />
+                        </link>
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2">
+                            <userData code="b" value="2" />
+                        </roadMark>
+                        <userData code="a" value="1" />
+                    </lane>
+                </right>
+            </laneSection>
+            <laneSection s="50" singleSide="true">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link>
+                            <predecessor id="1" layer="temporary" />
+                        </link>
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link>
+                            <predecessor id="-1" layer="temporary" />
+                            <successor id="-1" layer="other" />
+                        </link>
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <lanes layer="temporary">
+            <laneSection s="0">
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <width sOffset="0" a="3" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <userData code="road" value="x" />
+        <include file="a.xodr" />
+        <signals>
+            <signal id="s1" s="10" t="-5" dynamic="no" orientation="+" zOffset="2" country="DE" type="274" subtype="50" value="50" name="s">
+                <validity fromLane="-1" toLane="-1" layer="temporary" />
+                <validity fromLane="-1" toLane="-1" layer="permanent" />
+            </signal>
+        </signals>
+    </road>
+    <road rule="RHT" id="2" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="20" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="o1" s="10" t="-5" type="barrier" name="a" perpToRoad="true" length="2" width="1" height="1">
+                <userData code="k" value="v" />
+            </object>
+            <object id="o2" s="20" t="-5" type="barrier" name="b" perpToRoad="1" length="2" width="1" height="1" />
+            <object id="o3" s="30" t="-5" type="barrier" name="c" perpToRoad="false" length="2" width="1" height="1" />
+            <object id="r1" s="40" t="-5" type="barrier" name="r" length="2" width="1" height="1">
+                <repeat s="40" length="20" distance="5" tStart="-5" tEnd="-5" widthStart="1" widthEnd="1" heightStart="1" heightEnd="1" zOffsetStart="0" zOffsetEnd="0" bT="0.01" detachFromReferenceLine="true" />
+                <repeat s="62" length="10" distance="5" tStart="-5" tEnd="-5" widthStart="1" widthEnd="1" heightStart="1" heightEnd="1" zOffsetStart="0" zOffsetEnd="0" cT="0.1" dT="-0.1" />
+            </object>
+            <object id="r2" s="75" t="-5" type="barrier" name="r2" length="2" width="1" height="1">
+                <repeat s="75" length="10" distance="5" tStart="-5" tEnd="-5" widthStart="1" widthEnd="1" heightStart="1" heightEnd="1" zOffsetStart="0" zOffsetEnd="0" bT="0" cT="0" dT="0" detachFromReferenceLine="false" />
+            </object>
+            <object id="x" s="50" t="-8" type="building" name="x" length="4" width="4" height="3">
+                <surface>
+                    <CRG file="o.crg" sStart="50" sEnd="54" orientation="same" mode="attached" purpose="elevation" />
+                </surface>
+                <skeleton>
+                    <polyline id="0">
+                        <vertex s="50" t="-8" dz="0" radius="0.1" />
+                        <vertex s="52" t="-8" dz="1" radius="0.1" />
+                    </polyline>
+                </skeleton>
+                <outlines>
+                    <outline id="0" closed="true">
+                        <cornerRoad s="50" t="-6" dz="0" height="1" />
+                        <cornerRoad s="54" t="-6" dz="0" height="1" />
+                        <cornerRoad s="54" t="-10" dz="0" height="1" />
+                        <markings>
+                            <marking side="left" weight="standard" startOffset="0" stopOffset="0" spaceLength="0" lineLength="1" width="0.1" zOffset="0">
+                                <cornerReference id="0" />
+                                <cornerReference id="1" />
+                            </marking>
+                        </markings>
+                    </outline>
+                    <outline id="1" closed="false">
+                        <curveLocal>
+                            <line />
+                        </curveLocal>
+                        <markings>
+                            <marking side="left" weight="standard" startOffset="0" stopOffset="0" spaceLength="0" lineLength="1" width="0.1" zOffset="0">
+                                <cornerReference id="0" />
+                            </marking>
+                        </markings>
+                    </outline>
+                </outlines>
+                <userData code="read" value="by the crate" />
+            </object>
+        </objects>
+        <userData code="road" value="y" />
+    </road>
+    <road rule="RHT" id="3" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="40" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <signals>
+            <signal id="s3" s="10" t="-5" dynamic="no" orientation="+" zOffset="2" country="DE" type="1000" subtype="-1" name="board">
+                <staticBoard width="1" height="1" length="0.1" v="0" z="0" pitch="0" roll="0">
+                    <sign id="a" s="0" t="0" zOffset="0" hOffset="0" pitch="0" roll="0" orientation="+" length="0.5" height="0.5" width="0.1" country="DE" type="274" subtype="50" value="50" name="n" countryRevision="2017" dynamic="no" temporary="false" invalidated="false">
+                        <validity fromLane="-1" toLane="-1" />
+                        <dependency id="s3" type="x" />
+                        <reference elementType="signal" elementId="s3" type="x" />
+                    </sign>
+                    <sign id="b" s="0" t="0" zOffset="0" hOffset="0" pitch="0" roll="0" orientation="+" length="0.5" height="0.5" width="0.1" country="DE" type="274" subtype="50" value="50" name="n" countryRevision="2017" dynamic="no" temporary="false" invalidated="false">
+                        <validity fromLane="-1" toLane="-1" />
+                        <dependency id="s3" type="x" />
+                        <reference elementType="signal" elementId="s3" type="x" />
+                    </sign>
+                </staticBoard>
+                <userData code="s" value="t" />
+            </signal>
+        </signals>
+    </road>
+    <road rule="RHT" id="4" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="60" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes layer="permanent">
+            <laneSection s="0" singleSide="false">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="q1" s="10" t="-5" type="barrier" name="q" perpToRoad="false" length="2" width="1" height="1">
+                <userData code="read" value="by the crate" />
+                <repeat s="10" length="10" distance="5" tStart="-5" tEnd="-5" widthStart="1" widthEnd="1" heightStart="1" heightEnd="1" zOffsetStart="0" zOffsetEnd="0" bT="0" cT="0.0" dT="0" detachFromReferenceLine="false" />
+            </object>
+        </objects>
+        <signals>
+            <signal id="q2" s="30" t="-5" dynamic="no" orientation="+" zOffset="2" country="DE" type="274" subtype="50" value="50" name="q">
+                <validity fromLane="-1" toLane="-1" layer="permanent" />
+            </signal>
+        </signals>
+    </road>
+    <road rule="RHT" id="5" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="80" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                        <userData code="k0" value="0" />
+                        <userData code="k1" value="1" />
+                        <userData code="k2" value="2" />
+                        <userData code="k3" value="3" />
+                        <userData code="k4" value="4" />
+                        <userData code="k5" value="5" />
+                        <userData code="k6" value="6" />
+                        <userData code="k7" value="7" />
+                        <userData code="k8" value="8" />
+                        <userData code="k9" value="9" />
+                        <userData code="k10" value="10" />
+                        <userData code="k11" value="11" />
+                        <userData code="k12" value="12" />
+                        <userData code="k13" value="13" />
+                        <userData code="k14" value="14" />
+                        <userData code="k15" value="15" />
+                        <userData code="k16" value="16" />
+                        <userData code="k17" value="17" />
+                        <userData code="k18" value="18" />
+                        <userData code="k19" value="19" />
+                        <userData code="k20" value="20" />
+                        <userData code="k21" value="21" />
+                        <userData code="k22" value="22" />
+                        <userData code="k23" value="23" />
+                        <userData code="k24" value="24" />
+                        <userData code="k25" value="25" />
+                        <userData code="k26" value="26" />
+                        <userData code="k27" value="27" />
+                        <userData code="k28" value="28" />
+                        <userData code="k29" value="29" />
+                        <userData code="k30" value="30" />
+                        <userData code="k31" value="31" />
+                        <userData code="k32" value="32" />
+                        <userData code="k33" value="33" />
+                        <userData code="k34" value="34" />
+                        <userData code="k35" value="35" />
+                        <userData code="k36" value="36" />
+                        <userData code="k37" value="37" />
+                        <userData code="k38" value="38" />
+                        <userData code="k39" value="39" />
+                        <userData code="k40" value="40" />
+                        <userData code="k41" value="41" />
+                        <userData code="k42" value="42" />
+                        <userData code="k43" value="43" />
+                        <userData code="k44" value="44" />
+                        <userData code="k45" value="45" />
+                        <userData code="k46" value="46" />
+                        <userData code="k47" value="47" />
+                        <userData code="k48" value="48" />
+                        <userData code="k49" value="49" />
+                        <userData code="k50" value="50" />
+                        <userData code="k51" value="51" />
+                        <userData code="k52" value="52" />
+                        <userData code="k53" value="53" />
+                        <userData code="k54" value="54" />
+                        <userData code="k55" value="55" />
+                        <userData code="k56" value="56" />
+                        <userData code="k57" value="57" />
+                        <userData code="k58" value="58" />
+                        <userData code="k59" value="59" />
+                        <userData code="k60" value="60" />
+                        <userData code="k61" value="61" />
+                        <userData code="k62" value="62" />
+                        <userData code="k63" value="63" />
+                        <userData code="k64" value="64" />
+                        <userData code="k65" value="65" />
+                        <userData code="k66" value="66" />
+                        <userData code="k67" value="67" />
+                        <userData code="k68" value="68" />
+                        <userData code="k69" value="69" />
+                        <userData code="k70" value="70" />
+                        <userData code="k71" value="71" />
+                        <userData code="k72" value="72" />
+                        <userData code="k73" value="73" />
+                        <userData code="k74" value="74" />
+                        <userData code="k75" value="75" />
+                        <userData code="k76" value="76" />
+                        <userData code="k77" value="77" />
+                        <userData code="k78" value="78" />
+                        <userData code="k79" value="79" />
+                        <userData code="k80" value="80" />
+                        <userData code="k81" value="81" />
+                        <userData code="k82" value="82" />
+                        <userData code="k83" value="83" />
+                        <userData code="k84" value="84" />
+                        <userData code="k85" value="85" />
+                        <userData code="k86" value="86" />
+                        <userData code="k87" value="87" />
+                        <userData code="k88" value="88" />
+                        <userData code="k89" value="89" />
+                        <userData code="k90" value="90" />
+                        <userData code="k91" value="91" />
+                        <userData code="k92" value="92" />
+                        <userData code="k93" value="93" />
+                        <userData code="k94" value="94" />
+                        <userData code="k95" value="95" />
+                        <userData code="k96" value="96" />
+                        <userData code="k97" value="97" />
+                        <userData code="k98" value="98" />
+                        <userData code="k99" value="99" />
+                        <userData code="k100" value="100" />
+                        <userData code="k101" value="101" />
+                        <userData code="k102" value="102" />
+                        <userData code="k103" value="103" />
+                        <userData code="k104" value="104" />
+                        <userData code="k105" value="105" />
+                        <userData code="k106" value="106" />
+                        <userData code="k107" value="107" />
+                        <userData code="k108" value="108" />
+                        <userData code="k109" value="109" />
+                        <userData code="k110" value="110" />
+                        <userData code="k111" value="111" />
+                        <userData code="k112" value="112" />
+                        <userData code="k113" value="113" />
+                        <userData code="k114" value="114" />
+                        <userData code="k115" value="115" />
+                        <userData code="k116" value="116" />
+                        <userData code="k117" value="117" />
+                        <userData code="k118" value="118" />
+                        <userData code="k119" value="119" />
+                        <userData code="k120" value="120" />
+                        <userData code="k121" value="121" />
+                        <userData code="k122" value="122" />
+                        <userData code="k123" value="123" />
+                        <userData code="k124" value="124" />
+                        <userData code="k125" value="125" />
+                        <userData code="k126" value="126" />
+                        <userData code="k127" value="127" />
+                        <userData code="k128" value="128" />
+                        <userData code="k129" value="129" />
+                        <userData code="k130" value="130" />
+                        <userData code="k131" value="131" />
+                        <userData code="k132" value="132" />
+                        <userData code="k133" value="133" />
+                        <userData code="k134" value="134" />
+                        <userData code="k135" value="135" />
+                        <userData code="k136" value="136" />
+                        <userData code="k137" value="137" />
+                        <userData code="k138" value="138" />
+                        <userData code="k139" value="139" />
+                        <userData code="k140" value="140" />
+                        <userData code="k141" value="141" />
+                        <userData code="k142" value="142" />
+                        <userData code="k143" value="143" />
+                        <userData code="k144" value="144" />
+                        <userData code="k145" value="145" />
+                        <userData code="k146" value="146" />
+                        <userData code="k147" value="147" />
+                        <userData code="k148" value="148" />
+                        <userData code="k149" value="149" />
+                        <userData code="k150" value="150" />
+                        <userData code="k151" value="151" />
+                        <userData code="k152" value="152" />
+                        <userData code="k153" value="153" />
+                        <userData code="k154" value="154" />
+                        <userData code="k155" value="155" />
+                        <userData code="k156" value="156" />
+                        <userData code="k157" value="157" />
+                        <userData code="k158" value="158" />
+                        <userData code="k159" value="159" />
+                        <userData code="k160" value="160" />
+                        <userData code="k161" value="161" />
+                        <userData code="k162" value="162" />
+                        <userData code="k163" value="163" />
+                        <userData code="k164" value="164" />
+                        <userData code="k165" value="165" />
+                        <userData code="k166" value="166" />
+                        <userData code="k167" value="167" />
+                        <userData code="k168" value="168" />
+                        <userData code="k169" value="169" />
+                        <userData code="k170" value="170" />
+                        <userData code="k171" value="171" />
+                        <userData code="k172" value="172" />
+                        <userData code="k173" value="173" />
+                        <userData code="k174" value="174" />
+                        <userData code="k175" value="175" />
+                        <userData code="k176" value="176" />
+                        <userData code="k177" value="177" />
+                        <userData code="k178" value="178" />
+                        <userData code="k179" value="179" />
+                        <userData code="k180" value="180" />
+                        <userData code="k181" value="181" />
+                        <userData code="k182" value="182" />
+                        <userData code="k183" value="183" />
+                        <userData code="k184" value="184" />
+                        <userData code="k185" value="185" />
+                        <userData code="k186" value="186" />
+                        <userData code="k187" value="187" />
+                        <userData code="k188" value="188" />
+                        <userData code="k189" value="189" />
+                        <userData code="k190" value="190" />
+                        <userData code="k191" value="191" />
+                        <userData code="k192" value="192" />
+                        <userData code="k193" value="193" />
+                        <userData code="k194" value="194" />
+                        <userData code="k195" value="195" />
+                        <userData code="k196" value="196" />
+                        <userData code="k197" value="197" />
+                        <userData code="k198" value="198" />
+                        <userData code="k199" value="199" />
+                        <userData code="k200" value="200" />
+                        <userData code="k201" value="201" />
+                        <userData code="k202" value="202" />
+                        <userData code="k203" value="203" />
+                        <userData code="k204" value="204" />
+                        <userData code="k205" value="205" />
+                        <userData code="k206" value="206" />
+                        <userData code="k207" value="207" />
+                        <userData code="k208" value="208" />
+                        <userData code="k209" value="209" />
+                        <userData code="k210" value="210" />
+                        <userData code="k211" value="211" />
+                        <userData code="k212" value="212" />
+                        <userData code="k213" value="213" />
+                        <userData code="k214" value="214" />
+                        <userData code="k215" value="215" />
+                        <userData code="k216" value="216" />
+                        <userData code="k217" value="217" />
+                        <userData code="k218" value="218" />
+                        <userData code="k219" value="219" />
+                        <userData code="k220" value="220" />
+                        <userData code="k221" value="221" />
+                        <userData code="k222" value="222" />
+                        <userData code="k223" value="223" />
+                        <userData code="k224" value="224" />
+                        <userData code="k225" value="225" />
+                        <userData code="k226" value="226" />
+                        <userData code="k227" value="227" />
+                        <userData code="k228" value="228" />
+                        <userData code="k229" value="229" />
+                        <userData code="k230" value="230" />
+                        <userData code="k231" value="231" />
+                        <userData code="k232" value="232" />
+                        <userData code="k233" value="233" />
+                        <userData code="k234" value="234" />
+                        <userData code="k235" value="235" />
+                        <userData code="k236" value="236" />
+                        <userData code="k237" value="237" />
+                        <userData code="k238" value="238" />
+                        <userData code="k239" value="239" />
+                        <userData code="k240" value="240" />
+                        <userData code="k241" value="241" />
+                        <userData code="k242" value="242" />
+                        <userData code="k243" value="243" />
+                        <userData code="k244" value="244" />
+                        <userData code="k245" value="245" />
+                        <userData code="k246" value="246" />
+                        <userData code="k247" value="247" />
+                        <userData code="k248" value="248" />
+                        <userData code="k249" value="249" />
+                        <userData code="k250" value="250" />
+                        <userData code="k251" value="251" />
+                        <userData code="k252" value="252" />
+                        <userData code="k253" value="253" />
+                        <userData code="k254" value="254" />
+                        <userData code="k255" value="255" />
+                        <userData code="k256" value="256" />
+                        <userData code="k257" value="257" />
+                        <userData code="k258" value="258" />
+                        <userData code="k259" value="259" />
+                        <userData code="k260" value="260" />
+                        <userData code="k261" value="261" />
+                        <userData code="k262" value="262" />
+                        <userData code="k263" value="263" />
+                        <userData code="k264" value="264" />
+                        <userData code="k265" value="265" />
+                        <userData code="k266" value="266" />
+                        <userData code="k267" value="267" />
+                        <userData code="k268" value="268" />
+                        <userData code="k269" value="269" />
+                        <userData code="k270" value="270" />
+                        <userData code="k271" value="271" />
+                        <userData code="k272" value="272" />
+                        <userData code="k273" value="273" />
+                        <userData code="k274" value="274" />
+                        <userData code="k275" value="275" />
+                        <userData code="k276" value="276" />
+                        <userData code="k277" value="277" />
+                        <userData code="k278" value="278" />
+                        <userData code="k279" value="279" />
+                        <userData code="k280" value="280" />
+                        <userData code="k281" value="281" />
+                        <userData code="k282" value="282" />
+                        <userData code="k283" value="283" />
+                        <userData code="k284" value="284" />
+                        <userData code="k285" value="285" />
+                        <userData code="k286" value="286" />
+                        <userData code="k287" value="287" />
+                        <userData code="k288" value="288" />
+                        <userData code="k289" value="289" />
+                        <userData code="k290" value="290" />
+                        <userData code="k291" value="291" />
+                        <userData code="k292" value="292" />
+                        <userData code="k293" value="293" />
+                        <userData code="k294" value="294" />
+                        <userData code="k295" value="295" />
+                        <userData code="k296" value="296" />
+                        <userData code="k297" value="297" />
+                        <userData code="k298" value="298" />
+                        <userData code="k299" value="299" />
+                        <userData code="k300" value="300" />
+                        <userData code="k301" value="301" />
+                        <userData code="k302" value="302" />
+                        <userData code="k303" value="303" />
+                        <userData code="k304" value="304" />
+                        <userData code="k305" value="305" />
+                        <userData code="k306" value="306" />
+                        <userData code="k307" value="307" />
+                        <userData code="k308" value="308" />
+                        <userData code="k309" value="309" />
+                        <userData code="k310" value="310" />
+                        <userData code="k311" value="311" />
+                        <userData code="k312" value="312" />
+                        <userData code="k313" value="313" />
+                        <userData code="k314" value="314" />
+                        <userData code="k315" value="315" />
+                        <userData code="k316" value="316" />
+                        <userData code="k317" value="317" />
+                        <userData code="k318" value="318" />
+                        <userData code="k319" value="319" />
+                        <userData code="k320" value="320" />
+                        <userData code="k321" value="321" />
+                        <userData code="k322" value="322" />
+                        <userData code="k323" value="323" />
+                        <userData code="k324" value="324" />
+                        <userData code="k325" value="325" />
+                        <userData code="k326" value="326" />
+                        <userData code="k327" value="327" />
+                        <userData code="k328" value="328" />
+                        <userData code="k329" value="329" />
+                        <userData code="k330" value="330" />
+                        <userData code="k331" value="331" />
+                        <userData code="k332" value="332" />
+                        <userData code="k333" value="333" />
+                        <userData code="k334" value="334" />
+                        <userData code="k335" value="335" />
+                        <userData code="k336" value="336" />
+                        <userData code="k337" value="337" />
+                        <userData code="k338" value="338" />
+                        <userData code="k339" value="339" />
+                        <userData code="k340" value="340" />
+                        <userData code="k341" value="341" />
+                        <userData code="k342" value="342" />
+                        <userData code="k343" value="343" />
+                        <userData code="k344" value="344" />
+                        <userData code="k345" value="345" />
+                        <userData code="k346" value="346" />
+                        <userData code="k347" value="347" />
+                        <userData code="k348" value="348" />
+                        <userData code="k349" value="349" />
+                        <userData code="k350" value="350" />
+                        <userData code="k351" value="351" />
+                        <userData code="k352" value="352" />
+                        <userData code="k353" value="353" />
+                        <userData code="k354" value="354" />
+                        <userData code="k355" value="355" />
+                        <userData code="k356" value="356" />
+                        <userData code="k357" value="357" />
+                        <userData code="k358" value="358" />
+                        <userData code="k359" value="359" />
+                        <userData code="k360" value="360" />
+                        <userData code="k361" value="361" />
+                        <userData code="k362" value="362" />
+                        <userData code="k363" value="363" />
+                        <userData code="k364" value="364" />
+                        <userData code="k365" value="365" />
+                        <userData code="k366" value="366" />
+                        <userData code="k367" value="367" />
+                        <userData code="k368" value="368" />
+                        <userData code="k369" value="369" />
+                        <userData code="k370" value="370" />
+                        <userData code="k371" value="371" />
+                        <userData code="k372" value="372" />
+                        <userData code="k373" value="373" />
+                        <userData code="k374" value="374" />
+                        <userData code="k375" value="375" />
+                        <userData code="k376" value="376" />
+                        <userData code="k377" value="377" />
+                        <userData code="k378" value="378" />
+                        <userData code="k379" value="379" />
+                        <userData code="k380" value="380" />
+                        <userData code="k381" value="381" />
+                        <userData code="k382" value="382" />
+                        <userData code="k383" value="383" />
+                        <userData code="k384" value="384" />
+                        <userData code="k385" value="385" />
+                        <userData code="k386" value="386" />
+                        <userData code="k387" value="387" />
+                        <userData code="k388" value="388" />
+                        <userData code="k389" value="389" />
+                        <userData code="k390" value="390" />
+                        <userData code="k391" value="391" />
+                        <userData code="k392" value="392" />
+                        <userData code="k393" value="393" />
+                        <userData code="k394" value="394" />
+                        <userData code="k395" value="395" />
+                        <userData code="k396" value="396" />
+                        <userData code="k397" value="397" />
+                        <userData code="k398" value="398" />
+                        <userData code="k399" value="399" />
+                        <userData code="k400" value="400" />
+                        <userData code="k401" value="401" />
+                        <userData code="k402" value="402" />
+                        <userData code="k403" value="403" />
+                        <userData code="k404" value="404" />
+                        <userData code="k405" value="405" />
+                        <userData code="k406" value="406" />
+                        <userData code="k407" value="407" />
+                        <userData code="k408" value="408" />
+                        <userData code="k409" value="409" />
+                        <userData code="k410" value="410" />
+                        <userData code="k411" value="411" />
+                        <userData code="k412" value="412" />
+                        <userData code="k413" value="413" />
+                        <userData code="k414" value="414" />
+                        <userData code="k415" value="415" />
+                        <userData code="k416" value="416" />
+                        <userData code="k417" value="417" />
+                        <userData code="k418" value="418" />
+                        <userData code="k419" value="419" />
+                        <userData code="k420" value="420" />
+                        <userData code="k421" value="421" />
+                        <userData code="k422" value="422" />
+                        <userData code="k423" value="423" />
+                        <userData code="k424" value="424" />
+                        <userData code="k425" value="425" />
+                        <userData code="k426" value="426" />
+                        <userData code="k427" value="427" />
+                        <userData code="k428" value="428" />
+                        <userData code="k429" value="429" />
+                        <userData code="k430" value="430" />
+                        <userData code="k431" value="431" />
+                        <userData code="k432" value="432" />
+                        <userData code="k433" value="433" />
+                        <userData code="k434" value="434" />
+                        <userData code="k435" value="435" />
+                        <userData code="k436" value="436" />
+                        <userData code="k437" value="437" />
+                        <userData code="k438" value="438" />
+                        <userData code="k439" value="439" />
+                        <userData code="k440" value="440" />
+                        <userData code="k441" value="441" />
+                        <userData code="k442" value="442" />
+                        <userData code="k443" value="443" />
+                        <userData code="k444" value="444" />
+                        <userData code="k445" value="445" />
+                        <userData code="k446" value="446" />
+                        <userData code="k447" value="447" />
+                        <userData code="k448" value="448" />
+                        <userData code="k449" value="449" />
+                        <userData code="k450" value="450" />
+                        <userData code="k451" value="451" />
+                        <userData code="k452" value="452" />
+                        <userData code="k453" value="453" />
+                        <userData code="k454" value="454" />
+                        <userData code="k455" value="455" />
+                        <userData code="k456" value="456" />
+                        <userData code="k457" value="457" />
+                        <userData code="k458" value="458" />
+                        <userData code="k459" value="459" />
+                        <userData code="k460" value="460" />
+                        <userData code="k461" value="461" />
+                        <userData code="k462" value="462" />
+                        <userData code="k463" value="463" />
+                        <userData code="k464" value="464" />
+                        <userData code="k465" value="465" />
+                        <userData code="k466" value="466" />
+                        <userData code="k467" value="467" />
+                        <userData code="k468" value="468" />
+                        <userData code="k469" value="469" />
+                        <userData code="k470" value="470" />
+                        <userData code="k471" value="471" />
+                        <userData code="k472" value="472" />
+                        <userData code="k473" value="473" />
+                        <userData code="k474" value="474" />
+                        <userData code="k475" value="475" />
+                        <userData code="k476" value="476" />
+                        <userData code="k477" value="477" />
+                        <userData code="k478" value="478" />
+                        <userData code="k479" value="479" />
+                        <userData code="k480" value="480" />
+                        <userData code="k481" value="481" />
+                        <userData code="k482" value="482" />
+                        <userData code="k483" value="483" />
+                        <userData code="k484" value="484" />
+                        <userData code="k485" value="485" />
+                        <userData code="k486" value="486" />
+                        <userData code="k487" value="487" />
+                        <userData code="k488" value="488" />
+                        <userData code="k489" value="489" />
+                        <userData code="k490" value="490" />
+                        <userData code="k491" value="491" />
+                        <userData code="k492" value="492" />
+                        <userData code="k493" value="493" />
+                        <userData code="k494" value="494" />
+                        <userData code="k495" value="495" />
+                        <userData code="k496" value="496" />
+                        <userData code="k497" value="497" />
+                        <userData code="k498" value="498" />
+                        <userData code="k499" value="499" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="11" junction="-1" length="30">
+        <link>
+            <successor elementType="junction" elementId="100" />
+        </link>
+        <planView>
+            <geometry s="0" x="1042.0" y="0.0" hdg="3.141592653589793" length="30">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="12" junction="-1" length="30">
+        <link>
+            <successor elementType="junction" elementId="100" />
+        </link>
+        <planView>
+            <geometry s="0" x="1000.0" y="42.0" hdg="4.71238898038469" length="30">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="13" junction="-1" length="30">
+        <link>
+            <successor elementType="junction" elementId="100" />
+        </link>
+        <planView>
+            <geometry s="0" x="958.0" y="5.143516556418883e-15" hdg="6.283185307179586" length="30">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="1000" junction="100" length="19.92317921600567">
+        <link>
+            <predecessor elementType="road" elementId="11" contactPoint="end" />
+            <successor elementType="road" elementId="12" contactPoint="end" />
+        </link>
+        <planView>
+            <geometry s="0" x="1012.0" y="3.67394039744206e-15" hdg="3.141592653589793" length="6.282830476295945">
+                <spiral curvStart="1e-09" curvEnd="-0.11515807719085884" />
+            </geometry>
+            <geometry s="6.282830476295945" x="1005.7988961386615" y="0.7505714561480027" hdg="2.779833318248024" length="7.357518263413783">
+                <spiral curvStart="-0.11515807719085884" curvEnd="-0.11515807719085884" />
+            </geometry>
+            <geometry s="13.640348739709728" x="1000.750571456148" y="5.798896138661474" hdg="1.9325556621366657" length="6.282830476295945">
+                <spiral curvStart="-0.11515807719085884" curvEnd="9.999999994736442e-10" />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link>
+                            <predecessor id="-1" />
+                            <successor id="1" />
+                        </link>
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="1001" junction="100" length="19.92317921600567">
+        <link>
+            <predecessor elementType="road" elementId="12" contactPoint="end" />
+            <successor elementType="road" elementId="13" contactPoint="end" />
+        </link>
+        <planView>
+            <geometry s="0" x="1000.0" y="12.0" hdg="4.71238898038469" length="6.282830476295945">
+                <spiral curvStart="1e-09" curvEnd="-0.11515807719085884" />
+            </geometry>
+            <geometry s="6.282830476295945" x="999.249428543852" y="5.79889613866147" hdg="4.35062964504292" length="7.357518263413783">
+                <spiral curvStart="-0.11515807719085884" curvEnd="-0.11515807719085884" />
+            </geometry>
+            <geometry s="13.640348739709728" x="994.2011038613385" y="0.750571456148001" hdg="3.503351988931562" length="6.282830476295945">
+                <spiral curvStart="-0.11515807719085884" curvEnd="9.999999994736442e-10" />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link>
+                            <predecessor id="-1" />
+                            <successor id="1" />
+                        </link>
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <junction name="tee" id="100" type="default">
+        <connection incomingRoad="11" id="0" contactPoint="start" connectingRoad="1000">
+            <laneLink from="-1" to="-1" fromLayer="temporary" />
+        </connection>
+        <connection incomingRoad="12" id="1" contactPoint="start" connectingRoad="1001">
+            <laneLink from="-1" to="-1" toLayer="temporary" fromLayer="permanent" />
+        </connection>
+        <objects>
+            <object id="j1" s="0" t="0" type="barrier" length="1" width="1" height="1" />
+        </objects>
+        <roadSection roadId="11" sStart="0" sEnd="30" />
+        <roadSection roadId="12" sStart="0" sEnd="30" />
+        <boundary>
+            <segment type="joint" roadId="11" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1" transitionLength="2.5" />
+            <segment type="joint" roadId="12" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1" transitionLength="0" />
+            <segment type="joint" roadId="13" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1" transitionLength="1" />
+            <segment type="joint" roadId="11" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1" />
+        </boundary>
+    </junction>
+    <include file="other.xodr" />
+    <vmsGroup id="g" name="group" />
+</OpenDRIVE>

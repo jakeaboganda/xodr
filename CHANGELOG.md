@@ -41,6 +41,14 @@
 - `tests/data/gantries.xodr` is a demo of gantry scenes: lane control,
   a sign bridge, a message board and traffic lights.
 
+### Ignored features
+
+- New `Warning::Ignored` names each feature of a file the crate ignores,
+  such as `<userData>`, a second `<lanes>`, `singleSide="true"` and
+  `perpToRoad="true"`. It comes once per feature for each road, junction,
+  or the rest of the document, with a count. `docs/support.md` lists them.
+- `tests/data/ignored.xodr` uses each one.
+
 ### Lane types
 
 - A lane of `type="walking"`, the name OpenDRIVE 1.8 gives a sidewalk, is a

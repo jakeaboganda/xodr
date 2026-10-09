@@ -271,8 +271,27 @@ fn a_clean_map_raises_no_warnings() {
     for path in FULL_MAPS {
         let (_, prov) =
             load_file_with_provenance(path).unwrap_or_else(|e| panic!("loading {path}: {e}"));
-        assert_eq!(prov.warnings, [], "{path}");
+        let faults: Vec<_> = prov
+            .warnings
+            .iter()
+            .filter(|w| !matches!(w, Warning::Ignored { .. }))
+            .collect();
+        assert_eq!(faults, Vec::<&Warning>::new(), "{path}");
     }
+}
+
+#[test]
+fn a_clean_map_raises_only_the_warnings_for_what_it_holds_that_is_ignored() {
+    let (_, prov) = load_file_with_provenance("tests/data/e6mini.xodr").unwrap();
+    assert_eq!(
+        prov.warnings,
+        [Warning::Ignored {
+            road_id: "0".into(),
+            junction_id: String::new(),
+            feature: "<userData>".into(),
+            count: 15,
+        }]
+    );
 }
 
 #[test]

@@ -58,7 +58,7 @@ offset)` into a point on the road surface, and a point back, and move a
 position along the lanes.
 
 It loads a file whatever OpenDRIVE version it declares. Where it drops part
-of a bad file, it says so in `Provenance::warnings`.
+of a bad file, or ignores a feature, it says so in `Provenance::warnings`.
 [docs/support.md](docs/support.md) covers each element, and what it skips.
 
 ## Viewer

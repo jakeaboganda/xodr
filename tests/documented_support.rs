@@ -19,8 +19,9 @@ const CRATE_DOCS: &str = include_str!("../src/lib.rs");
 /// Tags read in one place and ignored in another, which a scan of tag names
 /// alone cannot tell apart. A road's `<surface>` is read, an object's is not.
 /// An object's `<userData>` is read, a signal's is not. A road's `<objects>`
-/// are read, a junction's are not.
-const READ_IN_ANOTHER_PLACE: [&str; 3] = ["surface", "userData", "objects"];
+/// are read, a junction's are not. An object's `<markings>` are read, an
+/// outline's are not.
+const READ_IN_ANOTHER_PLACE: [&str; 4] = ["surface", "userData", "objects", "markings"];
 
 /// `<left>` and `<right>` reach `child()` through a loop variable rather than
 /// a literal, and a signal's `<semantics>` children are matched by name in

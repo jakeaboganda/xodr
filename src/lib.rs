@@ -914,14 +914,27 @@
 //!
 //! # What the importer ignores
 //!
-//! Everything else in the file, without a warning. That includes
-//! `<vmsGroup>`, a header's `<license>` and `<defaultRegulations>`,
-//! `<dataQuality>` and `<include>` anywhere, a junction's `<objects>` and
-//! `<roadSection>`s, and an object's `<surface>`, `<skeleton>` and
-//! `<curveLocal>` corners. Of signals, it ignores a signal's `<userData>`,
-//! and a board's or board sign's own validities, links and position off the
-//! board. Of road marks, it ignores `material`, and the `name` of a mark's
-//! type. Of road types, it ignores `country`.
+//! Everything else in the file. Each feature below raises a
+//! [`Warning::Ignored`], once per road, junction, or the rest of the
+//! document, with how many times the file uses it.
+//!
+//! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
+//! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a
+//! junction's `<objects>` and `<roadSection>`s, and an object's `<surface>`,
+//! `<skeleton>` and `<curveLocal>` corners. Of signals, it ignores a signal's
+//! `<userData>`, and a board's or board sign's own validities, links and
+//! position off the board. Of road marks, it ignores `material`, and the
+//! `name` of a mark's type. Of road types, it ignores `country`. It also
+//! skips `<userData>` on a road, a lane, a road mark, a marking and a
+//! tunnel, and the `<markings>` of an outline.
+//!
+//! It also ignores these uses of elements it reads: a second `lanes` on a road, and a `lanes` with `layer="temporary"`;
+//! `singleSide="true"` on a lane section; a `layer` on a lane link, other
+//! than `permanent`; a `layer` on a `validity`; `fromLayer` or `toLayer` on
+//! a junction lane link; `perpToRoad="true"` on an object; a repeat's `bT`,
+//! `cT` or `dT` other than 0, and `detachFromReferenceLine="true"`; and a
+//! boundary segment's `transitionLength` above 0. The crate bakes the first
+//! `lanes` of a road as the road, as if it were permanent.
 //!
 //! One omission changes the road you get back, rather than only dropping
 //! detail around it: the center lane, lane 0, never becomes a [`Lane`].
@@ -1140,9 +1153,11 @@
 //!
 //! [`Provenance::warnings`] says what the load did with a bad file. Each
 //! [`Warning`] names where in the file it happened, and prints as a
-//! sentence. The crate raises one where it drops something, or reads a file
-//! that breaks a rule of the spec:
+//! sentence. The crate raises one where it drops or ignores something, or
+//! reads a file that breaks a rule of the spec:
 //!
+//! - [`Warning::Ignored`] for a feature of the file the crate ignores. See
+//!   [What the importer ignores](#what-the-importer-ignores).
 //! - [`Warning::RoadSkipped`] for a road with no finite `length`, one over
 //!   [`MAX_LENGTH`], no `<planView>`, no `<geometry>` it can bake, or lanes
 //!   that land outside the range of an `f32`. The [`RoadSkipReason`]
