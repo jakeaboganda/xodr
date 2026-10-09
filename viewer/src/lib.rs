@@ -163,10 +163,17 @@ fn build_scene(
         .road_marks()
         .iter()
         .map(|m| {
-            road_mark_entry(
-                m,
-                provenance.road_marks.iter().find(|p| p.road_mark == m.id),
-            )
+            let prov = provenance.road_marks.iter().find(|p| p.road_mark == m.id);
+            let mut entry = road_mark_entry(m, prov);
+            let center = prov.filter(|p| p.od_lane_id == 0).and_then(|p| {
+                provenance
+                    .center_lanes
+                    .iter()
+                    .find(|c| c.road_id == p.road_id && c.section == p.section)
+            });
+            entry["centerLane"] =
+                json!(center.map(|c| json!({ "type": c.kind.as_str(), "level": c.level })));
+            entry
         })
         .collect();
 
@@ -872,6 +879,16 @@ fn lane_entry(net: &RoadNetwork, provenance: &Provenance, span: &LaneSpan) -> Va
     entry.insert("section".into(), json!(prov.map(|p| p.section)));
     entry.insert("odLaneId".into(), json!(prov.map(|p| p.od_id)));
     entry.insert("laneType".into(), json!(lane.map(|l| l.kind.as_str())));
+    entry.insert("advisory".into(), json!(prov.map(|p| p.advisory.as_str())));
+    entry.insert(
+        "dynamicLaneType".into(),
+        json!(prov.map(|p| p.dynamic_lane_type)),
+    );
+    entry.insert(
+        "dynamicLaneDirection".into(),
+        json!(prov.map(|p| p.dynamic_lane_direction)),
+    );
+    entry.insert("roadWorks".into(), json!(prov.map(|p| p.road_works)));
     entry.insert("drivable".into(), json!(lane.map(|l| l.kind.is_drivable())));
     entry.insert(
         "direction".into(),

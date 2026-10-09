@@ -132,7 +132,10 @@ and `<offset>` as the file gives them. A map without either shows neither.
 Hover the map list for the `<header>`: its name, OpenDRIVE revision,
 version, date, vendor and bounds. A lane's readout shows its road's `name`
 and its junction's, and the `country` of its road type. A road mark's
-readout shows its `material` and its type's `name`.
+readout shows its `material` and its type's `name`. A lane's readout also
+shows its `advisory` and whether its type or direction can change or it is
+under road works, and the readout of a mark on the center line shows the
+center lane's `type` and `level`.
 
 ## Lanes
 
