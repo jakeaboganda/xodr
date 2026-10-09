@@ -257,6 +257,7 @@ let roadMarks = [];          // the exported road mark table
 let roadMarkMesh = null;     // every road mark's lines; userData.pick(hit) is the hovered mark
 let warnings = [];           // the exported warnings, each with the lanes of the road it names
 let priorities = [];         // the exported junction priorities, by road id
+let laneLinkOverlaps = [];   // the junction lane links that give an overlap zone, by road id
 let roadNeighbors = [];      // the exported road neighbors, by road id
 let junctionMeshes = [];     // each junction area's ground; userData is its exported record
 let junctionLines = [];      // each junction area's boundary
@@ -436,6 +437,7 @@ async function init() {
   buildCrg(data);
   buildWarnings(data);
   priorities = data.priorities ?? [];
+  laneLinkOverlaps = data.laneLinkOverlaps ?? [];
   crossPaths = data.crossPaths ?? [];
   junctionGroups = data.junctionGroups ?? [];
   roadNeighbors = data.roadNeighbors ?? [];
@@ -1039,7 +1041,7 @@ function showRailTip(ev, rect, hit) {
       `road ${escapeHtml(String(r.road))}   s ${r.sStart.toFixed(2)} to ${r.sEnd.toFixed(2)} m, on its ${r.side}`,
     ]
     : [
-      `<b>switch</b> ${escapeHtml(r.name || r.id)}   set ${r.position}` + (r.partner ? `   partner ${escapeHtml(r.partner)}` : ''),
+      `<b>switch</b> ${escapeHtml(r.name || r.id)}   set ${r.position}` + (r.partner ? `   partner ${escapeHtml(r.partner)}${r.partnerName ? ' ' + escapeHtml(JSON.stringify(r.partnerName)) : ''}` : ''),
       `main track road ${escapeHtml(String(r.main.road))} at s ${r.main.s.toFixed(2)} m`,
       `side track road ${escapeHtml(String(r.side.road))} at s ${r.side.s.toFixed(2)} m`,
     ];
@@ -1213,7 +1215,13 @@ function signalRows(sg) {
       for (const s of b.signs) {
         const shows = s.value != null ? ` ${s.value}${s.unit ? ' ' + escapeHtml(s.unit) : ''}` : '';
         const means = s.semantics.length ? `: ${s.semantics.map(escapeHtml).join('; ')}` : '';
+        const own = [s.id && `id ${escapeHtml(s.id)}`, s.name && escapeHtml(JSON.stringify(s.name)),
+          s.countryRevision && `rev ${escapeHtml(s.countryRevision)}`, s.orientation !== 'none' && `orientation ${s.orientation}`,
+          s.dynamic && 'dynamic', s.invalidated && 'invalidated', s.temporary && 'temporary',
+          s.hOffset && `hOffset ${s.hOffset.toFixed(2)}`, s.pitch && `pitch ${s.pitch.toFixed(2)}`,
+          s.roll && `roll ${s.roll.toFixed(2)}`, s.length != null && `${+s.length.toFixed(2)} m deep`].filter(Boolean);
         rows.push(`  sign ${escapeHtml(s.type || '?')}${shows} at z ${s.position[2].toFixed(2)}${means}`);
+        if (own.length) rows.push(`    ${own.join('   ')}`);
       }
     } else if (b.kind === 'message') {
       const size = b.width != null && b.height != null ? ` ${b.width} × ${b.height} m` : '';
@@ -1613,7 +1621,7 @@ function onHover(ev) {
     const name = lane.junctionName ? ` ${escapeHtml(JSON.stringify(lane.junctionName))}` : '';
     rows.push(`in junction ${escapeHtml(String(lane.junction))}${name}${label}`);
   }
-  rows.push(...priorityRows(lane));
+  rows.push(...priorityRows(lane), ...overlapRows(lane));
   rows.push(...crossPathRows(lane));
   for (const n of roadNeighbors.filter(n => n.road === lane.roadId)) {
     rows.push(`road ${escapeHtml(String(n.neighbor))} beside it on the ${n.side}, running ${n.sameDirection ? 'the same way' : 'the other way'}`);
@@ -1971,6 +1979,21 @@ function crossPathRows(lane) {
     }
     for (const e of [c.start, c.end]) {
       if (e.laneId === lane.laneId) rows.push(`${label} joins here at s ${e.s.toFixed(2)}, onto ${name(e.crossingLaneId)}`);
+    }
+  }
+  return rows;
+}
+
+// The overlap zone of each junction lane link that joins this lane, as the
+// file gives it, with the lane on the other end.
+function overlapRows(lane) {
+  const rows = [];
+  for (const o of laneLinkOverlaps) {
+    const road = escapeHtml(String(lane.roadId));
+    if (lane.roadId === o.incomingRoad && lane.odLaneId === o.from) {
+      rows.push(`overlap zone ${+o.overlapZone.toFixed(2)} m with lane ${o.to} of road ${escapeHtml(o.connectingRoad)}`);
+    } else if (lane.roadId === o.connectingRoad && lane.odLaneId === o.to) {
+      rows.push(`overlap zone ${+o.overlapZone.toFixed(2)} m with lane ${o.from} of road ${escapeHtml(o.incomingRoad)}`);
     }
   }
   return rows;

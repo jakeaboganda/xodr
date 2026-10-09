@@ -25,8 +25,8 @@
 //!   lines as world-space quads.
 //! - `warnings`: each [`Warning`]'s message and the road it names, then the
 //!   baker's own [`Scene::notes`].
-//! - `header`, `geoReference`, `priorities`, `roadNeighbors`,
-//!   `junctionGroups` and `crossPaths`: the map's records of each, by
+//! - `header`, `geoReference`, `priorities`, `laneLinkOverlaps`,
+//!   `roadNeighbors`, `junctionGroups` and `crossPaths`: the map's records of each, by
 //!   OpenDRIVE id.
 //! - `junctionAreas` and `virtualJunctions`: each junction's boundary and
 //!   ground mesh, and each virtual junction's stretch and links as points.
@@ -203,6 +203,21 @@ fn build_scene(
         "warnings": provenance.warnings.iter().map(warning_entry).collect::<Vec<_>>(),
         "header": net.header(),
         "geoReference": net.geo_reference(),
+        "laneLinkOverlaps": provenance
+            .lane_link_overlaps
+            .iter()
+            .map(|o| {
+                json!({
+                    "junction": o.junction_id,
+                    "connection": o.connection_id,
+                    "incomingRoad": o.incoming_road,
+                    "connectingRoad": o.connecting_road,
+                    "from": o.from,
+                    "to": o.to,
+                    "overlapZone": o.overlap_zone,
+                })
+            })
+            .collect::<Vec<_>>(),
         "priorities": priorities(net, provenance),
         "roadNeighbors": road_neighbors(net),
         "junctionAreas": net.junction_areas().iter().map(junction_area).collect::<Vec<_>>(),
@@ -230,6 +245,7 @@ fn build_scene(
                     "name": sw.name,
                     "position": position,
                     "partner": sw.partner,
+                    "partnerName": sw.partner_name,
                     "main": { "road": od(&sw.main), "s": sw.main.s, "point": at(&sw.main) },
                     "side": { "road": od(&sw.side), "s": sw.side.s, "point": at(&sw.side) },
                 })
@@ -385,6 +401,17 @@ fn board_entry(board: &SignalBoard) -> Value {
             "signs": signs
                 .iter()
                 .map(|s| json!({
+                    "id": s.id,
+                    "name": s.name,
+                    "countryRevision": s.country_revision,
+                    "dynamic": s.dynamic,
+                    "invalidated": s.invalidated,
+                    "temporary": s.temporary,
+                    "orientation": orientation(s.orientation),
+                    "hOffset": s.h_offset,
+                    "pitch": s.pitch,
+                    "roll": s.roll,
+                    "length": s.length,
                     "type": s.kind,
                     "subtype": s.subtype,
                     "value": s.value,

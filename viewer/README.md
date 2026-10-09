@@ -131,7 +131,9 @@ Under the map's name, the sidebar shows its `<geoReference>` PROJ string
 and `<offset>` as the file gives them. A map without either shows neither.
 Hover the map list for the `<header>`: its name, OpenDRIVE revision,
 version, date, vendor and bounds. A lane's readout shows its road's `name`
-and its junction's, and the `country` of its road type. An object's
+and its junction's, and the `country` of its road type. A sign on a board lists its own `id`, flags,
+angles and `orientation`, a switch its partner's `name`, and a lane its
+junction lane link's `overlapZone`. An object's
 readout shows whether it is invalidated or temporary, its material's
 `roadMarkColor`, a bold marking, and its outline's `fillType` and
 `laneType`. A road mark's
