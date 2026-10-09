@@ -43,9 +43,10 @@ at 10000 j.
     0.5 m stub off arm 1100.
 12. and 13. Two tees 26 m apart, sharing the 6 m road 1200 as an arm, so
     two wraps meet near each other.
-14. The crossroads of junction 1, with its corner sidewalks raised 0.1 m on
-    their inner edge and 0.2 m on their outer edge, a <boundary> along
-    their outer edge and across each arm, and an
+14. The crossroads of junction 1, with every sidewalk, on the arms and
+    round the corners, raised 0.1 m on its inner edge and 0.2 m on its
+    outer edge, a <boundary> along the corners' outer edge and across each
+    arm, and an
     <elevationGrid> on a reference line along +X through its middle: a
     0.3 m hump that falls to 0 by 10 m out. The boundary takes in the
     slivers between the corner sidewalks and the right turns, which no lane
@@ -79,13 +80,21 @@ def origin(j):
     return (400.0 * (j - 1), 0.0)
 
 
-def arm(j, k, angle, radius, lanes, sidewalk=False, grade=0.0):
+def kerbed_sidewalk(kerb):
+    """A sidewalk, raised (inner, outer) by `kerb` if it is given."""
+    lane = xodr.Lane(xodr.LaneType.sidewalk, a=SIDEWALK)
+    if kerb:
+        lane.add_height(*kerb)
+    return lane
+
+
+def arm(j, k, angle, radius, lanes, sidewalk=False, kerb=None, grade=0.0):
     """Road 100 j + k, ending `radius` from junction j's middle at `angle`."""
     road = xodr.create_road(xodr.Line(ARM), 100 * j + k, lanes, lanes, lane_width=LANE)
     if sidewalk:
         section = road.lanes.lanesections[0]
-        section.add_left_lane(xodr.Lane(xodr.LaneType.sidewalk, a=SIDEWALK))
-        section.add_right_lane(xodr.Lane(xodr.LaneType.sidewalk, a=SIDEWALK))
+        section.add_left_lane(kerbed_sidewalk(kerb))
+        section.add_right_lane(kerbed_sidewalk(kerb))
     ox, oy = origin(j)
     x = ox + (radius + ARM) * math.cos(angle)
     y = oy + (radius + ARM) * math.sin(angle)
@@ -105,11 +114,15 @@ def junction(j, arms):
 
 corner_roads = {}
 
+# How high junction 14's sidewalks stand on their inner and outer edges.
+KERB = (0.1, 0.2)
+
 
 def crossroads(j, sidewalks):
     radius = 14.0
     angles = [0, math.pi / 2, math.pi, 3 * math.pi / 2]
-    roads = [arm(j, k, a, radius, 2, sidewalk=sidewalks) for k, a in enumerate(angles)]
+    kerb = KERB if j == 14 else None
+    roads = [arm(j, k, a, radius, 2, sidewalk=sidewalks, kerb=kerb) for k, a in enumerate(angles)]
     creator = junction(j, [(r, a, radius) for r, a in zip(roads, angles)])
     for a in range(4):
         for b in range(4):
@@ -125,8 +138,8 @@ def crossroads(j, sidewalks):
     for road in corners:
         sidewalk = road.lanes.lanesections[0].rightlanes[0]
         sidewalk.lane_type = xodr.LaneType.sidewalk
-        if j == 14:
-            sidewalk.add_height(0.1, 0.2)
+        if kerb:
+            sidewalk.add_height(*kerb)
     if sidewalks:
         turn = next(r for r in creator.junction_roads
                     if r.predecessor.element_id == roads[0].id

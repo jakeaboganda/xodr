@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <OpenDRIVE>
-    <header name="junction_wraps" revMajor="1" revMinor="5" date="2026-10-09 02:41:08.708962" north="0.0" south="0.0" east="0.0" west="0.0"/>
+    <header name="junction_wraps" revMajor="1" revMinor="5" date="2026-10-09 09:52:13.250188" north="0.0" south="0.0" east="0.0" west="0.0"/>
     <road rule="RHT" id="100" junction="-1" length="30.0">
         <link>
             <successor elementType="junction" elementId="1"/>
@@ -5285,6 +5285,7 @@
                     <lane id="3" type="sidewalk" level="false">
                         <link/>
                         <width a="2.0" b="0" c="0" d="0" sOffset="0"/>
+                        <height inner="0.1" outer="0.2" sOffset="0"/>
                     </lane>
                     <lane id="2" type="driving" level="false">
                         <link/>
@@ -5324,6 +5325,7 @@
                     <lane id="-3" type="sidewalk" level="false">
                         <link/>
                         <width a="2.0" b="0" c="0" d="0" sOffset="0"/>
+                        <height inner="0.1" outer="0.2" sOffset="0"/>
                     </lane>
                 </right>
             </laneSection>
@@ -5346,6 +5348,7 @@
                     <lane id="3" type="sidewalk" level="false">
                         <link/>
                         <width a="2.0" b="0" c="0" d="0" sOffset="0"/>
+                        <height inner="0.1" outer="0.2" sOffset="0"/>
                     </lane>
                     <lane id="2" type="driving" level="false">
                         <link/>
@@ -5385,6 +5388,7 @@
                     <lane id="-3" type="sidewalk" level="false">
                         <link/>
                         <width a="2.0" b="0" c="0" d="0" sOffset="0"/>
+                        <height inner="0.1" outer="0.2" sOffset="0"/>
                     </lane>
                 </right>
             </laneSection>
@@ -5407,6 +5411,7 @@
                     <lane id="3" type="sidewalk" level="false">
                         <link/>
                         <width a="2.0" b="0" c="0" d="0" sOffset="0"/>
+                        <height inner="0.1" outer="0.2" sOffset="0"/>
                     </lane>
                     <lane id="2" type="driving" level="false">
                         <link/>
@@ -5446,6 +5451,7 @@
                     <lane id="-3" type="sidewalk" level="false">
                         <link/>
                         <width a="2.0" b="0" c="0" d="0" sOffset="0"/>
+                        <height inner="0.1" outer="0.2" sOffset="0"/>
                     </lane>
                 </right>
             </laneSection>
@@ -5468,6 +5474,7 @@
                     <lane id="3" type="sidewalk" level="false">
                         <link/>
                         <width a="2.0" b="0" c="0" d="0" sOffset="0"/>
+                        <height inner="0.1" outer="0.2" sOffset="0"/>
                     </lane>
                     <lane id="2" type="driving" level="false">
                         <link/>
@@ -5507,6 +5514,7 @@
                     <lane id="-3" type="sidewalk" level="false">
                         <link/>
                         <width a="2.0" b="0" c="0" d="0" sOffset="0"/>
+                        <height inner="0.1" outer="0.2" sOffset="0"/>
                     </lane>
                 </right>
             </laneSection>
