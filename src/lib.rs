@@ -84,7 +84,8 @@
 //! | `<lanes><laneOffset>` | `s`, `a`, `b`, `c`, `d` |
 //! | `<laneSection>` | `s` |
 //! | `<left>`, `<center>`, `<right>` | none |
-//! | `<lane>` | `id`, `type`, `level`, `direction` |
+//! | `<lane>` | `id`, `type`, `level`, `direction`, `advisory`, `dynamicLaneType`, `dynamicLaneDirection`, `roadWorks` |
+//! | `<center><lane>` | `type`, `level` |
 //! | `<lane><width>` | `sOffset`, `a`, `b`, `c`, `d` |
 //! | `<lane><border>` | `sOffset`, `a`, `b`, `c`, `d` |
 //! | `<lane><height>` | `sOffset`, `inner`, `outer` |
@@ -950,7 +951,8 @@
 //!
 //! One omission changes the road you get back, rather than only dropping
 //! detail around it: the center lane, lane 0, never becomes a [`Lane`].
-//! Only its road marks are read.
+//! Only its road marks are read, and its `type` and `level`, which are in
+//! [`Provenance::center_lanes`].
 //!
 //! # Coordinate frame
 //!
@@ -1300,7 +1302,7 @@ pub use junction::{
     JunctionGroupKind, LinkPoint, MainRoad, VirtualJunction, VirtualLink,
 };
 pub use mesh::{LaneSpan, Mesh, MeshError, MeshSampler};
-pub use network::{Direction, Lane, LaneId, LaneType, RoadNetwork};
+pub use network::{Direction, Lane, LaneAdvisory, LaneId, LaneType, RoadNetwork};
 pub use object::{
     Border, Corner, Extent, Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Section,
     Shape, UserData,
@@ -1309,11 +1311,11 @@ pub use object_mesh::ObjectSpan;
 /// The OpenCRG reader, for loading the files a [`RoadSurface`] evaluates.
 pub use opencrg;
 pub use parse::{
-    load_file, load_file_with_provenance, load_str, load_str_with_provenance, ControllerProvenance,
-    CrossPathProvenance, ImportError, JunctionControllerProvenance, JunctionProvenance, LaneHeight,
-    LaneProvenance, ObjectProvenance, Orientation, PriorityProvenance, Provenance, RoadEnd,
-    RoadMarkProvenance, RoadSkipReason, SignalProvenance, SignalReferenceProvenance,
-    StructureProvenance, Warning, MAX_LENGTH,
+    load_file, load_file_with_provenance, load_str, load_str_with_provenance, CenterLaneProvenance,
+    ControllerProvenance, CrossPathProvenance, ImportError, JunctionControllerProvenance,
+    JunctionProvenance, LaneHeight, LaneProvenance, ObjectProvenance, Orientation,
+    PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance, RoadSkipReason, SignalProvenance,
+    SignalReferenceProvenance, StructureProvenance, Warning, MAX_LENGTH,
 };
 pub use railway::{Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint};
 pub use road::{LanePosition, Priority, Road, RoadId, RoadLane, RoadNeighbor, RoadPosition, Side};

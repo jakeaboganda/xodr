@@ -5,7 +5,9 @@
 //! `metadata.py`. The first gives every attribute, the second none, or an
 //! unreadable one.
 
-use xodr::{load_file_with_provenance, JunctionProvenance, Provenance, RoadNetwork};
+use xodr::{
+    load_file_with_provenance, JunctionProvenance, LaneAdvisory, LaneType, Provenance, RoadNetwork,
+};
 
 fn full() -> (RoadNetwork, Provenance) {
     load_file_with_provenance("tests/data/metadata.xodr").unwrap()
@@ -150,8 +152,100 @@ fn a_road_mark_keeps_its_material_and_its_types_name() {
 fn a_map_without_them_has_no_country_material_or_type_name() {
     let (net, prov) = bare();
     assert!(net.road_countries().is_empty());
-    assert!(prov
-        .road_marks
+    // scenariogeneration names the type of a dashed line "broken".
+    for m in &prov.road_marks {
+        assert_eq!(m.material, "", "road {}", m.road_id);
+        assert!(
+            ["", "broken"].contains(&m.type_name.as_str()),
+            "road {}",
+            m.road_id
+        );
+    }
+}
+
+/// A lane's `advisory`, `dynamicLaneType`, `dynamicLaneDirection` and
+/// `roadWorks`.
+type Flags = (LaneAdvisory, bool, bool, bool);
+
+/// `(section, lane id)` to the flags of road 2's lanes, in section then lane
+/// order.
+fn lane_flags(prov: &Provenance) -> Vec<((usize, i32), Flags)> {
+    let mut found: Vec<_> = prov
+        .lanes
         .iter()
-        .all(|m| m.material.is_empty() && m.type_name.is_empty()));
+        .filter(|p| p.road_id == "2")
+        .map(|p| {
+            (
+                (p.section, p.od_id),
+                (
+                    p.advisory,
+                    p.dynamic_lane_type,
+                    p.dynamic_lane_direction,
+                    p.road_works,
+                ),
+            )
+        })
+        .collect();
+    found.sort_by_key(|(at, _)| *at);
+    found
+}
+
+#[test]
+fn a_lane_keeps_what_it_says_about_itself() {
+    use LaneAdvisory::{Both, Inner, None as Unset, Outer};
+    let (_, prov) = full();
+    let flags = lane_flags(&prov);
+    assert_eq!(flags.len(), 12, "six lanes in each of two sections");
+    let expected = |section: usize, works: bool| {
+        [
+            ((section, -3), (Unset, false, false, false)),
+            ((section, -2), (Unset, true, false, false)),
+            ((section, -1), (Unset, false, false, works)),
+            ((section, 1), (Inner, false, false, false)),
+            ((section, 2), (Outer, false, false, false)),
+            ((section, 3), (Both, true, true, false)),
+        ]
+    };
+    let mut want: Vec<_> = expected(0, true).into_iter().collect();
+    want.extend(expected(1, false));
+    assert_eq!(flags, want);
+}
+
+#[test]
+fn a_lane_with_none_of_it_has_the_defaults() {
+    let (_, prov) = bare();
+    for p in &prov.lanes {
+        assert_eq!(p.advisory, LaneAdvisory::None, "lane {}", p.od_id);
+        assert!(!p.dynamic_lane_type && !p.dynamic_lane_direction && !p.road_works);
+    }
+}
+
+#[test]
+fn the_center_lane_keeps_its_type_and_level_by_section() {
+    let (_, prov) = full();
+    let center = |road: &str| -> Vec<(usize, LaneType, bool)> {
+        prov.center_lanes
+            .iter()
+            .filter(|c| c.road_id == road)
+            .map(|c| (c.section, c.kind, c.level))
+            .collect()
+    };
+    assert_eq!(center("1"), [(0, LaneType::None, false)]);
+    assert_eq!(
+        center("2"),
+        [(0, LaneType::None, true), (1, LaneType::Driving, false)]
+    );
+    assert_eq!(prov.center_lanes.len(), 1 + 2 + 3 + 2);
+}
+
+#[test]
+fn a_section_with_no_center_lane_has_no_record() {
+    let (_, prov) = xodr::load_str_with_provenance(
+        r#"<OpenDRIVE><road length="10" id="1" junction="-1">
+          <planView><geometry s="0" x="0" y="0" hdg="0" length="10"><line/></geometry></planView>
+          <lanes><laneSection s="0"><right><lane id="-1" type="driving"><width sOffset="0" a="3"/></lane></right></laneSection></lanes>
+        </road></OpenDRIVE>"#,
+    )
+    .unwrap();
+    assert_eq!(prov.center_lanes, []);
 }

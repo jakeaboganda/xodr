@@ -18,6 +18,13 @@ named "Edge Line" by its <type>, and from 50 m a "cold-plastic" one named
 "Dashed". Its lane 1 mark has neither, and its center mark has a material
 and a <type> with no name.
 
+Road 2, an 80 m straight 40 m north with three lanes a side, has two lane
+sections, from 0 and from 40 m. In the first the lanes carry `advisory`
+(1 inner, 2 outer, 3 both, -1 "banana"), `dynamicLaneType` (3, and -2 as
+"1"), `dynamicLaneDirection` (3) and `roadWorks` (-1), and its center lane
+has `level="true"`. The second has the same lanes without -1's `roadWorks`,
+and a center lane of `type="driving"`. Lane -3 says each as "false".
+
 scenariogeneration writes some of these, but not all, and with a date that
 changes on every run, so they are set on its XML. The files are the same
 each run.
@@ -35,6 +42,9 @@ def build(name):
     road = xodr.create_road(xodr.Line(100), 1, 1, 1, lane_width=3.5)
     road.planview.set_start_point(0, 0, 0)
     odr.add_road(road)
+    lanes = xodr.create_road(xodr.Line(80), 2, 3, 3, lane_width=3)
+    lanes.planview.set_start_point(0, 40, 0)
+    odr.add_road(lanes)
     creator = xodr.CommonJunctionCreator(100, "tee", startnum=1000)
     for k, angle in enumerate([0, math.pi / 2, math.pi]):
         arm = xodr.create_road(xodr.Line(30), 11 + k, 1, 1, lane_width=3.5)
@@ -49,7 +59,13 @@ def build(name):
     odr.adjust_roads_and_lanes()
     path = Path(__file__).parent / f"{name}.xodr"
     odr.write_xml(str(path))
-    return path, ET.parse(path)
+    tree = ET.parse(path)
+    sections = tree.getroot().find("road[@id='2']/lanes")
+    first = sections.find("laneSection")
+    second = ET.fromstring(ET.tostring(first, encoding="unicode"))
+    second.set("s", "40")
+    sections.append(second)
+    return path, tree
 
 
 def finish(path, tree):
@@ -86,6 +102,23 @@ second.set("sOffset", "50")
 second.set("material", "cold-plastic")
 second.find("type").set("name", "Dashed")
 outer.insert(list(outer).index(first) + 1, second)
+lanes = root.find("road[@id='2']/lanes")
+one, two = lanes.findall("laneSection")
+def lane(section, id):
+    return section.find(f"*/lane[@id='{id}']")
+lane(one, 1).set("advisory", "inner")
+lane(one, 2).set("advisory", "outer")
+lane(one, 3).attrib.update({"advisory": "both", "dynamicLaneType": "true", "dynamicLaneDirection": "true"})
+lane(one, -1).attrib.update({"advisory": "banana", "roadWorks": "true"})
+lane(one, -2).set("dynamicLaneType", "1")
+lane(one, -3).attrib.update({"dynamicLaneType": "false", "dynamicLaneDirection": "false", "roadWorks": "false"})
+one.find("center/lane").set("level", "true")
+for id in (1, 2, 3, -1, -2, -3):
+    for name in ("advisory", "dynamicLaneType", "dynamicLaneDirection", "roadWorks"):
+        if name in lane(one, id).attrib:
+            lane(two, id).set(name, lane(one, id).get(name))
+lane(two, -1).attrib.pop("roadWorks")
+two.find("center/lane").set("type", "driving")
 centre = section.find("center/lane/roadMark")
 centre.set("material", "paint")
 centre.append(ET.Element("type", {"width": "0.2"}))
