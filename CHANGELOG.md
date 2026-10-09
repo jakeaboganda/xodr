@@ -58,6 +58,16 @@
   traffic changes lanes into it and out of it. Match on `LaneType` with a
   wildcard arm.
 
+### Signals
+
+- A signal applies to the lanes whose traffic runs the way its
+  `orientation` names, as the spec says, not to a side of the road. A
+  reversed lane, a lane under `rule="LHT"` and a two-way lane now get the
+  right signals. `Signal::lanes` changes for them. A `<validity>` still
+  picks its lanes by id.
+- `tests/data/signal_direction.xodr` has signals on roads with reversed,
+  two-way and left-hand lanes.
+
 ### CRG surfaces
 
 - Where several `<CRG>` records of one purpose cover a point, the last in

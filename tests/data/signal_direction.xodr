@@ -1,0 +1,192 @@
+<?xml version='1.0' encoding='utf-8'?>
+<OpenDRIVE>
+    <header name="signal_direction" revMajor="1" revMinor="5" date="2026-01-01T00:00:00" north="0.0" south="0.0" east="0.0" west="0.0" />
+    <road rule="RHT" id="1" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="2" type="driving" level="false" direction="reversed">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-2" type="driving" level="false" direction="reversed">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-3" type="driving" level="false" direction="both">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <signals>
+            <signal id="1+" s="10" t="-8" orientation="+" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="1+" />
+            <signal id="1-" s="20" t="-8" orientation="-" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="1-" />
+            <signal id="10" s="30" t="-8" orientation="none" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="10" />
+            <signal id="1v" s="40" t="-8" orientation="+" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="1v">
+                <validity fromLane="-2" toLane="-2" />
+            </signal>
+            <signal id="ref" s="50" t="-8" orientation="+" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="ref" />
+        </signals>
+    </road>
+    <road rule="LHT" id="2" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="30" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="2" type="driving" level="false" direction="reversed">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-2" type="driving" level="false" direction="reversed">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-3" type="driving" level="false" direction="both">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <signals>
+            <signal id="2+" s="10" t="-8" orientation="+" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="2+" />
+            <signal id="2-" s="20" t="-8" orientation="-" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="2-" />
+            <signal id="20" s="30" t="-8" orientation="none" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="20" />
+            <signal id="2v" s="40" t="-8" orientation="+" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="2v">
+                <validity fromLane="-2" toLane="-2" />
+            </signal>
+            <signalReference id="ref" s="60" t="-8" orientation="-" />
+        </signals>
+    </road>
+    <road rule="RHT" id="3" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="60" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-2" type="bidirectional" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <signals>
+            <signal id="3+" s="10" t="-8" orientation="+" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="3+" />
+            <signal id="3-" s="20" t="-8" orientation="-" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="3-" />
+            <signal id="30" s="30" t="-8" orientation="none" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="30" />
+            <signal id="3v" s="40" t="-8" orientation="+" dynamic="no" zOffset="2" country="DE" type="274" subtype="50" value="50" name="3v">
+                <validity fromLane="-2" toLane="-2" />
+            </signal>
+        </signals>
+    </road>
+</OpenDRIVE>
