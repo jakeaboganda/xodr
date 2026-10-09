@@ -607,6 +607,8 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
         "subtype": object.subtype,
         "name": object.name,
         "dynamic": object.dynamic,
+        "invalidated": object.invalidated,
+        "temporary": object.temporary,
         "lanes": object.lanes.iter().map(|l| l.0).collect::<Vec<_>>(),
         "markings": object.markings.iter().map(marking_entry).collect::<Vec<_>>(),
         "parkingSpace": object
@@ -616,7 +618,12 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
         "materials": object
             .materials
             .iter()
-            .map(|m| json!({ "surface": m.surface, "friction": m.friction, "roughness": m.roughness }))
+            .map(|m| json!({
+                "surface": m.surface,
+                "friction": m.friction,
+                "roughness": m.roughness,
+                "roadMarkColor": m.road_mark_color,
+            }))
             .collect::<Vec<_>>(),
         "userData": object
             .user_data
@@ -635,6 +642,8 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
         "orientation": prov.map(|p| orientation(p.orientation)),
         "validLength": prov.and_then(|p| p.valid_length),
         "referencedFrom": prov.and_then(|p| p.referenced_from.as_deref()),
+        "fillType": prov.map(|p| p.fill_type.as_str()),
+        "outlineLaneType": prov.and_then(|p| p.outline_lane_type).map(|t| t.as_str()),
         "shape": shape,
     })
 }
@@ -818,6 +827,7 @@ fn marking_entry(m: &Marking) -> Value {
     json!({
         "side": m.side,
         "color": m.color,
+        "weight": m.weight.as_str(),
         "width": m.width,
         "lineLength": m.line_length,
         "spaceLength": m.space_length,
