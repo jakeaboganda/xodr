@@ -23,8 +23,8 @@ use crate::{
     Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgPose, CrgPurpose, CrgSurface,
     Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneAdvisory, LaneId, LaneType,
     Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Polyline, Priority, RoadMarkId,
-    RoadNeighbor, RoadNetwork, Section, Shape, Side, SignalId, Structure, StructureId,
-    StructureKind, UserData,
+    RoadMarkWeight, RoadNeighbor, RoadNetwork, Section, Shape, Side, SignalId, Structure,
+    StructureId, StructureKind, UserData,
 };
 
 mod gaps;
@@ -184,6 +184,12 @@ pub struct ObjectProvenance {
     /// are then the reference's, and the shape is the `<object>`'s, moved to
     /// the reference's station.
     pub referenced_from: Option<String>,
+    /// The `fillType` of the `<outline>` it baked from, such as `grass`. Free
+    /// text. Empty for a solid, and where the outline has none.
+    pub fill_type: String,
+    /// The `laneType` of the `<outline>` it baked from, which the spec says
+    /// is the lane type the outline's area is, if the outline gives one.
+    pub outline_lane_type: Option<LaneType>,
 }
 
 /// Which direction of its road an object or a signal applies to, from its
@@ -1165,6 +1171,10 @@ fn material(node: roxmltree::Node) -> Material {
         surface: node.attribute("surface").unwrap_or_default().to_string(),
         friction: attr_f64(node, "friction").map(|v| v as f32),
         roughness: attr_f64(node, "roughness").map(|v| v as f32),
+        road_mark_color: node
+            .attribute("roadMarkColor")
+            .unwrap_or_default()
+            .to_string(),
     }
 }
 
@@ -2610,6 +2620,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
 
     let kind = object_type(node.attribute("type"));
     let text = |name| node.attribute(name).unwrap_or_default().to_string();
+    let flag = |name| matches!(node.attribute(name), Some("true" | "1"));
     let parking_space = child(node, "parkingSpace").map(|p| {
         let text = |name| p.attribute(name).unwrap_or_default().to_string();
         ParkingSpace {
@@ -2647,6 +2658,8 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             subtype: text("subtype"),
             name: text("name"),
             dynamic: node.attribute("dynamic") == Some("yes"),
+            invalidated: flag("invalidated"),
+            temporary: flag("temporary"),
             lanes: road.lanes(part.stretch, &at.validity),
             markings: part.markings,
             borders: part.borders,
@@ -2664,6 +2677,8 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             orientation: at.orientation,
             valid_length: at.valid_length,
             referenced_from: at.referenced_from.map(str::to_string),
+            fill_type: part.fill_type,
+            outline_lane_type: part.outline_lane_type,
         });
     }
 }
@@ -2703,6 +2718,13 @@ fn outline_parts(
         );
         part.markings = markings(node, outline_node, &ring, too_many);
         part.borders = borders(node, outline_node, &ring, ring.closed);
+        part.fill_type = outline_node
+            .attribute("fillType")
+            .unwrap_or_default()
+            .to_string();
+        part.outline_lane_type = outline_node
+            .attribute("laneType")
+            .map(|t| lane_type(Some(t)));
         parts.push(part);
     }
     for (outline_node, ring) in holes {
@@ -2738,6 +2760,9 @@ struct Part {
     stretch: (f64, f64),
     markings: Vec<Marking>,
     borders: Vec<Border>,
+    /// The `fillType` and `laneType` of the outline it came from.
+    fill_type: String,
+    outline_lane_type: Option<LaneType>,
 }
 
 impl Part {
@@ -2749,6 +2774,8 @@ impl Part {
             stretch,
             markings: Vec::new(),
             borders: Vec::new(),
+            fill_type: String::new(),
+            outline_lane_type: None,
         }
     }
 }
@@ -3102,6 +3129,10 @@ fn paint(m: roxmltree::Node, path: &[(Point, Vector)], too_many: &Cell<bool>) ->
     Some(Marking {
         side: text("side"),
         color: text("color"),
+        weight: match m.attribute("weight") {
+            Some("bold") => RoadMarkWeight::Bold,
+            _ => RoadMarkWeight::Standard,
+        },
         width: width as f32,
         line_length: line as f32,
         space_length: space as f32,

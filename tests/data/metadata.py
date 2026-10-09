@@ -25,6 +25,15 @@ sections, from 0 and from 40 m. In the first the lanes carry `advisory`
 has `level="true"`. The second has the same lanes without -1's `roadWorks`,
 and a center lane of `type="driving"`. Lane -3 says each as "false".
 
+Road 1 also has objects beside it: boxes "a1" to "a3" that are invalidated
+and temporary, one of each as "false" or "1", and neither; "m1", with a
+material of roadMarkColor "yellow" and a second without; "w", a box with
+four markings of weight bold, standard, "banana" and none; and "o1", with
+four outlines: closed ones with a fillType "grass" and laneType "sidewalk",
+and with "paint" and "banana", one with neither, and a hole in the first
+with fillType "soil". "o2" has a deprecated single <outline> of fillType
+"gravel".
+
 scenariogeneration writes some of these, but not all, and with a date that
 changes on every run, so they are set on its XML. The files are the same
 each run.
@@ -119,6 +128,62 @@ for id in (1, 2, 3, -1, -2, -3):
             lane(two, id).set(name, lane(one, id).get(name))
 lane(two, -1).attrib.pop("roadWorks")
 two.find("center/lane").set("type", "driving")
+def box(id, **attributes):
+    return ET.Element("object", {
+        "id": id, "type": "barrier", "s": "10", "t": "-10", "zOffset": "0",
+        "hdg": "0", "length": "2", "width": "1", "height": "1", **attributes,
+    })
+
+
+def corners(s, t, size=4):
+    return [
+        ET.Element("cornerRoad", {"id": str(i), "s": str(s + ds), "t": str(t + dt),
+                                  "dz": "0", "height": "1"})
+        for i, (ds, dt) in enumerate([(0, 0), (size, 0), (size, -size), (0, -size)])
+    ]
+
+
+def outline(id, s, t, size=4, **attributes):
+    element = ET.Element("outline", {"id": str(id), "closed": "true", **attributes})
+    element.extend(corners(s, t, size))
+    return element
+
+
+objects = ET.Element("objects")
+objects.append(box("a1", invalidated="true", temporary="true"))
+objects.append(box("a2", invalidated="false", temporary="1"))
+objects.append(box("a3"))
+material = box("m1")
+material.append(ET.Element("material", {"surface": "asphalt", "roadMarkColor": "yellow"}))
+material.append(ET.Element("material", {"surface": "gravel"}))
+objects.append(material)
+paint = box("w")
+markings = ET.SubElement(paint, "markings")
+for side, weight in [("front", "bold"), ("left", "standard"), ("rear", "banana"), ("right", None)]:
+    marking = ET.SubElement(markings, "marking", {
+        "side": side, "color": "white", "width": "0.1", "zOffset": "0.01",
+    })
+    if weight:
+        marking.set("weight", weight)
+objects.append(paint)
+outlined = ET.Element("object", {
+    "id": "o1", "type": "vegetation", "s": "20", "t": "-10", "zOffset": "0", "hdg": "0",
+})
+outlines = ET.SubElement(outlined, "outlines")
+outlines.append(outline(0, 20, -10, fillType="grass", laneType="sidewalk"))
+hole = outline(1, 21, -11, 2, fillType="soil", outer="false")
+outlines.append(hole)
+outlines.append(outline(2, 30, -10, fillType="paint", laneType="banana"))
+outlines.append(outline(3, 40, -10))
+objects.append(outlined)
+old = ET.Element("object", {
+    "id": "o2", "type": "vegetation", "s": "50", "t": "-10", "zOffset": "0", "hdg": "0",
+})
+old.append(outline(0, 50, -10, fillType="gravel"))
+objects.append(old)
+lanes_at = list(road).index(road.find("lanes")) + 1
+road.insert(lanes_at, objects)
+
 centre = section.find("center/lane/roadMark")
 centre.set("material", "paint")
 centre.append(ET.Element("type", {"width": "0.2"}))

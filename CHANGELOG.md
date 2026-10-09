@@ -73,6 +73,10 @@
   `Provenance::center_lanes` the center lane's `type` and `level` for each
   lane section. New `LaneAdvisory`. Breaking: `LaneProvenance` and
   `Provenance` have new fields.
+- `Object` has `invalidated` and `temporary`, `Marking` its `weight`, and
+  `Material` its `road_mark_color`. `ObjectProvenance` has the `fill_type`
+  and `outline_lane_type` of the outline an object baked from. Breaking:
+  these structs have new fields.
 - `RoadMarkProvenance` has the mark's `material` and its `<type>`'s `name`.
   Breaking: it has two new fields.
 
