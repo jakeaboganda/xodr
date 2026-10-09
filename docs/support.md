@@ -10,8 +10,9 @@ esmini, libOpenDRIVE and CARLA do with it.
 
 ## Which OpenDRIVE version
 
-Of `<header>`, the importer reads only the geo reference. It never inspects
-`revMajor` or `revMinor`, and never rejects a file for its declared version.
+The importer keeps a `<header>`'s attributes in `RoadNetwork::header`, and its
+geo reference apart. It never inspects `revMajor` or `revMinor` to decide how
+to read the file, and never rejects a file for its declared version.
 Whether a file loads depends only on whether it uses the elements listed
 below.
 

@@ -111,6 +111,8 @@ pub struct Road {
     pub(crate) id: RoadId,
     pub(crate) od_id: String,
     #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) name: String,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) junction: Option<String>,
     pub(crate) length: f64,
     pub(crate) rule: TrafficRule,
@@ -131,6 +133,11 @@ impl Road {
     /// The `<road id>` it came from.
     pub fn od_id(&self) -> &str {
         &self.od_id
+    }
+
+    /// The road's `name`. Empty if it has none.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// The `<junction id>` of the junction it is part of, from its

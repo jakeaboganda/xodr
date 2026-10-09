@@ -10,6 +10,7 @@ use crate::crg::CrgSurface;
 use crate::geo::GeoReference;
 use crate::geometry::{Polyline, Projection, RoadSample};
 use crate::grid::{Aabb, Grid};
+use crate::header::Header;
 use crate::junction::{CrossPath, JunctionArea, JunctionGroup, VirtualJunction};
 use crate::object::{Material, Object, ObjectId};
 use crate::railway::{Station, Switch};
@@ -285,6 +286,7 @@ pub struct RoadNetwork {
     lane_materials: Vec<Along<Material>>,
     lane_visibility: Vec<Along<Visibility>>,
     geo: GeoReference,
+    header: Header,
     roads: Vec<Road>,
     priorities: Vec<Priority>,
     road_neighbors: Vec<RoadNeighbor>,
@@ -324,6 +326,7 @@ impl PartialEq for RoadNetwork {
             && self.lane_materials == other.lane_materials
             && self.lane_visibility == other.lane_visibility
             && self.geo == other.geo
+            && self.header == other.header
             && self.roads == other.roads
             && self.priorities == other.priorities
             && self.road_neighbors == other.road_neighbors
@@ -359,6 +362,8 @@ struct NetworkData {
     lane_visibility: Vec<Along<Visibility>>,
     #[serde(default)]
     geo: GeoReference,
+    #[serde(default)]
+    header: Header,
     #[serde(default)]
     roads: Vec<Road>,
     #[serde(default)]
@@ -396,6 +401,7 @@ impl From<NetworkData> for RoadNetwork {
             .with_lane_materials(data.lane_materials)
             .with_lane_visibility(data.lane_visibility)
             .with_geo_reference(data.geo)
+            .with_header(data.header)
             .with_roads(data.roads)
             .with_priorities(data.priorities)
             .with_road_neighbors(data.road_neighbors)
@@ -425,6 +431,7 @@ impl From<RoadNetwork> for NetworkData {
             lane_materials: net.lane_materials,
             lane_visibility: net.lane_visibility,
             geo: net.geo,
+            header: net.header,
             roads: net.roads,
             priorities: net.priorities,
             road_neighbors: net.road_neighbors,
@@ -594,6 +601,7 @@ impl RoadNetwork {
             lane_materials: Vec::new(),
             lane_visibility: Vec::new(),
             geo: GeoReference::default(),
+            header: Header::default(),
             roads: Vec::new(),
             priorities: Vec::new(),
             road_neighbors: Vec::new(),
@@ -1119,6 +1127,19 @@ impl RoadNetwork {
     /// unapplied. See [Geo reference](crate#geo-reference).
     pub fn geo_reference(&self) -> &GeoReference {
         &self.geo
+    }
+
+    /// This network with `header` as its header, replacing any it had.
+    pub fn with_header(mut self, header: Header) -> Self {
+        self.header = header;
+        self
+    }
+
+    /// What the map says about itself in its `<header>`: its version, name,
+    /// date, vendor and bounds. The crate reads none of it to decide how to
+    /// read the map.
+    pub fn header(&self) -> &Header {
+        &self.header
     }
 
     /// The OpenCRG files the map lays on its roads, in map order. Load them

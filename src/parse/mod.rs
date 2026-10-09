@@ -21,9 +21,9 @@ use crate::road::{
 };
 use crate::{
     Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgPose, CrgPurpose, CrgSurface,
-    Direction, Extent, GeoOffset, GeoReference, Lane, LaneId, LaneType, Marking, Material, Object,
-    ObjectId, ObjectType, ParkingSpace, Polyline, Priority, RoadMarkId, RoadNeighbor, RoadNetwork,
-    Section, Shape, Side, SignalId, Structure, StructureId, StructureKind, UserData,
+    Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneId, LaneType, Marking, Material,
+    Object, ObjectId, ObjectType, ParkingSpace, Polyline, Priority, RoadMarkId, RoadNeighbor,
+    RoadNetwork, Section, Shape, Side, SignalId, Structure, StructureId, StructureKind, UserData,
 };
 
 mod gaps;
@@ -338,9 +338,23 @@ pub struct Provenance {
     /// [`RoadNetwork::cross_paths`](crate::RoadNetwork::cross_paths).
     #[cfg_attr(feature = "serde", serde(default))]
     pub cross_paths: Vec<CrossPathProvenance>,
+    /// One per `<junction>` with an `id`, in file order.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub junctions: Vec<JunctionProvenance>,
     /// What the load dropped, or read against the spec, in file order.
     /// Empty for a clean file.
     pub warnings: Vec<Warning>,
+}
+
+/// What a `<junction>` says about itself: its `id`, and the `name` the
+/// network keeps nowhere else.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct JunctionProvenance {
+    /// The `<junction id>`.
+    pub od_id: String,
+    /// Its `name`. Empty if it has none.
+    pub name: String,
 }
 
 /// The OpenDRIVE identity of one cross path: the `<junction>` and the
@@ -486,6 +500,16 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
         signals: signals.provenance,
         controllers: signals.controller_provenance,
         road_marks: road_marks.provenance,
+        junctions: root
+            .children()
+            .filter(|n| n.has_tag_name("junction"))
+            .filter_map(|n| {
+                Some(JunctionProvenance {
+                    od_id: n.attribute("id")?.to_string(),
+                    name: n.attribute("name").unwrap_or_default().to_string(),
+                })
+            })
+            .collect(),
         priorities: priority_provenance,
         cross_paths: cross_path_provenance,
         warnings,
@@ -505,6 +529,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             .with_lane_materials(properties.lane_materials)
             .with_lane_visibility(properties.lane_visibility)
             .with_geo_reference(geo_reference(root))
+            .with_header(header(root))
             .with_roads(roads.into_iter().map(|(_, baked)| baked.road).collect())
             .with_priorities(priorities)
             .with_road_neighbors(neighbors)
@@ -1048,6 +1073,28 @@ fn material(node: roxmltree::Node) -> Material {
     }
 }
 
+/// The `<header>`'s own attributes. A missing one is empty or `None`, and a
+/// `revMajor` or `revMinor` that isn't a whole number is `None`.
+fn header(root: roxmltree::Node) -> Header {
+    let Some(node) = root.children().find(|n| n.has_tag_name("header")) else {
+        return Header::default();
+    };
+    let text = |name| node.attribute(name).unwrap_or_default().to_string();
+    let revision = |name| node.attribute(name).and_then(|v| v.trim().parse().ok());
+    Header {
+        rev_major: revision("revMajor"),
+        rev_minor: revision("revMinor"),
+        name: text("name"),
+        version: text("version"),
+        date: text("date"),
+        vendor: text("vendor"),
+        north: attr_f64(node, "north"),
+        south: attr_f64(node, "south"),
+        east: attr_f64(node, "east"),
+        west: attr_f64(node, "west"),
+    }
+}
+
 /// The `<header>`'s `<geoReference>` and `<offset>`. A missing or unreadable
 /// offset attribute reads as 0, as in esmini.
 fn geo_reference(root: roxmltree::Node) -> GeoReference {
@@ -1154,6 +1201,7 @@ fn parse_road(
                 .filter(|j| !j.is_empty() && *j != "-1")
                 .map(String::from),
             od_id: road_id,
+            name: road.attribute("name").unwrap_or_default().to_string(),
             length,
             rule,
             geoms,
@@ -5084,6 +5132,7 @@ mod tests {
         let road = Road {
             id: RoadId(0),
             od_id: String::new(),
+            name: String::new(),
             junction: None,
             length: 10.0,
             rule: TrafficRule::RightHand,
