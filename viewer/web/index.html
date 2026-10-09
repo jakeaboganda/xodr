@@ -1339,7 +1339,8 @@ function showRoadMarkTip(ev, rect, hit) {
   const rows = [`<b>road mark</b> ${m.type}${m.typeName ? ` ${escapeHtml(JSON.stringify(m.typeName))}` : ''}  ${escapeHtml(m.color)}` +
     (m.material ? `  of ${escapeHtml(m.material)}` : '')];
   if (m.roadId != null) {
-    const where = m.odLaneId === 0 ? 'center lane' : `lane ${m.odLaneId}`;
+    const center = m.centerLane ? ` (${m.centerLane.type}${m.centerLane.level ? ', level' : ''})` : '';
+    const where = m.odLaneId === 0 ? `center lane${center}` : `lane ${m.odLaneId}`;
     rows.push(`road ${escapeHtml(m.roadId)}  section ${m.section}  ${where}   ` +
       `s ${m.s.toFixed(2)}–${(m.s + m.length).toFixed(2)} m`);
   }
@@ -1643,6 +1644,10 @@ function onHover(ev) {
   const linked = (ids, link) => laneList(lanesOf(ids),
     `<span style="color:#${LINK_COLORS[link].toString(16).padStart(6, '0')}">${link}s</span>`, true);
   rows.push(linked(lane.successors, 'successor'), linked(lane.predecessors, 'predecessor'));
+  const flags = [lane.advisory && lane.advisory !== 'none' && `advisory ${lane.advisory}`,
+    lane.dynamicLaneType && 'type can change', lane.dynamicLaneDirection && 'direction can change',
+    lane.roadWorks && 'road works'].filter(Boolean);
+  if (flags.length) rows.push(flags.join('   '));
   rows.push(`section ${lane.section}   ${lane.direction}`, `laneId ${lane.laneId}`);
   placeTip(ev.clientX - rect.left, ev.clientY - rect.top, rows);
 }
