@@ -218,6 +218,7 @@ pub struct Marking {
     pub color: String,
     /// How heavy its paint is, from `weight`. `Standard` if the map does
     /// not say, or says something else. It sets no width: `width` does.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub weight: RoadMarkWeight,
     /// Metres across.
     pub width: f32,
@@ -275,6 +276,7 @@ pub struct Material {
     /// The colour of the road marks on the surface, from an object's
     /// `roadMarkColor`, such as `white`. Free text. Empty if the map gives
     /// none, and for a lane's material, which has no such attribute.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub road_mark_color: String,
 }
 
@@ -306,9 +308,11 @@ pub struct Object {
     pub dynamic: bool,
     /// Whether the map marks the object as no longer valid, from
     /// `invalidated`. A removed road sign is one. The crate still bakes it.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub invalidated: bool,
     /// Whether the object is there for a while only, such as a cone at road
     /// works, from `temporary`.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub temporary: bool,
     /// The lanes the object applies to, such as the lanes a crosswalk
     /// crosses. Taken from the lanes alongside the stretch of road the object

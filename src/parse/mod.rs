@@ -122,16 +122,20 @@ pub struct LaneProvenance {
     pub heights: Vec<LaneHeight>,
     /// Whether traffic from the lanes beside it may also use it, from its
     /// `advisory`.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub advisory: LaneAdvisory,
     /// Whether a scenario may change its type while it runs, from
     /// `dynamicLaneType`. A stop lane that a message board turns into a
     /// driving lane is one. The crate never changes a lane.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub dynamic_lane_type: bool,
     /// Whether a scenario may change its direction, from
     /// `dynamicLaneDirection`.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub dynamic_lane_direction: bool,
     /// Whether the lane is under construction, with access and driving
     /// restricted, from `roadWorks`. Its [`LaneType`] is unchanged.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub road_works: bool,
 }
 
@@ -186,15 +190,17 @@ pub struct ObjectProvenance {
     pub referenced_from: Option<String>,
     /// The `fillType` of the `<outline>` it baked from, such as `grass`. Free
     /// text. Empty for a solid, and where the outline has none.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub fill_type: String,
     /// The `laneType` of the `<outline>` it baked from, which the spec says
     /// is the lane type the outline's area is, if the outline gives one.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub outline_lane_type: Option<LaneType>,
 }
 
 /// Which direction of its road an object or a signal applies to, from its
 /// `orientation`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Orientation {
     /// Traffic along +s, `orientation="+"`.
@@ -203,6 +209,7 @@ pub enum Orientation {
     Negative,
     /// Both, `orientation="none"`. Also what a missing or unrecognised
     /// value reads as.
+    #[default]
     Both,
 }
 
@@ -333,9 +340,11 @@ pub struct RoadMarkProvenance {
     pub length: f64,
     /// What it is made of, from its `material`. Free text, and empty if the
     /// map gives none.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub material: String,
     /// What the map calls its type, from its `<type>`'s `name`. Free text,
     /// and empty if the map gives none.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub type_name: String,
 }
 

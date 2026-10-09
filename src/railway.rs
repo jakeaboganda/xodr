@@ -23,6 +23,7 @@ pub struct Switch {
     /// if it has one.
     pub partner: Option<String>,
     /// The `name` of its `<partner>`, empty if it has none.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub partner_name: String,
 }
 

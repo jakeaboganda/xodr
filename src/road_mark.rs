@@ -77,10 +77,11 @@ impl std::fmt::Display for RoadMarkType {
 }
 
 /// How heavy a road mark's lines are.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RoadMarkWeight {
     /// The usual width.
+    #[default]
     Standard,
     /// Wider than usual.
     Bold,

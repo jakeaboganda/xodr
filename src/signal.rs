@@ -249,12 +249,14 @@ pub enum SignalBoard {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BoardSign {
     /// The sign's `id`. Empty if the map gives none.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub id: String,
     /// The name the map gives it. Empty if it has none.
     pub name: String,
     /// As [`Signal::country`].
     pub country: String,
     /// As [`Signal::country_revision`].
+    #[cfg_attr(feature = "serde", serde(default))]
     pub country_revision: String,
     /// As [`Signal::kind`].
     pub kind: String,
@@ -276,24 +278,33 @@ pub struct BoardSign {
     /// Metres up, if the map gives it.
     pub height: Option<f32>,
     /// Metres deep, if the map gives it.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub length: Option<f32>,
     /// As [`Signal::dynamic`].
+    #[cfg_attr(feature = "serde", serde(default))]
     pub dynamic: bool,
     /// As [`Signal::invalidated`].
+    #[cfg_attr(feature = "serde", serde(default))]
     pub invalidated: bool,
     /// As [`Signal::temporary`].
+    #[cfg_attr(feature = "serde", serde(default))]
     pub temporary: bool,
     /// Which traffic the sign is for, from its `orientation`, as
     /// [`SignalProvenance::orientation`](crate::SignalProvenance::orientation)
     /// has it for a signal. The crate does not apply it to lanes.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub orientation: Orientation,
     /// How far the sign is turned about the vertical from the board, from its
     /// `hOffset`, in radians in `(-π, π]`. 0 if the map gives none. The
     /// crate does not turn the sign by it.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub h_offset: f32,
-    /// Its `pitch`, as `h_offset`.
+    /// Its `pitch`, about its lateral axis, in radians in `(-π, π]`. 0 if
+    /// the map gives none. The crate does not tilt the sign by it.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub pitch: f32,
-    /// Its `roll`, as `h_offset`.
+    /// Its `roll`, about its own forward axis, as `pitch`.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub roll: f32,
 }
 
