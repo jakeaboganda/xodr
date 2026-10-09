@@ -78,7 +78,7 @@ const FEATURES: &[Feature] = &[
     Feature {
         name: "<validity layer>",
         path: "**/validity",
-        when: names_a_layer,
+        when: names_a_layer_off_a_sign,
     },
     Feature {
         name: "<laneLink fromLayer or toLayer>",
@@ -182,6 +182,13 @@ fn names_a_layer(node: roxmltree::Node) -> bool {
         .is_some_and(|layer| layer != "permanent")
 }
 
+fn names_a_layer_off_a_sign(node: roxmltree::Node) -> bool {
+    names_a_layer(node)
+        && !node
+            .parent_element()
+            .is_some_and(|p| p.has_tag_name("sign"))
+}
+
 fn crosses_layers(node: roxmltree::Node) -> bool {
     ["fromLayer", "toLayer"]
         .iter()
@@ -218,43 +225,55 @@ fn blends(node: roxmltree::Node) -> bool {
         .is_some_and(|v| v > 0.0)
 }
 
-/// The path of `node` below `scope`, with `<left>` and `<right>` as `side`.
-fn path_below(scope: roxmltree::Node, node: roxmltree::Node) -> String {
-    let mut names: Vec<&str> = node
-        .ancestors()
-        .take_while(|n| *n != scope)
-        .map(|n| match n.tag_name().name() {
-            "left" | "right" => "side",
-            name => name,
-        })
-        .collect();
-    names.reverse();
-    names.join("/")
+/// What a `<road>` or `<junction>` without an `id` is called in a warning.
+const NO_ID: &str = "(no id)";
+
+fn leaf(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
 }
 
-fn matches_path(feature: &Feature, path: &str) -> bool {
+fn matches_trail(feature: &Feature, trail: &[&str]) -> bool {
     match feature.path.strip_prefix("**/") {
-        Some(tail) => path == tail || path.ends_with(&format!("/{tail}")),
-        None => path == feature.path,
+        Some(_) => true,
+        None => feature.path.split('/').eq(trail.iter().copied()),
     }
 }
 
-/// One warning for each feature `scope` uses, with how many times. `scope`
-/// is a `<road>`, a `<junction>`, or, with `document` set, the root, which
-/// covers what lies outside both. `ids` are the road's and the junction's
-/// `id`, empty where they don't apply.
-fn scan(scope: roxmltree::Node, document: bool, ids: (&str, &str), out: &mut Vec<Warning>) {
+/// Count each feature `node` and what lies under it use, in `counts`. `trail`
+/// is the names of the elements above `node` below the scope, with `<left>`
+/// and `<right>` as `side`. A `<userData>` holds the vendor's own elements,
+/// so it is counted and not entered.
+fn visit<'a>(node: roxmltree::Node<'a, 'a>, trail: &mut Vec<&'a str>, counts: &mut [usize]) {
+    let name = node.tag_name().name();
+    trail.push(match name {
+        "left" | "right" => "side",
+        name => name,
+    });
+    for (count, feature) in counts.iter_mut().zip(FEATURES) {
+        if leaf(feature.path) == name && matches_trail(feature, trail) && (feature.when)(node) {
+            *count += 1;
+        }
+    }
+    if name != "userData" {
+        for child in node.children().filter(|n| n.is_element()) {
+            visit(child, trail, counts);
+        }
+    }
+    trail.pop();
+}
+
+/// One warning for each feature used under `nodes`, with how many times.
+/// `ids` are the road's and the junction's `id`, empty where they don't
+/// apply.
+fn scan<'a>(
+    nodes: impl Iterator<Item = roxmltree::Node<'a, 'a>>,
+    ids: (&str, &str),
+    out: &mut Vec<Warning>,
+) {
     let mut counts = vec![0usize; FEATURES.len()];
-    for node in scope.descendants().filter(|n| n.is_element()) {
-        let path = path_below(scope, node);
-        if document && matches!(path.split('/').next(), Some("road" | "junction")) {
-            continue;
-        }
-        for (count, feature) in counts.iter_mut().zip(FEATURES) {
-            if matches_path(feature, &path) && (feature.when)(node) {
-                *count += 1;
-            }
-        }
+    let mut trail = Vec::new();
+    for node in nodes.filter(|n| n.is_element()) {
+        visit(node, &mut trail, &mut counts);
     }
     for (feature, count) in FEATURES.iter().zip(counts) {
         if count > 0 {
@@ -272,14 +291,17 @@ fn scan(scope: roxmltree::Node, document: bool, ids: (&str, &str), out: &mut Vec
 /// document's own elements first, then each junction's, then each road's.
 pub(super) fn place(root: roxmltree::Node) -> Vec<Warning> {
     let mut out = Vec::new();
-    scan(root, true, ("", ""), &mut out);
+    let others = root
+        .children()
+        .filter(|n| !n.has_tag_name("road") && !n.has_tag_name("junction"));
+    scan(others, ("", ""), &mut out);
     for junction in root.children().filter(|n| n.has_tag_name("junction")) {
-        let id = junction.attribute("id").unwrap_or_default();
-        scan(junction, false, ("", id), &mut out);
+        let id = junction.attribute("id").unwrap_or(NO_ID);
+        scan(junction.children(), ("", id), &mut out);
     }
     for road in root.children().filter(|n| n.has_tag_name("road")) {
-        let id = road.attribute("id").unwrap_or_default();
-        scan(road, false, (id, ""), &mut out);
+        let id = road.attribute("id").unwrap_or(NO_ID);
+        scan(road.children(), (id, ""), &mut out);
     }
     out
 }

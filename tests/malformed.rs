@@ -271,11 +271,7 @@ fn a_clean_map_raises_no_warnings() {
     for path in FULL_MAPS {
         let (_, prov) =
             load_file_with_provenance(path).unwrap_or_else(|e| panic!("loading {path}: {e}"));
-        let faults: Vec<_> = prov
-            .warnings
-            .iter()
-            .filter(|w| !matches!(w, Warning::Ignored { .. }))
-            .collect();
+        let faults: Vec<_> = prov.warnings.iter().filter(|w| !w.is_ignored()).collect();
         assert_eq!(faults, Vec::<&Warning>::new(), "{path}");
     }
 }

@@ -9,7 +9,7 @@ that name a layer. Road 2 holds the objects: three that follow the road,
 repeats with a cubic term or detached from the reference line, and an
 object with a <surface>, a <skeleton>, a <curveLocal> outline and two
 outline <markings>. Road 3 holds a static board whose two signs each carry
-a <validity>, a <dependency> and a <reference>. Road 4 uses each of those
+a <validity>, a <dependency> and a <reference>, one validity of a temporary layer. Road 4 uses each of those
 attributes at the value that means nothing, and holds an object
 <userData>, which the crate reads. Roads 1 to 3 also hold <userData> and
 <include> in places the crate skips. Road 5 holds 500 <userData> on one
@@ -160,12 +160,13 @@ add(objects.find("object[@id='o1']"), '<userData code="k" value="v"/>')
 road["2"].append(objects)
 add(road["2"], '<userData code="road" value="y"/>')
 
-# Road 3: a static board with two signs.
+# Road 3: a static board with two signs, the second with a validity of a
+# temporary layer, which counts as a sign's validity once and not as a layer.
 sign = (
     '<sign id="{n}" s="0" t="0" zOffset="0" hOffset="0" pitch="0" roll="0" orientation="+" '
     'length="0.5" height="0.5" width="0.1" country="DE" type="274" subtype="50" value="50" name="n" '
     'countryRevision="2017" dynamic="no" temporary="false" invalidated="false">'
-    '<validity fromLane="-1" toLane="-1"/>'
+    '<validity fromLane="-1" toLane="-1"{layer}/>'
     '<dependency id="s3" type="x"/>'
     '<reference elementType="signal" elementId="s3" type="x"/></sign>'
 )
@@ -174,8 +175,8 @@ add(
     '<signals><signal id="s3" s="10" t="-5" dynamic="no" orientation="+" zOffset="2" '
     'country="DE" type="1000" subtype="-1" name="board">'
     '<staticBoard width="1" height="1" length="0.1" v="0" z="0" pitch="0" roll="0">'
-    + sign.format(n="a")
-    + sign.format(n="b")
+    + sign.format(n="a", layer="")
+    + sign.format(n="b", layer=' layer="temporary"')
     + "</staticBoard><userData code='s' value='t'/></signal></signals>",
 )
 
@@ -196,10 +197,16 @@ add(
     '<validity fromLane="-1" toLane="-1" layer="permanent"/></signal></signals>',
 )
 
-# Road 5: 500 <userData> on one lane, which raise one warning.
+# Road 5: 500 <userData> on one lane, which raise one warning. The last holds
+# vendor elements, which are not the file's own and count for nothing.
 crowd = road["5"].find("lanes/laneSection/right/lane")
 for k in range(500):
     crowd.append(frag(f'<userData code="k{k}" value="{k}"/>'))
+crowd[-1].extend([
+    frag('<userData code="inner"/>'),
+    frag('<validity fromLane="-1" toLane="-1" layer="temporary"/>'),
+    frag('<include file="vendor.xodr"/>'),
+])
 
 # Junction 100.
 add(

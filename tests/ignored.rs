@@ -109,6 +109,25 @@ fn a_second_lanes_is_ignored_even_before_it_is_marked_temporary() {
 }
 
 #[test]
+fn only_the_ignored_warnings_say_they_are() {
+    let (_, provenance) = load_file_with_provenance("tests/data/ignored.xodr").unwrap();
+    let ignored = provenance
+        .warnings
+        .iter()
+        .filter(|w| w.is_ignored())
+        .count();
+    assert_eq!(ignored, 31);
+    assert!(
+        provenance.warnings.len() > ignored,
+        "the fixture's boundary doesn't close, which is a fault"
+    );
+    assert!(provenance
+        .warnings
+        .iter()
+        .all(|w| w.is_ignored() == matches!(w, Warning::Ignored { .. })));
+}
+
+#[test]
 fn the_message_names_the_place_and_the_count() {
     let (_, provenance) = load_file_with_provenance("tests/data/ignored.xodr").unwrap();
     let messages: Vec<String> = provenance
@@ -136,4 +155,52 @@ fn road_id_names_the_road_or_nothing() {
             assert!(road_id.is_empty() || junction_id.is_empty());
         }
     }
+}
+
+#[test]
+fn a_sign_validity_of_a_temporary_layer_is_a_sign_validity_and_not_a_layer() {
+    let found = ignored("tests/data/ignored.xodr");
+    let road = |name: &str| {
+        found
+            .iter()
+            .find(|(road, _, feature, _)| road == "3" && feature == name)
+            .map(|f| f.3)
+    };
+    assert_eq!(road("<sign> <validity>"), Some(2));
+    assert_eq!(road("<validity layer>"), None);
+}
+
+#[test]
+fn what_a_vendor_puts_inside_user_data_counts_for_nothing() {
+    let found = ignored("tests/data/ignored.xodr");
+    let road5: Vec<_> = found.iter().filter(|f| f.0 == "5").collect();
+    assert_eq!(road5, [&of("5", "", "<userData>", 500)]);
+}
+
+#[test]
+fn a_road_or_junction_without_an_id_is_named_so() {
+    let xml = r#"<OpenDRIVE>
+      <road length="20" junction="-1">
+        <planView><geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right><lane id="-1" type="driving"><width sOffset="0" a="3"/></lane></right></laneSection></lanes>
+        <userData code="a"/>
+      </road>
+      <junction><userData code="b"/></junction>
+      <userData code="c"/>
+    </OpenDRIVE>"#;
+    let (_, provenance) = load_str_with_provenance(xml).unwrap();
+    let messages: Vec<String> = provenance
+        .warnings
+        .iter()
+        .filter(|w| matches!(w, Warning::Ignored { .. }))
+        .map(|w| w.to_string())
+        .collect();
+    assert_eq!(
+        messages,
+        [
+            "the document: <userData> ignored, 1 use",
+            "junction \"(no id)\": <userData> ignored, 1 use",
+            "road \"(no id)\": <userData> ignored, 1 use",
+        ]
+    );
 }
