@@ -71,8 +71,8 @@ files declaring 1.4, 1.6 and 1.7.
   makes it a two-way lane, linked off both of its ends. A deprecated
   `type="bidirectional"` lane with no `direction` is two-way too. An
   unknown value reads as `standard` and raises a warning.
-- A junction `<laneLink>`'s `overlapZone` is in `Provenance::lane_link_overlaps`.
-  The crate uses none of it.
+- A junction `<laneLink>`'s `overlapZone` is in
+  `Provenance::lane_link_overlaps`. The crate uses none of it.
 - Direct junctions, which join roads end to end through a `linkedRoad`.
   Each connection links both ways, as esmini reads it, unless the junction
   gives the way back itself.
@@ -84,7 +84,8 @@ files declaring 1.4, 1.6 and 1.7.
   the height of the junction's roads, as the spec says it does, and a
   warning says so.
 - Railway `<switch>`es and `<station>`s, as `RoadNetwork::switches` and
-  `RoadNetwork::stations`, each on the roads of its tracks.
+  `RoadNetwork::stations`, each on the roads of its tracks. A switch keeps its
+  partner's id and name.
 - `<junctionGroup>`s, as `RoadNetwork::junction_groups`: the junctions the
   file groups as one, such as a roundabout's. The router does not use them.
 - Virtual junctions, as `RoadNetwork::virtual_junctions`: roads meeting a
@@ -194,9 +195,10 @@ pose and size of its board.
 - `Signal::semantics` says what a signal means, from its `<semantics>`, and
   `Signal::boards` holds its `<staticBoard>`s and `<vmsBoard>`s, each sign
   and display area placed on the board. The crate applies no semantic. A
-  sign also keeps its own `id`, `orientation`, `dynamic`, `invalidated`,
-  `temporary`, `hOffset`, `pitch`, `roll` and `length`, and turns it by none
-  of them.
+  sign also keeps its own `id`, `countryRevision`, `orientation`,
+  `dynamic`, `invalidated`, `temporary`, `hOffset`, `pitch`, `roll` and
+  `length`. The crate stores them and places the sign by none of them. It
+  wraps the three angles into one turn.
 
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)` and
 orientation.
@@ -325,19 +327,19 @@ document, with how many times the file uses it.
 Elements it skips: `<vmsGroup>`, a header's `<license>` and
 `<defaultRegulations>`, `<dataQuality>` and `<include>`, a junction's
 `<objects>` and `<roadSection>`s, and an object's `<surface>`,
-`<skeleton>` and `<curveLocal>` corners. It also skips `<userData>` on a
-road, a lane, a road mark, a marking, a signal and a tunnel, the
-`<markings>` of an outline, and a board sign's own validities, links and
-position off the board.
+`<skeleton>` and `<curveLocal>` outlines. It skips `<userData>` anywhere but
+directly on an object, which it reads. It also skips the `<markings>` of an
+outline, and the `<validity>`, `<dependency>` and `<reference>` of a board
+sign.
 
-Uses of elements it reads that it ignores:
+Attributes it reads but ignores:
 
 | Feature | What the crate does |
 | --- | --- |
 | a second `<lanes>`, or `<lanes layer="temporary">` | bakes the first `<lanes>` as the road |
 | `<laneSection singleSide="true">` | reads the section as two-sided |
 | a lane link's `layer`, a `<validity>`'s `layer`, a junction lane link's `fromLayer` or `toLayer` | reads them as the permanent layer |
-| `<object perpToRoad="true">` | the object leans with the road |
+| `<object perpToRoad="true">` | places the object by its `hdg`, as if `perpToRoad` were `false` |
 | a `<repeat>`'s `bT`, `cT` or `dT`, or `detachFromReferenceLine="true"` | copies run straight along the road |
 | a boundary `<segment>`'s `transitionLength` above 0 | no blending |
 

@@ -21,18 +21,21 @@ and a <type> with no name.
 Road 2, an 80 m straight 40 m north with three lanes a side, has two lane
 sections, from 0 and from 40 m. In the first the lanes carry `advisory`
 (1 inner, 2 outer, 3 both, -1 "banana"), `dynamicLaneType` (3, and -2 as
-"1"), `dynamicLaneDirection` (3) and `roadWorks` (-1), and its center lane
+"1"), `dynamicLaneDirection` (3) and `roadWorks` (-1, and 2 as "True", which is
+not a boolean), and its center lane
 has `level="true"`. The second has the same lanes without -1's `roadWorks`,
 and a center lane of `type="driving"`. Lane -3 says each as "false".
 
-Road 1 also has objects beside it: boxes "a1" to "a3" that are invalidated
+The header's name has an accent, an ampersand, angle brackets and quotes,
+and the junction's has spaces round it, to show they come through as
+written. Road 1 also has objects beside it: boxes "a1" to "a3" that are invalidated
 and temporary, one of each as "false" or "1", and neither; "m1", with a
 material of roadMarkColor "yellow" and a second without; "w", a box with
 four markings of weight bold, standard, "banana" and none; and "o1", with
 four outlines: closed ones with a fillType "grass" and laneType "sidewalk",
 and with "paint" and "banana", one with neither, and a hole in the first
 with fillType "soil". "o2" has a deprecated single <outline> of fillType
-"gravel".
+"gravel", and "o3" repeats a grass outline every 10 m for 20 m.
 
 Road 1 holds signal "sg", a static board of three signs: "p1" with every
 attribute the schema allows on a sign, "p2" with a `hOffset` of 7 rad and
@@ -93,12 +96,12 @@ root = tree.getroot()
 header = root.find("header")
 header.attrib.clear()
 header.attrib.update({
-    "revMajor": "1", "revMinor": "9", "name": "Metadata Map", "version": "3.2",
+    "revMajor": "1", "revMinor": "9", "name": 'Caf\u00e9 & <Co> "q"', "version": "3.2",
     "date": "2026-01-01T00:00:00", "vendor": "Example Maps",
     "north": "120.5", "south": "-30.25", "east": "1050", "west": "-5",
 })
 root.find("road[@id='1']").set("name", "Main Street")
-root.find("junction[@id='100']").set("name", "Market Square")
+root.find("junction[@id='100']").set("name", "  Market Square  ")
 
 road = root.find("road[@id='1']")
 after_link = list(road).index(road.find("link")) + 1
@@ -122,7 +125,7 @@ one, two = lanes.findall("laneSection")
 def lane(section, id):
     return section.find(f"*/lane[@id='{id}']")
 lane(one, 1).set("advisory", "inner")
-lane(one, 2).set("advisory", "outer")
+lane(one, 2).attrib.update({"advisory": "outer", "roadWorks": "True"})
 lane(one, 3).attrib.update({"advisory": "both", "dynamicLaneType": "true", "dynamicLaneDirection": "true"})
 lane(one, -1).attrib.update({"advisory": "banana", "roadWorks": "true"})
 lane(one, -2).set("dynamicLaneType", "1")
@@ -190,6 +193,15 @@ old = ET.Element("object", {
 })
 old.append(outline(0, 65, -10, fillType="gravel"))
 objects.append(old)
+repeated = ET.Element("object", {
+    "id": "o3", "type": "vegetation", "s": "75", "t": "-10", "zOffset": "0", "hdg": "0",
+})
+repeated.append(outline(0, 75, -10, 2, fillType="grass", laneType="sidewalk"))
+repeated.append(ET.Element("repeat", {
+    "s": "75", "length": "20", "distance": "10", "tStart": "-10", "tEnd": "-10",
+    "zOffsetStart": "0", "zOffsetEnd": "0",
+}))
+objects.append(repeated)
 lanes_at = list(road).index(road.find("lanes")) + 1
 road.insert(lanes_at, objects)
 
@@ -203,7 +215,7 @@ board.append(ET.Element("sign", {
     "type": "274", "subtype": "50", "value": "50", "unit": "km/h",
     "orientation": "+", "dynamic": "yes", "invalidated": "true", "temporary": "1",
     "hOffset": "0.5", "pitch": "0.25", "roll": "-0.125",
-    "length": "0.1", "width": "0.6", "height": "0.6", "v": "0", "z": "0",
+    "length": "0.15", "width": "0.6", "height": "0.8", "v": "0", "z": "0",
 }))
 board.append(ET.Element("sign", {
     "id": "p2", "type": "274", "orientation": "-", "hOffset": "7", "v": "0", "z": "0",

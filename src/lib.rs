@@ -33,8 +33,9 @@
 //!
 //! # Which OpenDRIVE version
 //!
-//! The importer keeps a `<header>`'s attributes in [`RoadNetwork::header`],
-//! and its geo reference apart. It never inspects `revMajor` or `revMinor` to
+//! The importer keeps a `<header>`'s attributes in [`RoadNetwork::header`]
+//! and its geo reference in [`RoadNetwork::geo_reference`]. It never inspects
+//! `revMajor` or `revMinor` to
 //! decide how to read the file, and it never rejects a file for its
 //! version. Whether a file loads depends only on whether it uses the
 //! elements below.
@@ -375,12 +376,13 @@
 //!
 //! [`Signal::lanes`] is the lanes at `s` whose traffic runs the way its
 //! `orientation` names: with `+s` for `+`, against it for `-`, and every lane
-//! for `none`. A two-way lane is both. So a reversed lane, a lane on a road
-//! with `rule="LHT"` and a `bidirectional` lane each get the signals of the
-//! traffic they carry, not of their side of the road. Its `<validity>`
-//! ranges replace those lanes rather than narrow them. The spec says they
-//! must lie within them, but esmini's maps give `+` signals validities on
-//! both sides. The road id, `<signal id>`, `(s, t)` and
+//! for `none`. A lane with `direction="both"`, and a lane of the deprecated
+//! `type="bidirectional"`, carries traffic both ways, so it is in either. A
+//! reversed lane, and a lane on a road with `rule="LHT"`, get the signals of
+//! the traffic they carry, not of their side of the road. A signal's
+//! `<validity>` ranges replace these lanes rather than narrow them. The spec
+//! says they must lie inside them, but esmini's maps give `+` signals
+//! validities on both sides. The road id, `<signal id>`, `(s, t)` and
 //! `orientation` are in its [`SignalProvenance`]. A signal missing `s` or
 //! `t`, or off the ends of its road, is skipped.
 //!
@@ -886,9 +888,9 @@
 //!
 //! Where several records of one purpose cover a point, the last in the file
 //! wins, as rule `road.crg.use_last_entry` has it, and the rest are ignored.
-//! Elevation and friction count apart. A junction's records win over the
-//! records of its roads, which the spec doesn't rank. Before this the
-//! first record won.
+//! Elevation and friction count apart. The crate lists a junction's
+//! records after every road's, so they win over its roads', which the spec
+//! doesn't rank.
 //!
 //! The modes follow the road surface section of ASAM OpenDRIVE 1.9:
 //!
@@ -934,20 +936,23 @@
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
 //! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a
 //! junction's `<objects>` and `<roadSection>`s, and an object's `<surface>`,
-//! `<skeleton>` and `<curveLocal>` corners. Of signals, it ignores a signal's
-//! `<userData>`, and a board's or board sign's own validities, links and
-//! position off the board. It also
-//! skips `<userData>` on a road, a lane, a road mark, a marking and a
-//! tunnel, and the `<markings>` of an outline.
+//! `<skeleton>` and `<curveLocal>` outlines. It skips `<userData>` anywhere
+//! but directly on an object, which it reads. It skips the `<markings>` of
+//! an outline, and the `validity`, `dependency` and `reference` of a
+//! board sign.
 //!
-//! It also ignores these uses of elements it reads: a second `lanes` on a
-//! road, and a `lanes` with `layer="temporary"`; `singleSide="true"` on a
-//! lane section; a `layer` on a lane link, other
-//! than `permanent`; a `layer` on a `validity`; `fromLayer` or `toLayer` on
-//! a junction lane link; `perpToRoad="true"` on an object; a repeat's `bT`,
-//! `cT` or `dT` other than 0, and `detachFromReferenceLine="true"`; and a
-//! boundary segment's `transitionLength` above 0. The crate bakes the first
-//! `lanes` of a road as the road, as if it were permanent.
+//! It also ignores these uses of elements it reads:
+//!
+//! - a second `lanes` on a road, and a `lanes` with `layer="temporary"`. The
+//!   crate bakes the first `lanes` of a road as the road, as if it were
+//!   permanent;
+//! - `singleSide="true"` on a lane section;
+//! - a `layer` other than `permanent` on a lane link or a `validity`, and a
+//!   `fromLayer` or `toLayer` on a junction lane link;
+//! - `perpToRoad="true"` on an object;
+//! - a repeat's `bT`, `cT` or `dT` other than 0, and
+//!   `detachFromReferenceLine="true"`;
+//! - a boundary segment's `transitionLength` above 0.
 //!
 //! One omission changes the road you get back, rather than only dropping
 //! detail around it: the center lane, lane 0, never becomes a [`Lane`].
