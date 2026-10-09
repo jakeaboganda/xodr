@@ -215,7 +215,7 @@
                         <reference elementType="signal" elementId="s3" type="x" />
                     </sign>
                     <sign id="b" s="0" t="0" zOffset="0" hOffset="0" pitch="0" roll="0" orientation="+" length="0.5" height="0.5" width="0.1" country="DE" type="274" subtype="50" value="50" name="n" countryRevision="2017" dynamic="no" temporary="false" invalidated="false">
-                        <validity fromLane="-1" toLane="-1" />
+                        <validity fromLane="-1" toLane="-1" layer="temporary" />
                         <dependency id="s3" type="x" />
                         <reference elementType="signal" elementId="s3" type="x" />
                     </sign>
@@ -795,7 +795,11 @@
                         <userData code="k496" value="496" />
                         <userData code="k497" value="497" />
                         <userData code="k498" value="498" />
-                        <userData code="k499" value="499" />
+                        <userData code="k499" value="499">
+                            <userData code="inner" />
+                            <validity fromLane="-1" toLane="-1" layer="temporary" />
+                            <include file="vendor.xodr" />
+                        </userData>
                     </lane>
                 </right>
             </laneSection>

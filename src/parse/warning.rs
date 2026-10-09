@@ -22,11 +22,13 @@ pub enum Warning {
     /// `docs/support.md` and "What the importer ignores" in the crate docs
     /// list the features. A feature leaves the list once the crate reads it.
     Ignored {
-        /// The `<road id>` it is on. Empty for a feature of a junction or of
-        /// the document outside both.
+        /// The `<road id>` it is on, or `(no id)` for a road without one.
+        /// Empty for a feature of a junction or of the document outside
+        /// both.
         road_id: String,
-        /// The `<junction id>` it is on. Empty for a feature of a road or of
-        /// the document outside both.
+        /// The `<junction id>` it is on, or `(no id)` for a junction
+        /// without one. Empty for a feature of a road or of the document
+        /// outside both.
         junction_id: String,
         /// The feature, such as `<userData>` or `<object perpToRoad="true">`.
         feature: String,
@@ -495,6 +497,13 @@ pub enum RoadSkipReason {
 }
 
 impl Warning {
+    /// Whether it only says the crate ignored part of the file, as
+    /// [`Warning::Ignored`] does, and the file broke no rule. A map that
+    /// loads clean can still raise these, so filter them out to find faults.
+    pub fn is_ignored(&self) -> bool {
+        matches!(self, Self::Ignored { .. })
+    }
+
     /// The `<road id>` it happened on. Empty for a warning about a junction
     /// as a whole, such as its boundary or its elevation grid.
     pub fn road_id(&self) -> &str {
