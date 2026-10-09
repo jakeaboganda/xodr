@@ -1336,7 +1336,8 @@ function showRoadMarkTip(ev, rect, hit) {
   if (!selected) highlightLanes([left, right].filter(Boolean));
 
   const side = l => l ? `lane ${l.odLaneId} (${l.laneType})` : 'road edge';
-  const rows = [`<b>road mark</b> ${m.type}  ${escapeHtml(m.color)}`];
+  const rows = [`<b>road mark</b> ${m.type}${m.typeName ? ` ${escapeHtml(JSON.stringify(m.typeName))}` : ''}  ${escapeHtml(m.color)}` +
+    (m.material ? `  of ${escapeHtml(m.material)}` : '')];
   if (m.roadId != null) {
     const where = m.odLaneId === 0 ? 'center lane' : `lane ${m.odLaneId}`;
     rows.push(`road ${escapeHtml(m.roadId)}  section ${m.section}  ${where}   ` +
@@ -1599,8 +1600,10 @@ function onHover(ev) {
   ];
   const limit = alongAt(lane.speedLimits, s);
   const roadType = alongAt(lane.roadTypes, s);
+  const country = alongAt(lane.countries, s);
   if (limit || roadType) {
-    rows.push([limit && `speed limit ${speedText(limit[2])}`, roadType && `road ${roadType[2]}`]
+    rows.push([limit && `speed limit ${speedText(limit[2])}`,
+      roadType && `road ${roadType[2]}${country ? ` (${escapeHtml(country[2])})` : ''}`]
       .filter(Boolean).join('   '));
   }
   if (lane.junction != null) {

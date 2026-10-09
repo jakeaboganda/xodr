@@ -131,7 +131,8 @@ Under the map's name, the sidebar shows its `<geoReference>` PROJ string
 and `<offset>` as the file gives them. A map without either shows neither.
 Hover the map list for the `<header>`: its name, OpenDRIVE revision,
 version, date, vendor and bounds. A lane's readout shows its road's `name`
-and its junction's.
+and its junction's, and the `country` of its road type. A road mark's
+readout shows its `material` and its type's `name`.
 
 ## Lanes
 

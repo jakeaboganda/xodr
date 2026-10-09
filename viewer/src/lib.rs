@@ -741,6 +741,8 @@ fn road_mark_entry(m: &RoadMark, prov: Option<&RoadMarkProvenance>) -> Value {
         "odLaneId": prov.map(|p| p.od_lane_id),
         "s": prov.map(|p| p.s),
         "length": prov.map(|p| p.length),
+        "material": prov.map(|p| p.material.as_str()),
+        "typeName": prov.map(|p| p.type_name.as_str()),
         "lines": m
             .lines
             .iter()
@@ -927,6 +929,10 @@ fn lane_entry(net: &RoadNetwork, provenance: &Provenance, span: &LaneSpan) -> Va
             span.lane,
             |t| json!(t.as_str())
         )),
+    );
+    entry.insert(
+        "countries".into(),
+        json!(stretches(net.road_countries(), span.lane, |c| json!(c))),
     );
     entry.insert(
         "rules".into(),
