@@ -371,11 +371,14 @@
 //! applies to the lanes there. One that names no road, or is missing a
 //! coordinate, leaves the board at the signal's station.
 //!
-//! [`Signal::lanes`] is the lanes at `s` on the side of the road its
-//! `orientation` names: negative ids for `+`, positive ids for `-`, and both
-//! for `none`. Its `<validity>` ranges replace that side rather than narrow
-//! it. The spec says they must lie within it, but esmini's maps give `+`
-//! signals validities on both sides. The road id, `<signal id>`, `(s, t)` and
+//! [`Signal::lanes`] is the lanes at `s` whose traffic runs the way its
+//! `orientation` names: with `+s` for `+`, against it for `-`, and every lane
+//! for `none`. A two-way lane is both. So a reversed lane, a lane on a road
+//! with `rule="LHT"` and a `bidirectional` lane each get the signals of the
+//! traffic they carry, not of their side of the road. Its `<validity>`
+//! ranges replace those lanes rather than narrow them. The spec says they
+//! must lie within them, but esmini's maps give `+` signals validities on
+//! both sides. The road id, `<signal id>`, `(s, t)` and
 //! `orientation` are in its [`SignalProvenance`]. A signal missing `s` or
 //! `t`, or off the ends of its road, is skipped.
 //!
@@ -983,15 +986,10 @@
 //! [`RoadNetwork::advance`] each way from one. esmini, libOpenDRIVE and
 //! CARLA ignore `direction`.
 //!
-//! The crate departs from the OpenDRIVE 1.9 spec here:
-//!
-//! - The spec allows only `standard`, `reversed` and `both`. The crate reads
-//!   any other value as `standard`, the spec's default, and raises
-//!   [`Warning::UnknownLaneDirection`].
-//! - The spec says a signal's `orientation` names the traffic it applies to.
-//!   The crate picks a signal's lanes by the side of the road, as it did
-//!   before `direction`, so a `+` signal applies to the right lanes under
-//!   right-hand traffic even where one of them is reversed.
+//! The crate departs from the OpenDRIVE 1.9 spec here: the spec allows only
+//! `standard`, `reversed` and `both`. The crate reads any other value as
+//! `standard`, the spec's default, and raises
+//! [`Warning::UnknownLaneDirection`].
 //!
 //! # Road coordinates
 //!

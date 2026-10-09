@@ -121,7 +121,8 @@ pub struct Signal {
     /// a traffic light.
     pub references: Vec<Reference>,
     /// The lanes the signal applies to, on every road the map applies it
-    /// to. A lane appears once.
+    /// to. A lane appears once. Without a `<validity>`, these are the lanes
+    /// whose traffic runs the way the signal's `orientation` names.
     pub lanes: Vec<LaneId>,
     /// The points on the road surface where the signal takes effect: its
     /// own first, then one for each further place the map applies it. On a

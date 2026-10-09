@@ -438,7 +438,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
         return Err(ImportError::Malformed("no lanes found".into()));
     }
     surfaces.extend(junction_crgs(root, &topo));
-    let signals = signals::place(root, &roads, &objects.provenance);
+    let signals = signals::place(root, &roads, &lanes, &objects.provenance);
     let mut road_marks = road_marks::place(&mut roads);
     warnings.append(&mut road_marks.warnings);
     let properties = properties::place(roads.iter().map(|(_, road)| road), &lanes);

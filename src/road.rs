@@ -376,15 +376,6 @@ impl TrafficRule {
             Direction::Backward
         }
     }
-
-    /// The `<lane id>`s of the side whose traffic travels `direction`.
-    pub fn side(self, direction: Direction) -> (i32, i32) {
-        if self.direction(true) == direction {
-            (1, i32::MAX)
-        } else {
-            (i32::MIN, -1)
-        }
-    }
 }
 
 // --- Reference-line geometry --------------------------------------------------

@@ -12,8 +12,9 @@ use crate::coords::{Point, Vector};
 use crate::object::orient;
 use crate::road::Road;
 use crate::{
-    BoardSign, Control, Controller, ControllerId, Dependency, Direction, DisplayArea, MessageBoard,
-    ObjectId, Reference, Referenced, RoadUser, Semantic, Signal, SignalBoard, SignalId, Unit,
+    BoardSign, Control, Controller, ControllerId, Dependency, Direction, DisplayArea, Lane, LaneId,
+    MessageBoard, ObjectId, Reference, Referenced, RoadUser, Semantic, Signal, SignalBoard,
+    SignalId, Unit,
 };
 
 /// The signals and controllers baked so far, and the provenance of each, in
@@ -29,8 +30,8 @@ pub(super) struct Signals {
 /// Bake every `<signal>` of every road, link each to the signals and
 /// objects it names, apply each to the roads whose `<signalReference>`s name
 /// it, and bake the `<controller>`s over them. `roads` pairs each baked road
-/// with its `<road>`, and `objects` finds the objects an `<object id>` baked
-/// to.
+/// with its `<road>`, `lanes` are the lanes baked, and `objects` finds the
+/// objects an `<object id>` baked to.
 ///
 /// Links, references and controls name a signal by its id. Where two
 /// signals share one, they name the first. One naming an id no signal has is
@@ -38,6 +39,7 @@ pub(super) struct Signals {
 pub(super) fn place(
     root: roxmltree::Node,
     roads: &[(roxmltree::Node, BakedRoad)],
+    lanes: &[Lane],
     objects: &[ObjectProvenance],
 ) -> Signals {
     let mut road_by_id = HashMap::new();
@@ -57,7 +59,7 @@ pub(super) fn place(
     let mut out = Signals::default();
     let mut nodes = Vec::new();
     for (signal, road) in entries().filter(|(n, _)| n.has_tag_name("signal")) {
-        if place_signal(signal, road, &road_by_id, &mut out) {
+        if place_signal(signal, road, lanes, &road_by_id, &mut out) {
             nodes.push(signal);
         }
     }
@@ -79,7 +81,13 @@ pub(super) fn place(
         let Some(&SignalId(i)) = reference.attribute("id").and_then(|id| placed.get(id)) else {
             continue;
         };
-        apply_reference(reference, road, &mut out.baked[i], &mut out.provenance[i]);
+        apply_reference(
+            reference,
+            road,
+            lanes,
+            &mut out.baked[i],
+            &mut out.provenance[i],
+        );
     }
     place_controllers(root, &placed, &mut out);
     out
@@ -144,6 +152,7 @@ fn place_controllers(root: roxmltree::Node, placed: &HashMap<String, SignalId>, 
 fn apply_reference(
     node: roxmltree::Node,
     road: &Road,
+    lanes: &[Lane],
     signal: &mut Signal,
     provenance: &mut SignalProvenance,
 ) {
@@ -154,7 +163,7 @@ fn apply_reference(
         return;
     }
     let orientation = orientation(node);
-    for lane in road.lanes((s, s), &lane_ranges(road, orientation, validity(node))) {
+    for lane in signal_lanes(road, lanes, s, orientation, validity(node)) {
         if !signal.lanes.contains(&lane) {
             signal.lanes.push(lane);
         }
@@ -182,6 +191,7 @@ struct Board {
 fn place_signal(
     node: roxmltree::Node,
     road: &Road,
+    lanes: &[Lane],
     roads: &HashMap<&str, &Road>,
     out: &mut Signals,
 ) -> bool {
@@ -220,7 +230,7 @@ fn place_signal(
         controllers: Vec::new(),
         dependencies: Vec::new(),
         references: Vec::new(),
-        lanes: road.lanes((s, s), &lane_ranges(road, orientation, validity(node))),
+        lanes: signal_lanes(road, lanes, s, orientation, validity(node)),
         applies_at: vec![road.surface(s, t).0],
         position: board.position,
         heading: angle(board.heading),
@@ -464,21 +474,32 @@ fn inertial(node: roxmltree::Node) -> Option<Board> {
     })
 }
 
-/// The `<lane id>` ranges a signal applies to: its `<validity>` ranges if it
-/// has any, else the side of the road whose traffic its `orientation` names.
-fn lane_ranges(
+/// The lanes at `s` on `road` a signal applies to: those in its `<validity>`
+/// ranges if it has any, else those whose traffic runs the way its
+/// `orientation` names, `+s` for `+` and against it for `-`. A two-way lane
+/// carries traffic both ways. `none` names every lane. `lanes` are the lanes
+/// baked, which say which way each runs.
+fn signal_lanes(
     road: &Road,
+    lanes: &[Lane],
+    s: f64,
     orientation: Orientation,
     validity: Vec<(i32, i32)>,
-) -> Vec<(i32, i32)> {
-    if !validity.is_empty() {
-        return validity;
-    }
-    match orientation {
-        Orientation::Positive => vec![road.rule.side(Direction::Forward)],
-        Orientation::Negative => vec![road.rule.side(Direction::Backward)],
-        Orientation::Both => Vec::new(),
-    }
+) -> Vec<LaneId> {
+    let found = road.lanes((s, s), &validity);
+    let wanted = match (validity.is_empty(), orientation) {
+        (false, _) | (_, Orientation::Both) => return found,
+        (_, Orientation::Positive) => Direction::Forward,
+        (_, Orientation::Negative) => Direction::Backward,
+    };
+    found
+        .into_iter()
+        .filter(|id| {
+            lanes
+                .get(id.0)
+                .is_none_or(|lane| lane.direction == wanted || lane.direction == Direction::Both)
+        })
+        .collect()
 }
 
 /// `angle` as an `f32` in `(-π, π]`. The `f32` nearest π is a little over
