@@ -990,6 +990,7 @@ fn lane_type(od_type: Option<&str>) -> LaneType {
         "restricted" => LaneType::Restricted,
         "biking" => LaneType::Biking,
         "sidewalk" | "walking" => LaneType::Sidewalk,
+        "shared" => LaneType::Shared,
         "shoulder" => LaneType::Shoulder,
         "border" => LaneType::Border,
         "curb" => LaneType::Curb,
@@ -3133,6 +3134,7 @@ fn object_type(od_type: Option<&str>) -> ObjectType {
         "gantry" => ObjectType::Gantry,
         "soundBarrier" => ObjectType::SoundBarrier,
         "roadMark" => ObjectType::RoadMark,
+        "roadSurface" => ObjectType::RoadSurface,
         _ => ObjectType::Unknown,
     }
 }
@@ -3413,6 +3415,7 @@ mod tests {
           <lane id="-5" type="curb"><width sOffset="0.0" a="0.3"/></lane>
           <lane id="-6" type="sidewalk"><width sOffset="0.0" a="2.0"/></lane>
           <lane id="-7" type="walking"><width sOffset="0.0" a="2.0"/></lane>
+          <lane id="-8" type="shared"><width sOffset="0.0" a="3.0"/></lane>
         </right>
       </laneSection>
     </lanes>
@@ -3442,10 +3445,11 @@ mod tests {
             Some(LaneType::Sidewalk),
             "1.8 calls a sidewalk `walking`"
         );
+        assert_eq!(kind(-8), Some(LaneType::Shared));
         assert_eq!(kind(2), Some(LaneType::Special1));
         assert_eq!(kind(4), Some(LaneType::Unknown), "banana is not a type");
         // Every lane in the section, with nothing dropped for its type.
-        assert_eq!(net.lanes().len(), 11);
+        assert_eq!(net.lanes().len(), 12);
         assert_eq!(net.driving_lanes().count(), 2);
     }
 
