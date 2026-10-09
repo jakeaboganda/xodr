@@ -513,8 +513,9 @@ fn empty_lateral_profile_leaves_the_road_flat() {
         lane.bank_at(20.0).abs() < 1e-9,
         "flat road should have zero bank"
     );
-    // Identical to a road that declares no lateralProfile at all.
-    let bare = load_str(NO_LATERAL).expect("import");
+    // Identical to a road that declares no lateralProfile at all, down to
+    // the names the map gives itself and its road.
+    let bare = load_str(&NO_LATERAL.replace("no_lateral", "empty_lateral")).expect("import");
     assert_eq!(
         net, bare,
         "empty <lateralProfile> must bake identically to none"

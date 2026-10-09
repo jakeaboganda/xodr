@@ -58,6 +58,15 @@
   traffic changes lanes into it and out of it. Match on `LaneType` with a
   wildcard arm.
 
+### Metadata
+
+- New `RoadNetwork::header` gives a `<header>`'s `revMajor`, `revMinor`,
+  `name`, `version`, `date`, `vendor` and bounds. The crate still reads none
+  of it to decide how to read a map.
+- New `Road::name`, and `Provenance::junctions` with each `<junction>`'s
+  `id` and `name`. Breaking: `Provenance` has a new field.
+- `tests/data/metadata.xodr` and `metadata_bare.xodr` give and lack them.
+
 ### Signals
 
 - A signal applies to the lanes whose traffic runs the way its

@@ -208,6 +208,8 @@ fn the_declared_version_changes_nothing() {
     for header in headers {
         let net = xodr::load_str(&format!("<OpenDRIVE>{header}{ROAD}</OpenDRIVE>"))
             .unwrap_or_else(|e| panic!("header {header:?} was rejected: {e}"));
+        // The header keeps what it says. Only the baked road has to match.
+        let net = net.with_header(baseline.header().clone());
         assert_eq!(net, baseline, "header {header:?} changed the baked road");
     }
 }

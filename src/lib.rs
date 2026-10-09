@@ -33,8 +33,9 @@
 //!
 //! # Which OpenDRIVE version
 //!
-//! Of `<header>`, the importer reads only the geo reference. It never
-//! inspects `revMajor` or `revMinor`, and it never rejects a file for its
+//! The importer keeps a `<header>`'s attributes in [`RoadNetwork::header`],
+//! and its geo reference apart. It never inspects `revMajor` or `revMinor` to
+//! decide how to read the file, and it never rejects a file for its
 //! version. Whether a file loads depends only on whether it uses the
 //! elements below.
 //!
@@ -57,10 +58,10 @@
 //!
 //! | Element | Attributes read |
 //! | --- | --- |
-//! | `<header>` | none |
+//! | `<header>` | `revMajor`, `revMinor`, `name`, `version`, `date`, `vendor`, `north`, `south`, `east`, `west` |
 //! | `<header><geoReference>` | its text |
 //! | `<header><offset>` | `x`, `y`, `z`, `hdg` |
-//! | `<road>` | `id`, `length`, `junction`, `rule` |
+//! | `<road>` | `id`, `name`, `length`, `junction`, `rule` |
 //! | `<road><link>` | `elementType`, `elementId`, `contactPoint`, `elementS`, `elementDir` |
 //! | `<link><neighbor>` | `side`, `elementId`, `direction` |
 //! | `<road><type>` | `s`, `type` |
@@ -1263,6 +1264,7 @@ mod crg;
 mod geo;
 mod geometry;
 mod grid;
+mod header;
 mod junction;
 mod mesh;
 mod network;
@@ -1288,6 +1290,7 @@ pub use crg::{
 pub use geo::{GeoOffset, GeoReference};
 pub use geometry::TooFewPoints;
 pub use geometry::{Polyline, Pose, Projection, RoadSample};
+pub use header::Header;
 pub use junction::{
     CrossPath, CrossPathEnd, ElevationGrid, GridRow, JunctionArea, JunctionGroup,
     JunctionGroupKind, LinkPoint, MainRoad, VirtualJunction, VirtualLink,
@@ -1303,10 +1306,10 @@ pub use object_mesh::ObjectSpan;
 pub use opencrg;
 pub use parse::{
     load_file, load_file_with_provenance, load_str, load_str_with_provenance, ControllerProvenance,
-    CrossPathProvenance, ImportError, JunctionControllerProvenance, LaneHeight, LaneProvenance,
-    ObjectProvenance, Orientation, PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance,
-    RoadSkipReason, SignalProvenance, SignalReferenceProvenance, StructureProvenance, Warning,
-    MAX_LENGTH,
+    CrossPathProvenance, ImportError, JunctionControllerProvenance, JunctionProvenance, LaneHeight,
+    LaneProvenance, ObjectProvenance, Orientation, PriorityProvenance, Provenance, RoadEnd,
+    RoadMarkProvenance, RoadSkipReason, SignalProvenance, SignalReferenceProvenance,
+    StructureProvenance, Warning, MAX_LENGTH,
 };
 pub use railway::{Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint};
 pub use road::{LanePosition, Priority, Road, RoadId, RoadLane, RoadNeighbor, RoadPosition, Side};
