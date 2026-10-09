@@ -1665,7 +1665,7 @@ function showObjectTip(ev, rect, hit) {
 function objectRows(o, p, border) {
   const sub = o.subtype && o.subtype.toLowerCase() !== 'none' ? ` (${escapeHtml(o.subtype)})` : '';
   const rows = [`<b>${o.objectType}</b>${sub}${o.name ? '  ' + escapeHtml(o.name) : ''}` +
-    (o.dynamic ? '  dynamic' : '')];
+    (o.dynamic ? '  dynamic' : '') + (o.invalidated ? '  invalidated' : '') + (o.temporary ? '  temporary' : '')];
   if (o.roadId != null) {
     rows.push(`road ${escapeHtml(o.roadId)}  object ${escapeHtml(o.odId)}  ` +
       `s ${o.s.toFixed(2)} m   t ${o.t.toFixed(2)} m`);
@@ -1685,6 +1685,7 @@ function objectRows(o, p, border) {
     const parts = [escapeHtml(m.surface || 'no surface given')];
     if (m.friction != null) parts.push(`friction ${m.friction.toFixed(2)}`);
     if (m.roughness != null) parts.push(`roughness ${m.roughness.toFixed(3)} m`);
+    if (m.roadMarkColor) parts.push(`road marks ${escapeHtml(m.roadMarkColor)}`);
     rows.push(`material ${parts.join(', ')}`);
   }
   for (const u of o.userData ?? []) {
@@ -1692,6 +1693,7 @@ function objectRows(o, p, border) {
   }
   if (o.markings?.length) {
     rows.push('markings ' + o.markings.map(m => [m.color || 'no colour', m.side,
+      m.weight === 'bold' ? 'bold' : '',
       m.lineLength && m.spaceLength ? 'dashed' : ''].filter(Boolean).map(escapeHtml).join(' ')).join(', '));
   }
   if (border) {
@@ -1704,7 +1706,9 @@ function objectRows(o, p, border) {
     rows.push(`x ${p.x.toFixed(2)}   y ${p.y.toFixed(2)}   z ${p.z.toFixed(2)}`);
     const holes = o.holes?.length ? `, ${o.holes.length} hole${o.holes.length > 1 ? 's' : ''}` : '';
     rows.push(o.kind === 'outline'
-      ? `outline, ${o.corners.length} corners, ${o.closed ? 'closed' : 'open'}${holes}`
+      ? `outline, ${o.corners.length} corners, ${o.closed ? 'closed' : 'open'}${holes}` +
+        (o.fillType ? `, filled with ${escapeHtml(o.fillType)}` : '') +
+        (o.outlineLaneType ? `, as ${o.outlineLaneType}` : '')
       : `sweep, ${o.sections.length} sections${o.round ? ', round' : ''}`);
   }
   return rows;
