@@ -311,6 +311,12 @@ pub struct RoadMarkProvenance {
     /// lane's marks come in ascending `sOffset`, and ones out of order are
     /// sorted rather than dropped.
     pub length: f64,
+    /// What it is made of, from its `material`. Free text, and empty if the
+    /// map gives none.
+    pub material: String,
+    /// What the map calls its type, from its `<type>`'s `name`. Free text,
+    /// and empty if the map gives none.
+    pub type_name: String,
 }
 
 /// The OpenDRIVE identity of everything a load baked, from
@@ -524,6 +530,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             .with_crg_surfaces(surfaces)
             .with_speed_limits(properties.speed_limits)
             .with_road_types(properties.road_types)
+            .with_road_countries(properties.road_countries)
             .with_lane_rules(properties.lane_rules)
             .with_lane_access(properties.lane_access)
             .with_lane_materials(properties.lane_materials)

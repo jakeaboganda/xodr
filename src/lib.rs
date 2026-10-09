@@ -64,7 +64,7 @@
 //! | `<road>` | `id`, `name`, `length`, `junction`, `rule` |
 //! | `<road><link>` | `elementType`, `elementId`, `contactPoint`, `elementS`, `elementDir` |
 //! | `<link><neighbor>` | `side`, `elementId`, `direction` |
-//! | `<road><type>` | `s`, `type` |
+//! | `<road><type>` | `s`, `type`, `country` |
 //! | `<type><speed>` | `max`, `unit` |
 //! | `<planView><geometry>` | `s`, `x`, `y`, `hdg`, `length` |
 //! | `<line>` | none |
@@ -94,8 +94,8 @@
 //! | `<access><restriction>` | `type` |
 //! | `<lane><material>` | `sOffset`, `surface`, `friction`, `roughness` |
 //! | `<lane><visibility>` | `sOffset`, `forward`, `back`, `left`, `right` |
-//! | `<lane><roadMark>` | `sOffset`, `type`, `weight`, `color`, `width`, `height`, `laneChange` |
-//! | `<roadMark><type>` | `width` |
+//! | `<lane><roadMark>` | `sOffset`, `type`, `weight`, `color`, `material`, `width`, `height`, `laneChange` |
+//! | `<roadMark><type>` | `name`, `width` |
 //! | `<type><line>` | `length`, `space`, `tOffset`, `sOffset`, `rule`, `width`, `color` |
 //! | `<roadMark><explicit>` | none |
 //! | `<explicit><line>` | `length`, `tOffset`, `sOffset`, `rule`, `width` |
@@ -786,7 +786,9 @@
 //! stretch.
 //!
 //! A road's `<type>` holds from its `s` to the next, or to the end of the
-//! road, across every lane. So does the limit its `<speed>` sets. A
+//! road, across every lane. So does the limit its `<speed>` sets. Its
+//! `country` is in [`RoadNetwork::road_countries`] the same way, where the
+//! map gives one. The crate applies none of a country's rules. A
 //! `max="undefined"` sets none. A lane's own `<speed>` holds from its
 //! `sOffset` to the next, or to the end of its lane section, and overrides
 //! its road's. A `<speed>` without a `unit` is in m/s, as the spec says.
@@ -933,13 +935,13 @@
 //! junction's `<objects>` and `<roadSection>`s, and an object's `<surface>`,
 //! `<skeleton>` and `<curveLocal>` corners. Of signals, it ignores a signal's
 //! `<userData>`, and a board's or board sign's own validities, links and
-//! position off the board. Of road marks, it ignores `material`, and the
-//! `name` of a mark's type. Of road types, it ignores `country`. It also
+//! position off the board. It also
 //! skips `<userData>` on a road, a lane, a road mark, a marking and a
 //! tunnel, and the `<markings>` of an outline.
 //!
-//! It also ignores these uses of elements it reads: a second `lanes` on a road, and a `lanes` with `layer="temporary"`;
-//! `singleSide="true"` on a lane section; a `layer` on a lane link, other
+//! It also ignores these uses of elements it reads: a second `lanes` on a
+//! road, and a `lanes` with `layer="temporary"`; `singleSide="true"` on a
+//! lane section; a `layer` on a lane link, other
 //! than `permanent`; a `layer` on a `validity`; `fromLayer` or `toLayer` on
 //! a junction lane link; `perpToRoad="true"` on an object; a repeat's `bT`,
 //! `cT` or `dT` other than 0, and `detachFromReferenceLine="true"`; and a
@@ -1233,10 +1235,12 @@
 //! - [`Warning::VisibilityDropped`] for a `<visibility>` with a distance it
 //!   can't read. See [Lane visibility](#lane-visibility).
 //!
-//! Elements the crate does not read at all raise none. Real maps are full of
-//! them, and they would bury the rest. Other things it drops, such as a lane
-//! section under 1 mm long or a signal off the end of its road, raise
-//! none. The crate prints nothing. To log the warnings, print the list.
+//! An element the crate does not read raises one [`Warning::Ignored`] for
+//! each road, junction, or the rest of the document that uses it, with a
+//! count, so a map with thousands of `<userData>` raises a few. Other things
+//! it drops, such as a lane section under 1 mm long or a signal off the end
+//! of its road, raise none. The crate prints nothing. To log the warnings,
+//! print the list.
 //!
 //! # Importer contract
 //!

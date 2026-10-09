@@ -66,6 +66,10 @@
 - New `Road::name`, and `Provenance::junctions` with each `<junction>`'s
   `id` and `name`. Breaking: `Provenance` has a new field.
 - `tests/data/metadata.xodr` and `metadata_bare.xodr` give and lack them.
+- New `RoadNetwork::road_countries` and `road_country_at` give a road
+  `<type>`'s `country` along each lane.
+- `RoadMarkProvenance` has the mark's `material` and its `<type>`'s `name`.
+  Breaking: it has two new fields.
 
 ### Signals
 

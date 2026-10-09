@@ -281,6 +281,7 @@ pub struct RoadNetwork {
     crg: Vec<CrgSurface>,
     speed_limits: Vec<Along<SpeedLimit>>,
     road_types: Vec<Along<RoadType>>,
+    road_countries: Vec<Along<String>>,
     lane_rules: Vec<Along<String>>,
     lane_access: Vec<Along<Access>>,
     lane_materials: Vec<Along<Material>>,
@@ -321,6 +322,7 @@ impl PartialEq for RoadNetwork {
             && self.crg == other.crg
             && self.speed_limits == other.speed_limits
             && self.road_types == other.road_types
+            && self.road_countries == other.road_countries
             && self.lane_rules == other.lane_rules
             && self.lane_access == other.lane_access
             && self.lane_materials == other.lane_materials
@@ -352,6 +354,8 @@ struct NetworkData {
     crg: Vec<CrgSurface>,
     speed_limits: Vec<Along<SpeedLimit>>,
     road_types: Vec<Along<RoadType>>,
+    #[serde(default)]
+    road_countries: Vec<Along<String>>,
     #[serde(default)]
     lane_rules: Vec<Along<String>>,
     #[serde(default)]
@@ -396,6 +400,7 @@ impl From<NetworkData> for RoadNetwork {
             .with_crg_surfaces(data.crg)
             .with_speed_limits(data.speed_limits)
             .with_road_types(data.road_types)
+            .with_road_countries(data.road_countries)
             .with_lane_rules(data.lane_rules)
             .with_lane_access(data.lane_access)
             .with_lane_materials(data.lane_materials)
@@ -426,6 +431,7 @@ impl From<RoadNetwork> for NetworkData {
             crg: net.crg,
             speed_limits: net.speed_limits,
             road_types: net.road_types,
+            road_countries: net.road_countries,
             lane_rules: net.lane_rules,
             lane_access: net.lane_access,
             lane_materials: net.lane_materials,
@@ -596,6 +602,7 @@ impl RoadNetwork {
             crg: Vec::new(),
             speed_limits: Vec::new(),
             road_types: Vec::new(),
+            road_countries: Vec::new(),
             lane_rules: Vec::new(),
             lane_access: Vec::new(),
             lane_materials: Vec::new(),
@@ -1018,6 +1025,13 @@ impl RoadNetwork {
         self
     }
 
+    /// This network with `road_countries` along its lanes, replacing any it
+    /// had.
+    pub fn with_road_countries(mut self, road_countries: Vec<Along<String>>) -> Self {
+        self.road_countries = along::sorted(road_countries);
+        self
+    }
+
     /// This network with `lane_rules` along its lanes, replacing any it had.
     pub fn with_lane_rules(mut self, lane_rules: Vec<Along<String>>) -> Self {
         self.lane_rules = along::sorted(lane_rules);
@@ -1060,6 +1074,20 @@ impl RoadNetwork {
     /// doesn't say. Where two types meet, the later one holds.
     pub fn road_type_at(&self, lane: LaneId, s: f32) -> Option<RoadType> {
         along::at(&self.road_types, lane, s).copied()
+    }
+
+    /// The country whose rules each road type follows, along every lane,
+    /// sorted by lane, then along it: the `country` of an OpenDRIVE road
+    /// `<type>`, a code such as `DE`. None where the map gives none. The
+    /// crate applies none of a country's rules.
+    pub fn road_countries(&self) -> &[Along<String>] {
+        &self.road_countries
+    }
+
+    /// The country of the road type `s` metres along `lane`, or `None` where
+    /// the map gives none. Where two meet, the later one holds.
+    pub fn road_country_at(&self, lane: LaneId, s: f32) -> Option<&str> {
+        along::at(&self.road_countries, lane, s).map(String::as_str)
     }
 
     /// Every lane rule, sorted by lane, then along it: free text such as

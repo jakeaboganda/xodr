@@ -3,6 +3,9 @@
     <header revMajor="1" revMinor="9" name="Metadata Map" version="3.2" date="2026-01-01T00:00:00" vendor="Example Maps" north="120.5" south="-30.25" east="1050" west="-5" />
     <road rule="RHT" id="1" junction="-1" length="100" name="Main Street">
         <link />
+        <type s="0" type="town" country="DE" />
+        <type s="50" type="rural" country="AT" />
+        <type s="80" type="motorway" />
         <planView>
             <geometry s="0" x="0" y="0" hdg="0" length="100">
                 <line />
@@ -21,14 +24,21 @@
                 </left>
                 <center>
                     <lane id="0" type="none" level="false">
-                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" material="paint">
+                            <type width="0.2" />
+                        </roadMark>
                     </lane>
                 </center>
                 <right>
                     <lane id="-1" type="driving" level="false">
                         <link />
                         <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
-                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" material="thermoplastic">
+                            <type name="Edge Line" width="0.2" />
+                        </roadMark>
+                        <roadMark sOffset="50" type="solid" weight="standard" color="standard" width="0.2" material="cold-plastic">
+                            <type name="Dashed" width="0.2" />
+                        </roadMark>
                     </lane>
                 </right>
             </laneSection>
