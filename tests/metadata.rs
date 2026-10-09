@@ -91,6 +91,8 @@ fn the_header_and_the_road_names_survive_serde() {
     let back: RoadNetwork = serde_json::from_str(&json).unwrap();
     assert_eq!(back.header(), net.header());
     assert_eq!(back.road_by_od_id("1").unwrap().name(), "Main Street");
+    assert_eq!(back.objects(), net.objects());
+    assert!(net.objects().iter().any(|o| o.invalidated));
     assert_eq!(back.road_countries(), net.road_countries());
     assert!(!back.road_countries().is_empty());
 }
@@ -248,4 +250,87 @@ fn a_section_with_no_center_lane_has_no_record() {
     )
     .unwrap();
     assert_eq!(prov.center_lanes, []);
+}
+
+/// Every object baked from `<object id>` `od_id`, with its provenance.
+fn baked<'a>(
+    net: &'a RoadNetwork,
+    prov: &'a Provenance,
+    od_id: &str,
+) -> Vec<(&'a xodr::Object, &'a xodr::ObjectProvenance)> {
+    prov.objects
+        .iter()
+        .filter(|p| p.od_id == od_id)
+        .map(|p| (net.object(p.object).unwrap(), p))
+        .collect()
+}
+
+#[test]
+fn an_object_keeps_whether_it_is_invalidated_or_temporary() {
+    let (net, prov) = full();
+    let flags = |id| {
+        let found = baked(&net, &prov, id);
+        assert_eq!(found.len(), 1, "object {id}");
+        (found[0].0.invalidated, found[0].0.temporary)
+    };
+    assert_eq!(flags("a1"), (true, true));
+    assert_eq!(flags("a2"), (false, true));
+    assert_eq!(flags("a3"), (false, false));
+}
+
+#[test]
+fn a_material_keeps_the_colour_of_the_marks_on_it() {
+    let (net, prov) = full();
+    let materials = &baked(&net, &prov, "m1")[0].0.materials;
+    let colours: Vec<_> = materials
+        .iter()
+        .map(|m| (m.surface.as_str(), m.road_mark_color.as_str()))
+        .collect();
+    assert_eq!(colours, [("asphalt", "yellow"), ("gravel", "")]);
+}
+
+#[test]
+fn an_object_marking_keeps_its_weight_and_reads_anything_else_as_standard() {
+    use xodr::RoadMarkWeight::{Bold, Standard};
+    let (net, prov) = full();
+    let marks = &baked(&net, &prov, "w")[0].0.markings;
+    let weights: Vec<_> = marks.iter().map(|m| (m.side.as_str(), m.weight)).collect();
+    assert_eq!(
+        weights,
+        [
+            ("front", Bold),
+            ("left", Standard),
+            ("rear", Standard),
+            ("right", Standard)
+        ]
+    );
+}
+
+#[test]
+fn an_outline_keeps_its_fill_type_and_lane_type() {
+    let (net, prov) = full();
+    let outlines: Vec<_> = baked(&net, &prov, "o1")
+        .into_iter()
+        .map(|(_, p)| (p.fill_type.as_str(), p.outline_lane_type))
+        .collect();
+    assert_eq!(
+        outlines,
+        [
+            ("grass", Some(LaneType::Sidewalk)),
+            ("paint", Some(LaneType::Unknown)),
+            ("", None),
+        ],
+        "the hole bakes into the outline round it, whose fill type stays"
+    );
+    let single = baked(&net, &prov, "o2");
+    assert_eq!(single[0].1.fill_type, "gravel");
+    assert_eq!(single[0].1.outline_lane_type, None);
+}
+
+#[test]
+fn a_solid_has_no_fill_type() {
+    let (net, prov) = full();
+    let solid = &baked(&net, &prov, "a1")[0];
+    assert_eq!(solid.1.fill_type, "");
+    assert_eq!(solid.1.outline_lane_type, None);
 }

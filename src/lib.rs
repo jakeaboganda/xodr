@@ -124,7 +124,7 @@
 //! | `<boundary><segment>` | `type`, `roadId`, `boundaryLane`, `sStart`, `sEnd`, `contactPoint`, `jointLaneStart`, `jointLaneEnd` |
 //! | `<junction><elevationGrid>` | `sStart`, `gridSpacing` |
 //! | `<elevationGrid><elevation>` | `left`, `center`, `right` |
-//! | `<objects><object>` | `id`, `type`, `subtype`, `name`, `dynamic`, `orientation`, `validLength`, `s`, `t`, `zOffset`, `hdg`, `pitch`, `roll`, `length`, `width`, `height`, `radius` |
+//! | `<objects><object>` | `id`, `type`, `subtype`, `name`, `dynamic`, `invalidated`, `temporary`, `orientation`, `validLength`, `s`, `t`, `zOffset`, `hdg`, `pitch`, `roll`, `length`, `width`, `height`, `radius` |
 //! | `<objects><objectReference>` | `id`, `s`, `t`, `zOffset`, `orientation`, `validLength` |
 //! | `<objects><tunnel>` | `id`, `name`, `type`, `s`, `length`, `lighting`, `daylight` |
 //! | `<objects><bridge>` | `id`, `name`, `type`, `s`, `length` |
@@ -150,13 +150,13 @@
 //! | `<junction><controller>` | `id`, `type`, `sequence` |
 //! | `<validity>`, under `<object>`, `<objectReference>`, `<signal>`, `<signalReference>`, `<tunnel>` and `<bridge>` | `fromLane`, `toLane` |
 //! | `<object><parkingSpace>` | `access`, `restrictions` |
-//! | `<object><material>` | `surface`, `friction`, `roughness` |
+//! | `<object><material>` | `surface`, `friction`, `roughness`, `roadMarkColor` |
 //! | `<object><userData>` | `code`, `value` |
 //! | `<object><repeat>` | `s`, `length`, `distance`, and the `Start`/`End` pair of `t`, `zOffset`, `length`, `width`, `height`, `radius` |
-//! | `<outlines><outline>` | `id`, `closed`, `outer` |
+//! | `<outlines><outline>` | `id`, `closed`, `outer`, `fillType`, `laneType` |
 //! | `<cornerRoad>` | `id`, `s`, `t`, `dz`, `height` |
 //! | `<cornerLocal>` | `id`, `u`, `v`, `z`, `height` |
-//! | `<markings><marking>` | `side`, `color`, `width`, `zOffset`, `lineLength`, `spaceLength`, `startOffset`, `stopOffset` |
+//! | `<markings><marking>` | `side`, `color`, `weight`, `width`, `zOffset`, `lineLength`, `spaceLength`, `startOffset`, `stopOffset` |
 //! | `<borders><border>` | `type`, `width`, `outlineId`, `useCompleteOutline` |
 //! | `<cornerReference>` | `id` |
 //! | `<road><surface><CRG>` | `file`, `mode`, `purpose`, `orientation`, `sStart`, `sEnd`, `sOffset`, `tOffset`, `hOffset`, `xOffset`, `yOffset`, `zOffset`, `zScale` |

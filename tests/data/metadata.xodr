@@ -43,6 +43,59 @@
                 </right>
             </laneSection>
         </lanes>
+        <objects>
+            <object id="a1" type="barrier" s="10" t="-10" zOffset="0" hdg="0" length="2" width="1" height="1" invalidated="true" temporary="true" />
+            <object id="a2" type="barrier" s="10" t="-10" zOffset="0" hdg="0" length="2" width="1" height="1" invalidated="false" temporary="1" />
+            <object id="a3" type="barrier" s="10" t="-10" zOffset="0" hdg="0" length="2" width="1" height="1" />
+            <object id="m1" type="barrier" s="10" t="-10" zOffset="0" hdg="0" length="2" width="1" height="1">
+                <material surface="asphalt" roadMarkColor="yellow" />
+                <material surface="gravel" />
+            </object>
+            <object id="w" type="barrier" s="10" t="-10" zOffset="0" hdg="0" length="2" width="1" height="1">
+                <markings>
+                    <marking side="front" color="white" width="0.1" zOffset="0.01" weight="bold" />
+                    <marking side="left" color="white" width="0.1" zOffset="0.01" weight="standard" />
+                    <marking side="rear" color="white" width="0.1" zOffset="0.01" weight="banana" />
+                    <marking side="right" color="white" width="0.1" zOffset="0.01" />
+                </markings>
+            </object>
+            <object id="o1" type="vegetation" s="20" t="-10" zOffset="0" hdg="0">
+                <outlines>
+                    <outline id="0" closed="true" fillType="grass" laneType="sidewalk">
+                        <cornerRoad id="0" s="20" t="-10" dz="0" height="1" />
+                        <cornerRoad id="1" s="24" t="-10" dz="0" height="1" />
+                        <cornerRoad id="2" s="24" t="-14" dz="0" height="1" />
+                        <cornerRoad id="3" s="20" t="-14" dz="0" height="1" />
+                    </outline>
+                    <outline id="1" closed="true" fillType="soil" outer="false">
+                        <cornerRoad id="0" s="21" t="-11" dz="0" height="1" />
+                        <cornerRoad id="1" s="23" t="-11" dz="0" height="1" />
+                        <cornerRoad id="2" s="23" t="-13" dz="0" height="1" />
+                        <cornerRoad id="3" s="21" t="-13" dz="0" height="1" />
+                    </outline>
+                    <outline id="2" closed="true" fillType="paint" laneType="banana">
+                        <cornerRoad id="0" s="30" t="-10" dz="0" height="1" />
+                        <cornerRoad id="1" s="34" t="-10" dz="0" height="1" />
+                        <cornerRoad id="2" s="34" t="-14" dz="0" height="1" />
+                        <cornerRoad id="3" s="30" t="-14" dz="0" height="1" />
+                    </outline>
+                    <outline id="3" closed="true">
+                        <cornerRoad id="0" s="40" t="-10" dz="0" height="1" />
+                        <cornerRoad id="1" s="44" t="-10" dz="0" height="1" />
+                        <cornerRoad id="2" s="44" t="-14" dz="0" height="1" />
+                        <cornerRoad id="3" s="40" t="-14" dz="0" height="1" />
+                    </outline>
+                </outlines>
+            </object>
+            <object id="o2" type="vegetation" s="50" t="-10" zOffset="0" hdg="0">
+                <outline id="0" closed="true" fillType="gravel">
+                    <cornerRoad id="0" s="50" t="-10" dz="0" height="1" />
+                    <cornerRoad id="1" s="54" t="-10" dz="0" height="1" />
+                    <cornerRoad id="2" s="54" t="-14" dz="0" height="1" />
+                    <cornerRoad id="3" s="50" t="-14" dz="0" height="1" />
+                </outline>
+            </object>
+        </objects>
     </road>
     <road rule="RHT" id="2" junction="-1" length="80">
         <link />

@@ -160,9 +160,11 @@ surface.
 - `<parkingSpace>`, `<material>` and `<userData>` are kept on the object as
   data.
 
-Each object has an id to look it up by, a subtype, and whether it moves.
-`load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)`, orientation
-and valid length.
+Each object has an id to look it up by, a subtype, and whether it moves,
+is invalidated or is temporary. A marking keeps its `weight`, and a material
+its `roadMarkColor`. `load_*_with_provenance` gives its road, OpenDRIVE id,
+`(s, t)`, orientation and valid length, and the `fillType` and `laneType` of
+the outline it baked from.
 
 ## Tunnels and bridges
 
