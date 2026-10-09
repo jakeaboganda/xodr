@@ -4,7 +4,11 @@
 /// decide how to read the map, so the version in particular changes nothing
 /// about what bakes. See [Which OpenDRIVE version](crate#which-opendrive-version).
 #[derive(Debug, Clone, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(default)
+)]
 #[non_exhaustive]
 pub struct Header {
     /// The `revMajor`, or `None` if the file has none or it isn't a whole
