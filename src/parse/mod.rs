@@ -964,7 +964,8 @@ impl SectionDef {
 /// lost 27 lanes that way, averaging 3.5 m wide.
 ///
 /// `mwyEntry` and `mwyExit` are the older spellings of `entry` and `exit`, and
-/// land on the same variants.
+/// `sidewalk` the older spelling of `walking`, which OpenDRIVE 1.8 brought in.
+/// Each pair lands on one variant.
 fn lane_type(od_type: Option<&str>) -> LaneType {
     let Some(od_type) = od_type else {
         return LaneType::Unknown;
@@ -986,7 +987,7 @@ fn lane_type(od_type: Option<&str>) -> LaneType {
         "stop" => LaneType::Stop,
         "restricted" => LaneType::Restricted,
         "biking" => LaneType::Biking,
-        "sidewalk" => LaneType::Sidewalk,
+        "sidewalk" | "walking" => LaneType::Sidewalk,
         "shoulder" => LaneType::Shoulder,
         "border" => LaneType::Border,
         "curb" => LaneType::Curb,
@@ -3409,6 +3410,7 @@ mod tests {
           <lane id="-4" type="parking"><width sOffset="0.0" a="2.5"/></lane>
           <lane id="-5" type="curb"><width sOffset="0.0" a="0.3"/></lane>
           <lane id="-6" type="sidewalk"><width sOffset="0.0" a="2.0"/></lane>
+          <lane id="-7" type="walking"><width sOffset="0.0" a="2.0"/></lane>
         </right>
       </laneSection>
     </lanes>
@@ -3433,10 +3435,15 @@ mod tests {
         assert_eq!(kind(-4), Some(LaneType::Parking));
         assert_eq!(kind(-5), Some(LaneType::Curb));
         assert_eq!(kind(-6), Some(LaneType::Sidewalk));
+        assert_eq!(
+            kind(-7),
+            Some(LaneType::Sidewalk),
+            "1.8 calls a sidewalk `walking`"
+        );
         assert_eq!(kind(2), Some(LaneType::Special1));
         assert_eq!(kind(4), Some(LaneType::Unknown), "banana is not a type");
         // Every lane in the section, with nothing dropped for its type.
-        assert_eq!(net.lanes().len(), 10);
+        assert_eq!(net.lanes().len(), 11);
         assert_eq!(net.driving_lanes().count(), 2);
     }
 

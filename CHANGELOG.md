@@ -5,7 +5,7 @@
 ### OpenUSD export
 
 - New `xodr-usd` tool exports a map as an OpenUSD stage. Run
-  `cargo run -p xodr-usd -- map.xodr`. The `xodr` crate doesn't change.
+  `cargo run -p xodr-usd -- map.xodr`.
 - `sh usd/run.sh map.xodr` shows the stage in the browser. See
   `usd/README.md`.
 - `usd/SCHEMA.md` describes the stage. The stage records its schema
@@ -40,6 +40,11 @@
   to stress the wrap.
 - `tests/data/gantries.xodr` is a demo of gantry scenes: lane control,
   a sign bridge, a message board and traffic lights.
+
+### Lane types
+
+- A lane of `type="walking"`, the name OpenDRIVE 1.8 gives a sidewalk, is a
+  `LaneType::Sidewalk`. It was `LaneType::Unknown`.
 
 ## 0.5.0 - 2026-10-03
 
