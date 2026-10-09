@@ -4,7 +4,7 @@
   <road name="" length="100" id="1" junction="-1">
     <planView><geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
     <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right><lane id="-1" type="rail" level="false"><width sOffset="0" a="1.5" b="0" c="0" d="0"/></lane></right></laneSection></lanes>
-    <railroad><switch name="Points" id="7" position="straight"><mainTrack id="1" s="30" dir="+"/><sideTrack id="2" s="0" dir="+"/><partner id="8"/></switch><switch id="9" position="turn"><mainTrack id="1" s="60" dir="+"/><sideTrack id="5" s="0" dir="+"/></switch></railroad>
+    <railroad><switch name="Points" id="7" position="straight"><mainTrack id="1" s="30" dir="+"/><sideTrack id="2" s="0" dir="+"/><partner id="8" name="Crossover end"/></switch><switch id="9" position="turn"><mainTrack id="1" s="60" dir="+"/><sideTrack id="5" s="0" dir="+"/></switch></railroad>
   </road>
   <road name="" length="40" id="2" junction="-1">
     <planView><geometry s="0" x="30" y="0" hdg="-0.1" length="40"><line/></geometry></planView>

@@ -3,7 +3,7 @@
 //! signal keeps the catalogue codes the map gives it and looks nothing up.
 
 use crate::coords::Point;
-use crate::{LaneId, ObjectId};
+use crate::{LaneId, ObjectId, Orientation};
 
 /// An opaque signal identifier. Not a position in
 /// [`RoadNetwork::signals`](crate::RoadNetwork::signals), so look signals up
@@ -248,10 +248,14 @@ pub enum SignalBoard {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BoardSign {
+    /// The sign's `id`. Empty if the map gives none.
+    pub id: String,
     /// The name the map gives it. Empty if it has none.
     pub name: String,
     /// As [`Signal::country`].
     pub country: String,
+    /// As [`Signal::country_revision`].
+    pub country_revision: String,
     /// As [`Signal::kind`].
     pub kind: String,
     /// As [`Signal::subtype`].
@@ -271,6 +275,26 @@ pub struct BoardSign {
     pub width: Option<f32>,
     /// Metres up, if the map gives it.
     pub height: Option<f32>,
+    /// Metres deep, if the map gives it.
+    pub length: Option<f32>,
+    /// As [`Signal::dynamic`].
+    pub dynamic: bool,
+    /// As [`Signal::invalidated`].
+    pub invalidated: bool,
+    /// As [`Signal::temporary`].
+    pub temporary: bool,
+    /// Which traffic the sign is for, from its `orientation`, as
+    /// [`SignalProvenance::orientation`](crate::SignalProvenance::orientation)
+    /// has it for a signal. The crate does not apply it to lanes.
+    pub orientation: Orientation,
+    /// How far the sign is turned about the vertical from the board, from its
+    /// `hOffset`, in radians in `(-π, π]`. 0 if the map gives none. The
+    /// crate does not turn the sign by it.
+    pub h_offset: f32,
+    /// Its `pitch`, as `h_offset`.
+    pub pitch: f32,
+    /// Its `roll`, as `h_offset`.
+    pub roll: f32,
 }
 
 /// A `<vmsBoard>`: a display that shows what a scenario tells it to.

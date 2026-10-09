@@ -334,3 +334,102 @@ fn a_solid_has_no_fill_type() {
     assert_eq!(solid.1.fill_type, "");
     assert_eq!(solid.1.outline_lane_type, None);
 }
+
+fn signs(net: &RoadNetwork, prov: &Provenance) -> Vec<xodr::BoardSign> {
+    let placed = prov.signals.iter().find(|p| p.od_id == "sg").unwrap();
+    match &net.signals()[placed.signal.0].boards[..] {
+        [xodr::SignalBoard::Static(signs)] => signs.clone(),
+        other => panic!("one static board, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_sign_on_a_board_keeps_every_attribute_it_has() {
+    let (net, prov) = full();
+    let signs = signs(&net, &prov);
+    assert_eq!(signs.len(), 3);
+    let one = &signs[0];
+    assert_eq!((one.id.as_str(), one.name.as_str()), ("p1", "limit"));
+    assert_eq!(one.country_revision, "2017");
+    assert_eq!(one.orientation, xodr::Orientation::Positive);
+    assert!(one.dynamic && one.invalidated && one.temporary);
+    assert_eq!((one.h_offset, one.pitch, one.roll), (0.5, 0.25, -0.125));
+    assert_eq!(one.length, Some(0.1));
+    assert_eq!((one.width, one.height), (Some(0.6), Some(0.6)));
+}
+
+#[test]
+fn a_sign_turns_wrap_and_its_orientation_is_its_own() {
+    let (net, prov) = full();
+    let two = &signs(&net, &prov)[1];
+    let wrapped = 7.0 - 2.0 * std::f32::consts::PI;
+    assert!((two.h_offset - wrapped).abs() < 1e-5, "{}", two.h_offset);
+    assert_eq!(two.orientation, xodr::Orientation::Negative);
+}
+
+#[test]
+fn a_sign_with_a_type_only_has_the_defaults() {
+    let (net, prov) = full();
+    let three = &signs(&net, &prov)[2];
+    assert_eq!(three.kind, "101");
+    assert_eq!(
+        (three.id.as_str(), three.country_revision.as_str()),
+        ("", "")
+    );
+    assert_eq!(three.orientation, xodr::Orientation::Both);
+    assert!(!three.dynamic && !three.invalidated && !three.temporary);
+    assert_eq!((three.h_offset, three.pitch, three.roll), (0.0, 0.0, 0.0));
+    assert_eq!(three.length, None);
+}
+
+#[test]
+fn a_lane_link_keeps_the_overlap_zone_it_gives() {
+    let (_, prov) = full();
+    let overlaps: Vec<_> = prov
+        .lane_link_overlaps
+        .iter()
+        .map(|o| {
+            (
+                o.junction_id.as_str(),
+                o.connection_id.as_str(),
+                (o.incoming_road.as_str(), o.connecting_road.as_str()),
+                (o.from, o.to),
+                o.overlap_zone,
+            )
+        })
+        .collect();
+    assert_eq!(
+        overlaps,
+        [
+            ("100", "0", ("11", "1000"), (-1, -1), 35.5),
+            ("100", "0", ("11", "1000"), (1, -1), 7.5),
+        ],
+        "the link whose zone is unreadable has no record"
+    );
+    let (_, prov) = bare();
+    assert_eq!(prov.lane_link_overlaps, []);
+}
+
+#[test]
+fn a_direct_junction_names_the_road_it_links_as_the_connecting_one() {
+    let (_, prov) = xodr::load_str_with_provenance(
+        r#"<OpenDRIVE>
+          <road length="10" id="1" junction="-1">
+            <planView><geometry s="0" x="0" y="0" hdg="0" length="10"><line/></geometry></planView>
+            <lanes><laneSection s="0"><right><lane id="-1" type="driving"><width sOffset="0" a="3"/></lane></right></laneSection></lanes>
+          </road>
+          <junction id="5" type="direct">
+            <connection id="0" incomingRoad="1" linkedRoad="2" contactPoint="start">
+              <laneLink from="-1" to="-2" overlapZone="12"/>
+            </connection>
+          </junction>
+        </OpenDRIVE>"#,
+    )
+    .unwrap();
+    let link = &prov.lane_link_overlaps[0];
+    assert_eq!(
+        (link.incoming_road.as_str(), link.connecting_road.as_str()),
+        ("1", "2")
+    );
+    assert_eq!((link.from, link.to, link.overlap_zone), (-1, -2, 12.0));
+}

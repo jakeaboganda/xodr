@@ -71,6 +71,8 @@ files declaring 1.4, 1.6 and 1.7.
   makes it a two-way lane, linked off both of its ends. A deprecated
   `type="bidirectional"` lane with no `direction` is two-way too. An
   unknown value reads as `standard` and raises a warning.
+- A junction `<laneLink>`'s `overlapZone` is in `Provenance::lane_link_overlaps`.
+  The crate uses none of it.
 - Direct junctions, which join roads end to end through a `linkedRoad`.
   Each connection links both ways, as esmini reads it, unless the junction
   gives the way back itself.
@@ -191,7 +193,10 @@ pose and size of its board.
   signals and objects they name.
 - `Signal::semantics` says what a signal means, from its `<semantics>`, and
   `Signal::boards` holds its `<staticBoard>`s and `<vmsBoard>`s, each sign
-  and display area placed on the board. The crate applies no semantic.
+  and display area placed on the board. The crate applies no semantic. A
+  sign also keeps its own `id`, `orientation`, `dynamic`, `invalidated`,
+  `temporary`, `hOffset`, `pitch`, `roll` and `length`, and turns it by none
+  of them.
 
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)` and
 orientation.

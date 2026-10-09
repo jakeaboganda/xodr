@@ -54,6 +54,10 @@ pub(super) fn switches(roads: &[(roxmltree::Node, BakedRoad)]) -> (Vec<Switch>, 
                     partner: child(switch, "partner")
                         .and_then(|p| p.attribute("id"))
                         .map(String::from),
+                    partner_name: child(switch, "partner")
+                        .and_then(|p| p.attribute("name"))
+                        .unwrap_or_default()
+                        .to_string(),
                 }),
                 _ => warnings.push(Warning::RailwayDropped {
                     element: "switch".into(),
