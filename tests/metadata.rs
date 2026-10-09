@@ -22,7 +22,7 @@ fn the_header_gives_every_attribute_it_has() {
     let (net, _) = full();
     let header = net.header();
     assert_eq!((header.rev_major, header.rev_minor), (Some(1), Some(9)));
-    assert_eq!(header.name, "Metadata Map");
+    assert_eq!(header.name, "Caf\u{e9} & <Co> \"q\"");
     assert_eq!(header.version, "3.2");
     assert_eq!(header.date, "2026-01-01T00:00:00");
     assert_eq!(header.vendor, "Example Maps");
@@ -76,7 +76,7 @@ fn a_junction_keeps_its_name() {
         prov.junctions,
         [JunctionProvenance {
             od_id: "100".into(),
-            name: "Market Square".into()
+            name: "  Market Square  ".into()
         }]
     );
     let (_, prov) = bare();
@@ -92,6 +92,8 @@ fn the_header_and_the_road_names_survive_serde() {
     assert_eq!(back.header(), net.header());
     assert_eq!(back.road_by_od_id("1").unwrap().name(), "Main Street");
     assert_eq!(back.objects(), net.objects());
+    assert_eq!(back.signals(), net.signals());
+    assert_eq!(back.header().name, "Caf\u{e9} & <Co> \"q\"");
     assert!(net.objects().iter().any(|o| o.invalidated));
     assert_eq!(back.road_countries(), net.road_countries());
     assert!(!back.road_countries().is_empty());
@@ -110,10 +112,13 @@ fn a_road_types_country_holds_along_the_lanes_until_the_next_type() {
     let (net, prov) = full();
     for od_id in [-1, 1] {
         let lane = lane_of(&prov, "1", od_id);
+        assert_eq!(net.road_country_at(lane, 0.0), Some("DE"), "lane {od_id}");
         assert_eq!(net.road_country_at(lane, 10.0), Some("DE"), "lane {od_id}");
         assert_eq!(net.road_country_at(lane, 49.0), Some("DE"), "lane {od_id}");
+        assert_eq!(net.road_country_at(lane, 50.0), Some("AT"), "lane {od_id}");
         assert_eq!(net.road_country_at(lane, 51.0), Some("AT"), "lane {od_id}");
         assert_eq!(net.road_country_at(lane, 79.0), Some("AT"), "lane {od_id}");
+        assert_eq!(net.road_country_at(lane, 80.1), None, "lane {od_id}");
         assert_eq!(net.road_country_at(lane, 90.0), None, "lane {od_id}");
     }
     assert_eq!(net.road_country_at(lane_of(&prov, "11", -1), 5.0), None);
@@ -155,6 +160,7 @@ fn a_map_without_them_has_no_country_material_or_type_name() {
     let (net, prov) = bare();
     assert!(net.road_countries().is_empty());
     // scenariogeneration names the type of a dashed line "broken".
+    assert_eq!(prov.road_marks.len(), 30);
     for m in &prov.road_marks {
         assert_eq!(m.material, "", "road {}", m.road_id);
         assert!(
@@ -216,6 +222,7 @@ fn a_lane_keeps_what_it_says_about_itself() {
 #[test]
 fn a_lane_with_none_of_it_has_the_defaults() {
     let (_, prov) = bare();
+    assert_eq!(prov.lanes.len(), 22);
     for p in &prov.lanes {
         assert_eq!(p.advisory, LaneAdvisory::None, "lane {}", p.od_id);
         assert!(!p.dynamic_lane_type && !p.dynamic_lane_direction && !p.road_works);
@@ -237,7 +244,23 @@ fn the_center_lane_keeps_its_type_and_level_by_section() {
         center("2"),
         [(0, LaneType::None, true), (1, LaneType::Driving, false)]
     );
-    assert_eq!(prov.center_lanes.len(), 1 + 2 + 3 + 2);
+    let tee: Vec<_> = prov
+        .center_lanes
+        .iter()
+        .filter(|c| !["1", "2"].contains(&c.road_id.as_str()))
+        .map(|c| (c.road_id.as_str(), c.section, c.kind, c.level))
+        .collect();
+    let none = LaneType::None;
+    assert_eq!(
+        tee,
+        [
+            ("11", 0, none, false),
+            ("12", 0, none, false),
+            ("13", 0, none, false),
+            ("1000", 0, none, false),
+            ("1001", 0, none, false),
+        ]
+    );
 }
 
 #[test]
@@ -354,8 +377,8 @@ fn a_sign_on_a_board_keeps_every_attribute_it_has() {
     assert_eq!(one.orientation, xodr::Orientation::Positive);
     assert!(one.dynamic && one.invalidated && one.temporary);
     assert_eq!((one.h_offset, one.pitch, one.roll), (0.5, 0.25, -0.125));
-    assert_eq!(one.length, Some(0.1));
-    assert_eq!((one.width, one.height), (Some(0.6), Some(0.6)));
+    assert_eq!(one.length, Some(0.15));
+    assert_eq!((one.width, one.height), (Some(0.6), Some(0.8)));
 }
 
 #[test]
@@ -432,4 +455,29 @@ fn a_direct_junction_names_the_road_it_links_as_the_connecting_one() {
         ("1", "2")
     );
     assert_eq!((link.from, link.to, link.overlap_zone), (-1, -2, 12.0));
+}
+
+#[test]
+fn every_copy_of_a_repeated_outline_keeps_its_fill_type_and_lane_type() {
+    let (net, prov) = full();
+    let copies = baked(&net, &prov, "o3");
+    assert_eq!(copies.len(), 3, "every 10 m for 20 m is 0, 10 and 20 m");
+    for (_, p) in &copies {
+        assert_eq!(p.fill_type, "grass");
+        assert_eq!(p.outline_lane_type, Some(LaneType::Sidewalk));
+    }
+}
+
+#[test]
+fn a_boolean_that_is_not_true_false_or_a_digit_reads_as_false() {
+    let (_, prov) = full();
+    let lane = |section, od_id| {
+        prov.lanes
+            .iter()
+            .find(|p| p.road_id == "2" && p.section == section && p.od_id == od_id)
+            .unwrap()
+    };
+    assert!(lane(0, -1).road_works, "\"true\"");
+    assert!(!lane(0, 2).road_works, "\"True\"");
+    assert!(!lane(1, 2).road_works, "\"True\"");
 }

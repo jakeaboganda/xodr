@@ -47,6 +47,8 @@
   such as `<userData>`, a second `<lanes>`, `singleSide="true"` and
   `perpToRoad="true"`. It comes once per feature for each road, junction,
   or the rest of the document, with a count. `docs/support.md` lists them.
+- `Warning::is_ignored` tells these from the warnings for faults. A map
+  that loads clean can still raise them.
 - `tests/data/ignored.xodr` uses each one.
 
 ### Lane types
@@ -60,46 +62,52 @@
 
 ### Metadata
 
-- New `RoadNetwork::header` gives a `<header>`'s `revMajor`, `revMinor`,
-  `name`, `version`, `date`, `vendor` and bounds. The crate still reads none
-  of it to decide how to read a map.
-- New `Road::name`, and `Provenance::junctions` with each `<junction>`'s
-  `id` and `name`. Breaking: `Provenance` has a new field.
-- `tests/data/metadata.xodr` and `metadata_bare.xodr` give and lack them.
+The crate now keeps descriptive attributes it builds nothing from.
+`tests/data/metadata.xodr` has all of them, and `metadata_bare.xodr` none.
+
+- New `RoadNetwork::header` and `Header` give a `<header>`'s `revMajor`,
+  `revMinor`, `name`, `version`, `date`, `vendor` and bounds. The crate
+  still never reads the version to decide how to read a map.
+- New `Road::name`, and `Provenance::junctions` of `JunctionProvenance`,
+  with each `<junction>`'s `id` and `name`.
 - New `RoadNetwork::road_countries` and `road_country_at` give a road
   `<type>`'s `country` along each lane.
 - `LaneProvenance` has a lane's `advisory`, `dynamic_lane_type`,
-  `dynamic_lane_direction` and `road_works`, and the new
-  `Provenance::center_lanes` the center lane's `type` and `level` for each
-  lane section. New `LaneAdvisory`. Breaking: `LaneProvenance` and
-  `Provenance` have new fields.
-- `Object` has `invalidated` and `temporary`, `Marking` its `weight`, and
-  `Material` its `road_mark_color`. `ObjectProvenance` has the `fill_type`
-  and `outline_lane_type` of the outline an object baked from. Breaking:
-  these structs have new fields.
+  `dynamic_lane_direction` and `road_works`. New `LaneAdvisory` names the
+  `advisory`.
+- New `Provenance::center_lanes` of `CenterLaneProvenance` has the center
+  lane's `type` and `level` for each lane section.
+- `Object` has `invalidated` and `temporary`, `Marking` has `weight`, and
+  `Material` has `road_mark_color`. `ObjectProvenance` has the `fill_type`
+  and `outline_lane_type` of the outline an object baked from.
+- `RoadMarkProvenance` has the mark's `material` and its `<type>`'s `name`.
 - `BoardSign` has a sign's `id`, `country_revision`, `dynamic`,
   `invalidated`, `temporary`, `orientation`, `h_offset`, `pitch`, `roll` and
-  `length`. It turns the sign by none of them. `Switch` has its
-  `partner_name`. New `Provenance::lane_link_overlaps` has each junction lane
-  link's `overlapZone`. Breaking: `BoardSign` and `Switch` have new fields.
-- `RoadMarkProvenance` has the mark's `material` and its `<type>`'s `name`.
-  Breaking: it has two new fields.
+  `length`. The crate turns the sign by none of them. `Switch` has its
+  `partner_name`.
+- New `Provenance::lane_link_overlaps` of `LaneLinkOverlap` has each
+  junction lane link's `overlapZone`.
+- Breaking: `Object`, `Marking`, `Material`, `BoardSign`, `Switch`,
+  `LaneProvenance`, `ObjectProvenance`, `RoadMarkProvenance` and
+  `Provenance` have new fields, so a struct literal needs them. Each new
+  field has a serde default, so a network serialized before still loads.
 
 ### Signals
 
-- A signal applies to the lanes whose traffic runs the way its
-  `orientation` names, as the spec says, not to a side of the road. A
+- Behaviour change: a signal applies to the lanes whose traffic runs the way
+  its `orientation` names, as the spec says, not to a side of the road. A
   reversed lane, a lane under `rule="LHT"` and a two-way lane now get the
-  right signals. `Signal::lanes` changes for them. A `<validity>` still
+  right signals, so `Signal::lanes` changes for them. A `<validity>` still
   picks its lanes by id.
 - `tests/data/signal_direction.xodr` has signals on roads with reversed,
   two-way and left-hand lanes.
 
 ### CRG surfaces
 
-- Where several `<CRG>` records of one purpose cover a point, the last in
-  the file wins, not the first, as rule `road.crg.use_last_entry` has it. A
-  junction's records still win over its roads'. The spec doesn't rank them.
+- Behaviour change: where several `<CRG>` records of one purpose cover a
+  point, the last in the file wins, not the first, as rule
+  `road.crg.use_last_entry` has it. A junction's records still win over its
+  roads'. The spec doesn't rank them.
 - `tests/data/crg_order.xodr` has roads and a junction with overlapping
   records.
 

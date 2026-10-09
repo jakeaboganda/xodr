@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <OpenDRIVE>
-    <header revMajor="1" revMinor="9" name="Metadata Map" version="3.2" date="2026-01-01T00:00:00" vendor="Example Maps" north="120.5" south="-30.25" east="1050" west="-5" />
+    <header revMajor="1" revMinor="9" name="Café &amp; &lt;Co&gt; &quot;q&quot;" version="3.2" date="2026-01-01T00:00:00" vendor="Example Maps" north="120.5" south="-30.25" east="1050" west="-5" />
     <road rule="RHT" id="1" junction="-1" length="100" name="Main Street">
         <link />
         <type s="0" type="town" country="DE" />
@@ -95,11 +95,20 @@
                     <cornerRoad id="3" s="65" t="-14" dz="0" height="1" />
                 </outline>
             </object>
+            <object id="o3" type="vegetation" s="75" t="-10" zOffset="0" hdg="0">
+                <outline id="0" closed="true" fillType="grass" laneType="sidewalk">
+                    <cornerRoad id="0" s="75" t="-10" dz="0" height="1" />
+                    <cornerRoad id="1" s="77" t="-10" dz="0" height="1" />
+                    <cornerRoad id="2" s="77" t="-12" dz="0" height="1" />
+                    <cornerRoad id="3" s="75" t="-12" dz="0" height="1" />
+                </outline>
+                <repeat s="75" length="20" distance="10" tStart="-10" tEnd="-10" zOffsetStart="0" zOffsetEnd="0" />
+            </object>
         </objects>
         <signals>
             <signal id="sg" name="board" s="30" t="-6" zOffset="2" orientation="+" dynamic="no" country="DE" type="1000" subtype="-1">
                 <staticBoard width="1" height="1" length="0.1">
-                    <sign id="p1" name="limit" country="DE" countryRevision="2017" type="274" subtype="50" value="50" unit="km/h" orientation="+" dynamic="yes" invalidated="true" temporary="1" hOffset="0.5" pitch="0.25" roll="-0.125" length="0.1" width="0.6" height="0.6" v="0" z="0" />
+                    <sign id="p1" name="limit" country="DE" countryRevision="2017" type="274" subtype="50" value="50" unit="km/h" orientation="+" dynamic="yes" invalidated="true" temporary="1" hOffset="0.5" pitch="0.25" roll="-0.125" length="0.15" width="0.6" height="0.8" v="0" z="0" />
                     <sign id="p2" type="274" orientation="-" hOffset="7" v="0" z="0" />
                     <sign type="101" v="0" z="0" />
                 </staticBoard>
@@ -123,7 +132,7 @@
                         <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
                         <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
                     </lane>
-                    <lane id="2" type="driving" level="false" advisory="outer">
+                    <lane id="2" type="driving" level="false" advisory="outer" roadWorks="True">
                         <link />
                         <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
                         <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
@@ -180,7 +189,7 @@
                         <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
                         <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
                     </lane>
-                    <lane id="2" type="driving" level="false" advisory="outer">
+                    <lane id="2" type="driving" level="false" advisory="outer" roadWorks="True">
                         <link />
                         <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
                         <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
@@ -413,7 +422,7 @@
             </laneSection>
         </lanes>
     </road>
-    <junction name="Market Square" id="100" type="default">
+    <junction name="  Market Square  " id="100" type="default">
         <connection incomingRoad="11" id="0" contactPoint="start" connectingRoad="1000">
             <laneLink from="-1" to="-1" overlapZone="35.5" />
             <laneLink from="1" to="-1" overlapZone="7.5" />
