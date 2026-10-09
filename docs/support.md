@@ -337,5 +337,6 @@ Uses of elements it reads that it ignores:
 A `layer` of `permanent`, a flag set to `false` and a `transitionLength` of 0
 raise nothing.
 
-The importer reads a lane section's `<center>` only for the road marks on
-the center line. Lane 0 never becomes a `Lane`.
+The importer reads a lane section's `<center>` for the road marks on the
+center line, and for the lane's `type` and `level`, which are in
+`Provenance::center_lanes`. Lane 0 never becomes a `Lane`.

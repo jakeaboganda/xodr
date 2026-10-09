@@ -179,6 +179,35 @@ impl std::fmt::Display for LaneType {
     }
 }
 
+/// Whether traffic from the lanes beside a lane may also use it, from a
+/// `<lane>`'s `advisory`. A bike lane that cars may also use is one.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum LaneAdvisory {
+    /// Only its own traffic uses it. What a missing or unrecognised value
+    /// reads as.
+    #[default]
+    None,
+    /// Traffic from the lane on its inner side may use it.
+    Inner,
+    /// Traffic from the lane on its outer side may use it.
+    Outer,
+    /// Traffic from both neighbouring lanes may use it.
+    Both,
+}
+
+impl LaneAdvisory {
+    /// A stable lowercase name, as the spec spells it.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Inner => "inner",
+            Self::Outer => "outer",
+            Self::Both => "both",
+        }
+    }
+}
+
 /// Travel direction of a lane relative to its geometry's start→end.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

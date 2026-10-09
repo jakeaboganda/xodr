@@ -68,6 +68,11 @@
 - `tests/data/metadata.xodr` and `metadata_bare.xodr` give and lack them.
 - New `RoadNetwork::road_countries` and `road_country_at` give a road
   `<type>`'s `country` along each lane.
+- `LaneProvenance` has a lane's `advisory`, `dynamic_lane_type`,
+  `dynamic_lane_direction` and `road_works`, and the new
+  `Provenance::center_lanes` the center lane's `type` and `level` for each
+  lane section. New `LaneAdvisory`. Breaking: `LaneProvenance` and
+  `Provenance` have new fields.
 - `RoadMarkProvenance` has the mark's `material` and its `<type>`'s `name`.
   Breaking: it has two new fields.
 

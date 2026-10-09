@@ -21,9 +21,10 @@ use crate::road::{
 };
 use crate::{
     Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgPose, CrgPurpose, CrgSurface,
-    Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneId, LaneType, Marking, Material,
-    Object, ObjectId, ObjectType, ParkingSpace, Polyline, Priority, RoadMarkId, RoadNeighbor,
-    RoadNetwork, Section, Shape, Side, SignalId, Structure, StructureId, StructureKind, UserData,
+    Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneAdvisory, LaneId, LaneType,
+    Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Polyline, Priority, RoadMarkId,
+    RoadNeighbor, RoadNetwork, Section, Shape, Side, SignalId, Structure, StructureId,
+    StructureKind, UserData,
 };
 
 mod gaps;
@@ -119,6 +120,19 @@ pub struct LaneProvenance {
     /// first before it and the last after it. A `<height>` missing `sOffset`,
     /// `inner` or `outer` reads it as 0, and a negative `sOffset` as 0.
     pub heights: Vec<LaneHeight>,
+    /// Whether traffic from the lanes beside it may also use it, from its
+    /// `advisory`.
+    pub advisory: LaneAdvisory,
+    /// Whether a scenario may change its type while it runs, from
+    /// `dynamicLaneType`. A stop lane that a message board turns into a
+    /// driving lane is one. The crate never changes a lane.
+    pub dynamic_lane_type: bool,
+    /// Whether a scenario may change its direction, from
+    /// `dynamicLaneDirection`.
+    pub dynamic_lane_direction: bool,
+    /// Whether the lane is under construction, with access and driving
+    /// restricted, from `roadWorks`. Its [`LaneType`] is unchanged.
+    pub road_works: bool,
 }
 
 /// How far a lane's surface stands off the road at one station, from its
@@ -326,6 +340,9 @@ pub struct RoadMarkProvenance {
 pub struct Provenance {
     /// One per baked lane, in baked-lane order.
     pub lanes: Vec<LaneProvenance>,
+    /// One per lane section with a `<center>` lane, in file order.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub center_lanes: Vec<CenterLaneProvenance>,
     /// One per baked object, in baked-object order.
     pub objects: Vec<ObjectProvenance>,
     /// One per baked tunnel or bridge, in baked-structure order.
@@ -350,6 +367,23 @@ pub struct Provenance {
     /// What the load dropped, or read against the spec, in file order.
     /// Empty for a clean file.
     pub warnings: Vec<Warning>,
+}
+
+/// What a lane section's center lane, lane 0, says about itself. It never
+/// bakes to a [`Lane`], so its attributes are kept here.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CenterLaneProvenance {
+    /// The `<road id>` it is on.
+    pub road_id: String,
+    /// The zero-based lane-section index within that road, as in
+    /// [`LaneProvenance::section`].
+    pub section: usize,
+    /// Its `type`, which the spec says is `none`. A missing or unrecognised
+    /// one is [`LaneType::Unknown`].
+    pub kind: LaneType,
+    /// Its `level`, which the crate reads for no lane but the center one.
+    pub level: bool,
 }
 
 /// What a `<junction>` says about itself: its `id`, and the `name` the
@@ -490,6 +524,20 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     warnings.append(&mut objects.warnings);
     warnings.extend(ignored::place(root));
     let provenance = Provenance {
+        center_lanes: roads
+            .iter()
+            .flat_map(|(_, road)| {
+                road.sections().filter_map(|(section, def)| {
+                    let (kind, level) = def.center_lane?;
+                    Some(CenterLaneProvenance {
+                        road_id: road.road.od_id.clone(),
+                        section: section.index,
+                        kind,
+                        level,
+                    })
+                })
+            })
+            .collect(),
         lanes: topo
             .metas
             .iter()
@@ -499,6 +547,10 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
                 section: m.section,
                 od_id: m.od_id,
                 heights: m.heights.clone(),
+                advisory: m.flags.advisory,
+                dynamic_lane_type: m.flags.dynamic_type,
+                dynamic_lane_direction: m.flags.dynamic_direction,
+                road_works: m.flags.road_works,
             })
             .collect(),
         objects: objects.provenance,
@@ -696,6 +748,33 @@ struct LaneDef {
     visibility: Vec<(f64, properties::VisibilityDef)>,
     /// Its `direction`, or its value if the crate can't read it.
     direction: Result<LaneDirection, String>,
+    flags: LaneFlags,
+}
+
+/// What a `<lane>` says about itself that the crate builds nothing from.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct LaneFlags {
+    advisory: LaneAdvisory,
+    dynamic_type: bool,
+    dynamic_direction: bool,
+    road_works: bool,
+}
+
+impl LaneFlags {
+    fn parse(lane: roxmltree::Node) -> Self {
+        let flag = |name| matches!(lane.attribute(name), Some("true" | "1"));
+        Self {
+            advisory: match lane.attribute("advisory") {
+                Some("inner") => LaneAdvisory::Inner,
+                Some("outer") => LaneAdvisory::Outer,
+                Some("both") => LaneAdvisory::Both,
+                _ => LaneAdvisory::None,
+            },
+            dynamic_type: flag("dynamicLaneType"),
+            dynamic_direction: flag("dynamicLaneDirection"),
+            road_works: flag("roadWorks"),
+        }
+    }
 }
 
 /// A lane's `direction`: which way it runs against the way its side of the
@@ -888,6 +967,8 @@ struct SectionDef {
     geoms: [Vec<LaneGeom>; 2],
     /// The road marks of the center lane, on the line between the sides.
     center: Vec<MarkDef>,
+    /// The center lane's `type` and `level`, if the section has one.
+    center_lane: Option<(LaneType, bool)>,
     /// The `<lane id>`s it skipped for having neither a width nor a border,
     /// in file order.
     dropped: Vec<i32>,
@@ -946,6 +1027,7 @@ impl SectionDef {
                     materials: properties::lane_materials(lane),
                     visibility: properties::lane_visibility(lane),
                     direction: LaneDirection::parse(lane),
+                    flags: LaneFlags::parse(lane),
                 };
                 let geom = LaneGeom {
                     id,
@@ -970,17 +1052,23 @@ impl SectionDef {
         right.sort_by_key(|(l, _)| -l.id);
         let (left, left_geoms) = left.into_iter().unzip();
         let (right, right_geoms) = right.into_iter().unzip();
-        let center = child(section, "center")
+        let center_node = child(section, "center")
             .into_iter()
             .flat_map(|c| c.children())
-            .find(|n| n.has_tag_name("lane"))
-            .map(road_marks::parse)
-            .unwrap_or_default();
+            .find(|n| n.has_tag_name("lane"));
+        let center = center_node.map(road_marks::parse).unwrap_or_default();
+        let center_lane = center_node.map(|n| {
+            (
+                lane_type(n.attribute("type")),
+                matches!(n.attribute("level"), Some("true" | "1")),
+            )
+        });
         Self {
             left,
             right,
             geoms: [left_geoms, right_geoms],
             center,
+            center_lane,
             dropped,
             bad_ids,
             mixed,
@@ -1726,6 +1814,7 @@ fn emit_section(
                 succ_link: def.succ_link,
                 pred_link: def.pred_link,
                 heights: lane_heights(lane, s_start, &sample_s),
+                flags: def.flags,
             });
             emitted.push((id, out.len(), kind, direction));
             let tilted = !lane.heights.is_empty() || !road.lateral.is_empty() || held;
