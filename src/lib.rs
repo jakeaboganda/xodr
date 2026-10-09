@@ -105,12 +105,12 @@
 //! | `<junction>` | `id`, `name`, `type`, `mainRoad`, `sStart`, `sEnd`, `orientation` |
 //! | `<connection>` | `id`, `type`, `incomingRoad`, `connectingRoad`, `linkedRoad`, `contactPoint` |
 //! | `<connection><predecessor>`, `<connection><successor>` | `elementId`, `elementS`, `elementDir`, `contactPoint` |
-//! | `<laneLink>` | `from`, `to` |
+//! | `<laneLink>` | `from`, `to`, `overlapZone` |
 //! | `<junction><priority>` | `high`, `low` |
 //! | `<road><railroad>` | none |
 //! | `<railroad><switch>` | `id`, `name`, `position` |
 //! | `<switch><mainTrack>`, `<switch><sideTrack>` | `id`, `s`, `dir` |
-//! | `<switch><partner>` | `id` |
+//! | `<switch><partner>` | `id`, `name` |
 //! | `<station>` | `id`, `name`, `type` |
 //! | `<station><platform>` | `id`, `name` |
 //! | `<platform><segment>` | `roadId`, `sStart`, `sEnd`, `side` |
@@ -142,7 +142,7 @@
 //! | `<animal>`, `<person>`, `<vehicle>` | none, and a `<type>`'s text |
 //! | `<semantics><warning>`, `<semantics><routing>`, `<semantics><streetname>`, `<semantics><parking>`, `<semantics><tourist>`, `<semantics><supplementaryExplanatory>` | none |
 //! | `<signal><staticBoard>` | none |
-//! | `<staticBoard><sign>` | `name`, `country`, `type`, `subtype`, `value`, `unit`, `text`, `width`, `height`, `v`, `z` |
+//! | `<staticBoard><sign>` | `id`, `name`, `country`, `countryRevision`, `type`, `subtype`, `value`, `unit`, `text`, `orientation`, `dynamic`, `invalidated`, `temporary`, `hOffset`, `pitch`, `roll`, `length`, `width`, `height`, `v`, `z` |
 //! | `<signal><vmsBoard>` | `displayType`, `displayWidth`, `displayHeight`, `v`, `z` |
 //! | `<vmsBoard><displayArea>` | `index`, `width`, `height`, `v`, `z` |
 //! | `<controller>`, at the top level | `id`, `name`, `sequence` |
@@ -483,8 +483,8 @@
 //! A road's `<railroad>` holds its switches, each a [`Switch`] in
 //! [`RoadNetwork::switches`]: where on the main track it is, where the side
 //! track leaves it, each a [`TrackPoint`] with a road, an `s` and which way
-//! along it the switch leads, which way it is set, and its partner's id. A
-//! switch joins tracks part way along them, so, as a cross path is, it is
+//! along it the switch leads, which way it is set, and its partner's id and
+//! name. A switch joins tracks part way along them, so, as a cross path is, it is
 //! kept beside the lane graph, and the router does not follow it. Each
 //! `<station>` is a [`Station`] in [`RoadNetwork::stations`], with its
 //! platforms and the stretches of track each runs beside. A switch or a
@@ -1313,7 +1313,7 @@ pub use opencrg;
 pub use parse::{
     load_file, load_file_with_provenance, load_str, load_str_with_provenance, CenterLaneProvenance,
     ControllerProvenance, CrossPathProvenance, ImportError, JunctionControllerProvenance,
-    JunctionProvenance, LaneHeight, LaneProvenance, ObjectProvenance, Orientation,
+    JunctionProvenance, LaneHeight, LaneLinkOverlap, LaneProvenance, ObjectProvenance, Orientation,
     PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance, RoadSkipReason, SignalProvenance,
     SignalReferenceProvenance, StructureProvenance, Warning, MAX_LENGTH,
 };

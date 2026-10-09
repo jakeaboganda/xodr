@@ -96,6 +96,15 @@
                 </outline>
             </object>
         </objects>
+        <signals>
+            <signal id="sg" name="board" s="30" t="-6" zOffset="2" orientation="+" dynamic="no" country="DE" type="1000" subtype="-1">
+                <staticBoard width="1" height="1" length="0.1">
+                    <sign id="p1" name="limit" country="DE" countryRevision="2017" type="274" subtype="50" value="50" unit="km/h" orientation="+" dynamic="yes" invalidated="true" temporary="1" hOffset="0.5" pitch="0.25" roll="-0.125" length="0.1" width="0.6" height="0.6" v="0" z="0" />
+                    <sign id="p2" type="274" orientation="-" hOffset="7" v="0" z="0" />
+                    <sign type="101" v="0" z="0" />
+                </staticBoard>
+            </signal>
+        </signals>
     </road>
     <road rule="RHT" id="2" junction="-1" length="80">
         <link />
@@ -406,10 +415,11 @@
     </road>
     <junction name="Market Square" id="100" type="default">
         <connection incomingRoad="11" id="0" contactPoint="start" connectingRoad="1000">
-            <laneLink from="-1" to="-1" />
+            <laneLink from="-1" to="-1" overlapZone="35.5" />
+            <laneLink from="1" to="-1" overlapZone="7.5" />
         </connection>
         <connection incomingRoad="12" id="1" contactPoint="start" connectingRoad="1001">
-            <laneLink from="-1" to="-1" />
+            <laneLink from="-1" to="-1" overlapZone="oops" />
         </connection>
     </junction>
 </OpenDRIVE>

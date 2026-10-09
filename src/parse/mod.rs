@@ -370,6 +370,10 @@ pub struct Provenance {
     /// One per `<junction>` with an `id`, in file order.
     #[cfg_attr(feature = "serde", serde(default))]
     pub junctions: Vec<JunctionProvenance>,
+    /// One per junction `<laneLink>` that gives an `overlapZone`, in file
+    /// order.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub lane_link_overlaps: Vec<LaneLinkOverlap>,
     /// What the load dropped, or read against the spec, in file order.
     /// Empty for a clean file.
     pub warnings: Vec<Warning>,
@@ -390,6 +394,30 @@ pub struct CenterLaneProvenance {
     pub kind: LaneType,
     /// Its `level`, which the crate reads for no lane but the center one.
     pub level: bool,
+}
+
+/// A junction `<laneLink>`'s `overlapZone`: how far the traffic of two
+/// lanes that overlap shares the space, which the spec intends for direct
+/// junctions. The crate keeps it and uses none of it.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LaneLinkOverlap {
+    /// The `<junction id>`.
+    pub junction_id: String,
+    /// The `<connection id>`. Empty if the file gives none.
+    pub connection_id: String,
+    /// The connection's `incomingRoad`. Empty if the file gives none.
+    pub incoming_road: String,
+    /// The connection's `connectingRoad`, or its `linkedRoad` in a direct
+    /// junction. Empty if the file gives neither.
+    pub connecting_road: String,
+    /// The link's `from` lane, as the file writes the `<lane id>` on the
+    /// incoming road.
+    pub from: i32,
+    /// The link's `to` lane, on the connecting road.
+    pub to: i32,
+    /// Its `overlapZone`, in metres along `s` from the junction.
+    pub overlap_zone: f64,
 }
 
 /// What a `<junction>` says about itself: its `id`, and the `name` the
@@ -574,6 +602,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
                 })
             })
             .collect(),
+        lane_link_overlaps: lane_link_overlaps(root),
         priorities: priority_provenance,
         cross_paths: cross_path_provenance,
         warnings,
@@ -1176,6 +1205,42 @@ fn material(node: roxmltree::Node) -> Material {
             .unwrap_or_default()
             .to_string(),
     }
+}
+
+/// The `overlapZone` of each junction `<laneLink>` that has one, with a
+/// `from`, a `to` and a zone the crate can read.
+fn lane_link_overlaps(root: roxmltree::Node) -> Vec<LaneLinkOverlap> {
+    let mut out = Vec::new();
+    for junction in root.children().filter(|n| n.has_tag_name("junction")) {
+        let Some(junction_id) = junction.attribute("id") else {
+            continue;
+        };
+        for connection in junction.children().filter(|n| n.has_tag_name("connection")) {
+            for link in connection.children().filter(|n| n.has_tag_name("laneLink")) {
+                let lane = |name| link.attribute(name).and_then(|v| v.trim().parse().ok());
+                let (Some(from), Some(to), Some(overlap_zone)) =
+                    (lane("from"), lane("to"), attr_f64(link, "overlapZone"))
+                else {
+                    continue;
+                };
+                let text = |name| connection.attribute(name).unwrap_or_default().to_string();
+                out.push(LaneLinkOverlap {
+                    junction_id: junction_id.to_string(),
+                    connection_id: text("id"),
+                    incoming_road: text("incomingRoad"),
+                    connecting_road: connection
+                        .attribute("connectingRoad")
+                        .or(connection.attribute("linkedRoad"))
+                        .unwrap_or_default()
+                        .to_string(),
+                    from,
+                    to,
+                    overlap_zone,
+                });
+            }
+        }
+    }
+    out
 }
 
 /// The `<header>`'s own attributes. A missing one is empty or `None`, and a

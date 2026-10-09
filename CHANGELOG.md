@@ -77,6 +77,11 @@
   `Material` its `road_mark_color`. `ObjectProvenance` has the `fill_type`
   and `outline_lane_type` of the outline an object baked from. Breaking:
   these structs have new fields.
+- `BoardSign` has a sign's `id`, `country_revision`, `dynamic`,
+  `invalidated`, `temporary`, `orientation`, `h_offset`, `pitch`, `roll` and
+  `length`. It turns the sign by none of them. `Switch` has its
+  `partner_name`. New `Provenance::lane_link_overlaps` has each junction lane
+  link's `overlapZone`. Breaking: `BoardSign` and `Switch` have new fields.
 - `RoadMarkProvenance` has the mark's `material` and its `<type>`'s `name`.
   Breaking: it has two new fields.
 

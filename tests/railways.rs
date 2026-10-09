@@ -34,8 +34,19 @@ fn a_switch_names_the_point_on_each_track_and_its_partner() {
                 forward: true,
             },
             partner: Some("8".into()),
+            partner_name: "Crossover end".into(),
         }]
     );
+}
+
+#[test]
+fn a_partner_without_a_name_has_an_empty_one() {
+    let xml = std::fs::read_to_string(FIXTURE)
+        .unwrap()
+        .replace(r#" name="Crossover end""#, "");
+    let (net, _) = load_str_with_provenance(&xml).unwrap();
+    assert_eq!(net.switches()[0].partner.as_deref(), Some("8"));
+    assert_eq!(net.switches()[0].partner_name, "");
 }
 
 #[test]

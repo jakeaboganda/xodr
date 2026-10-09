@@ -34,6 +34,12 @@ and with "paint" and "banana", one with neither, and a hole in the first
 with fillType "soil". "o2" has a deprecated single <outline> of fillType
 "gravel".
 
+Road 1 holds signal "sg", a static board of three signs: "p1" with every
+attribute the schema allows on a sign, "p2" with a `hOffset` of 7 rad and
+orientation "-", and "p3" with a type only. The tee's first lane link has an
+`overlapZone` of 35.5, a second one on it, from 1 to -1, has 7.5, and the
+second connection's has the unreadable "oops".
+
 scenariogeneration writes some of these, but not all, and with a date that
 changes on every run, so they are set on its XML. The files are the same
 each run.
@@ -186,6 +192,31 @@ old.append(outline(0, 65, -10, fillType="gravel"))
 objects.append(old)
 lanes_at = list(road).index(road.find("lanes")) + 1
 road.insert(lanes_at, objects)
+
+signal = ET.Element("signal", {
+    "id": "sg", "name": "board", "s": "30", "t": "-6", "zOffset": "2", "orientation": "+",
+    "dynamic": "no", "country": "DE", "type": "1000", "subtype": "-1",
+})
+board = ET.SubElement(signal, "staticBoard", {"width": "1", "height": "1", "length": "0.1"})
+board.append(ET.Element("sign", {
+    "id": "p1", "name": "limit", "country": "DE", "countryRevision": "2017",
+    "type": "274", "subtype": "50", "value": "50", "unit": "km/h",
+    "orientation": "+", "dynamic": "yes", "invalidated": "true", "temporary": "1",
+    "hOffset": "0.5", "pitch": "0.25", "roll": "-0.125",
+    "length": "0.1", "width": "0.6", "height": "0.6", "v": "0", "z": "0",
+}))
+board.append(ET.Element("sign", {
+    "id": "p2", "type": "274", "orientation": "-", "hOffset": "7", "v": "0", "z": "0",
+}))
+board.append(ET.Element("sign", {"type": "101", "v": "0", "z": "0"}))
+signals = ET.Element("signals")
+signals.append(signal)
+road.insert(list(road).index(objects) + 1, signals)
+links = root.findall("junction[@id='100']/connection/laneLink")
+links[0].set("overlapZone", "35.5")
+crossing = ET.Element("laneLink", {"from": "1", "to": "-1", "overlapZone": "7.5"})
+root.find("junction[@id='100']/connection[@id='0']").append(crossing)
+links[1].set("overlapZone", "oops")
 
 centre = section.find("center/lane/roadMark")
 centre.set("material", "paint")

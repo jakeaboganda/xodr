@@ -22,6 +22,8 @@ pub struct Switch {
     /// The `id` of its partner switch, such as the other end of a crossover,
     /// if it has one.
     pub partner: Option<String>,
+    /// The `name` of its `<partner>`, empty if it has none.
+    pub partner_name: String,
 }
 
 /// Which way a [`Switch`] is set, from its `position`.

@@ -5,7 +5,7 @@
 Road 1 is a 100 m straight track heading +X, with a 1.5 m rail lane -1.
 Road 2 is a 40 m side track leaving it at s = 30. Road 1's <railroad> has
 switch 7, set straight, from road 1 at s = 30 onto road 2 at its start,
-partnered with switch 8; and switch 9, whose side track names road 5, which
+partnered with switch 8, "Crossover end"; and switch 9, whose side track names road 5, which
 the file does not have.
 
 Station 20, "Halt", small, has platform 20-1 beside road 1 on its right
@@ -31,7 +31,7 @@ def track(id, x, y, hdg, length, railroad=""):
 RAILROAD = (
     "<railroad>"
     '<switch name="Points" id="7" position="straight">'
-    '<mainTrack id="1" s="30" dir="+"/><sideTrack id="2" s="0" dir="+"/><partner id="8"/></switch>'
+    '<mainTrack id="1" s="30" dir="+"/><sideTrack id="2" s="0" dir="+"/><partner id="8" name="Crossover end"/></switch>'
     '<switch id="9" position="turn">'
     '<mainTrack id="1" s="60" dir="+"/><sideTrack id="5" s="0" dir="+"/></switch>'
     "</railroad>"
