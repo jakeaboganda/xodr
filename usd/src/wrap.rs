@@ -1463,6 +1463,37 @@ mod tests {
         assert!(seams > 100, "{seams} road ends");
     }
 
+    #[test]
+    fn the_fixture_sidewalks_meet_their_roads_flush() {
+        let (net, provenance, mesh) = fixture();
+        let wraps: Vec<Wrap> = (crate::junction_lanes(&net, &provenance, &mesh).values())
+            .map(crate::junction_wrap)
+            .collect();
+        let sidewalks = mesh.lanes.iter().filter(|span| {
+            let road = net.road_lane(span.lane).and_then(|at| net.road(at.road));
+            let kind = net.lane(span.lane).map(|l| l.kind);
+            !span.indices.is_empty()
+                && kind == Some(Sidewalk)
+                && road.is_some_and(|r| r.junction().is_none())
+        });
+        let mut seams = 0;
+        for span in sidewalks {
+            let (first, last) = (span.vertices.start, span.vertices.end);
+            for v in [first, first + 1, last - 2, last - 1] {
+                let end = mesh.vertices[v as usize];
+                let step = (wraps.iter().flat_map(|w| &w.vertices))
+                    .filter(|w| (w.x - end.x).hypot(w.y - end.y) < 0.01)
+                    .map(|w| f64::from((w.z - end.z).abs()))
+                    .reduce(f64::min);
+                if let Some(step) = step {
+                    assert!(step <= TOLERANCE, "a {step} m step at {end:?}");
+                    seams += 1;
+                }
+            }
+        }
+        assert!(seams >= 36, "{seams} sidewalk seams");
+    }
+
     fn junction(id: &str) -> (Vec<Facet>, Wrap) {
         let (net, provenance, mesh) = fixture();
         let lanes = crate::junction_lanes(&net, &provenance, &mesh)
