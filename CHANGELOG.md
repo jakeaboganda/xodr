@@ -53,6 +53,18 @@
 
 - A lane of `type="walking"`, the name OpenDRIVE 1.8 gives a sidewalk, is a
   `LaneType::Sidewalk`. It was `LaneType::Unknown`.
+- Breaking: new `LaneType::Shared` for `type="shared"`, a lane shared by all
+  traffic participants. It was `LaneType::Unknown`. It counts as drivable, so
+  traffic changes lanes into it and out of it. Match on `LaneType` with a
+  wildcard arm.
+
+### Object types
+
+- Breaking: new `ObjectType::RoadSurface` for `type="roadSurface"`, which
+  replaces the deprecated `patch`. It was `ObjectType::Unknown`. Match on
+  `ObjectType` with a wildcard arm.
+- `tests/data/types.xodr` holds every lane type and object type the schema
+  names.
 
 ## 0.5.0 - 2026-10-03
 

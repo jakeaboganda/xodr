@@ -75,6 +75,10 @@ pub enum LaneType {
     Biking,
     /// A footway.
     Sidewalk,
+    /// A lane shared by all traffic participants, vehicles and pedestrians
+    /// alike. The spec says to use an `<access>` for a lane shared by
+    /// walkers and bikes only.
+    Shared,
     /// Hard shoulder, outboard of the running lanes.
     Shoulder,
     /// The paved strip between a running lane and whatever is beside it.
@@ -126,6 +130,7 @@ impl LaneType {
                 | Self::OffRamp
                 | Self::ConnectingRamp
                 | Self::SlipLane
+                | Self::Shared
         )
     }
 
@@ -151,6 +156,7 @@ impl LaneType {
             Self::Restricted => "restricted",
             Self::Biking => "biking",
             Self::Sidewalk => "sidewalk",
+            Self::Shared => "shared",
             Self::Shoulder => "shoulder",
             Self::Border => "border",
             Self::Curb => "curb",

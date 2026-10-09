@@ -65,6 +65,9 @@ pub enum ObjectType {
     SoundBarrier,
     /// Paint on the road surface that is not a lane marking.
     RoadMark,
+    /// An object on the road that traffic can pass over. The spec has it
+    /// replace the deprecated `patch`.
+    RoadSurface,
     /// A type this crate does not recognise.
     Unknown,
 }
@@ -91,6 +94,7 @@ impl ObjectType {
             Self::Gantry => "gantry",
             Self::SoundBarrier => "sound-barrier",
             Self::RoadMark => "road-mark",
+            Self::RoadSurface => "road-surface",
             Self::Unknown => "unknown",
         }
     }
