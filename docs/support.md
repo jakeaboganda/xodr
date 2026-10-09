@@ -266,6 +266,7 @@ junction or junction group.
 
 | `Warning` | Raised for |
 | --- | --- |
+| `Ignored` | a feature the crate ignores, once for each road, junction, or the rest of the document, with a count. See [What it ignores](#what-it-ignores) |
 | `RoadSkipped` | a road with no finite `length`, one over 100 km, no `<planView>`, no geometry the importer can bake, or lanes that land outside the range of an `f32` |
 | `GeometryDropped` | a `<geometry>` missing its pose or `length`, with a `length` that isn't above 0 or is over 100 km, or of a shape the crate doesn't know |
 | `RoadMarkLineDropped` | a road mark line with more dashes than the crate paints (100,000 on the line, or 1,000,000 in the whole file), or whose paint lands out of range |
@@ -305,15 +306,33 @@ junction or junction group.
 | `AccessDropped` | an `<access>` whose `rule` is neither `allow` nor `deny` |
 | `VisibilityDropped` | a `<visibility>` with a distance the crate can't read |
 
-The elements below raise nothing.
-
 ## What it ignores
 
-The importer skips everything else in the file without a warning:
-`<vmsGroup>`, a header's `<license>` and `<defaultRegulations>`,
-`<dataQuality>` and `<include>`, a junction's `<objects>` and
-`<roadSection>`s, and an object's `<surface>`, `<skeleton>` and
-`<curveLocal>` corners.
+The importer skips everything else in the file. Each feature below raises
+an `Ignored` warning, once for each road, junction, or the rest of the
+document, with how many times the file uses it.
+
+Elements it skips: `<vmsGroup>`, a header's `<license>` and
+`<defaultRegulations>`, `<dataQuality>` and `<include>`, a junction's
+`<objects>` and `<roadSection>`s, and an object's `<surface>`,
+`<skeleton>` and `<curveLocal>` corners. It also skips `<userData>` on a
+road, a lane, a road mark, a marking, a signal and a tunnel, the
+`<markings>` of an outline, and a board sign's own validities, links and
+position off the board.
+
+Uses of elements it reads that it ignores:
+
+| Feature | What the crate does |
+| --- | --- |
+| a second `<lanes>`, or `<lanes layer="temporary">` | bakes the first `<lanes>` as the road |
+| `<laneSection singleSide="true">` | reads the section as two-sided |
+| a lane link's `layer`, a `<validity>`'s `layer`, a junction lane link's `fromLayer` or `toLayer` | reads them as the permanent layer |
+| `<object perpToRoad="true">` | the object leans with the road |
+| a `<repeat>`'s `bT`, `cT` or `dT`, or `detachFromReferenceLine="true"` | copies run straight along the road |
+| a boundary `<segment>`'s `transitionLength` above 0 | no blending |
+
+A `layer` of `permanent`, a flag set to `false` and a `transitionLength` of 0
+raise nothing.
 
 The importer reads a lane section's `<center>` only for the road marks on
 the center line. Lane 0 never becomes a `Lane`.

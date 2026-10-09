@@ -27,6 +27,7 @@ use crate::{
 };
 
 mod gaps;
+mod ignored;
 mod junction_areas;
 mod links;
 mod properties;
@@ -467,6 +468,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     // The parser already recorded each lane's OpenDRIVE origin while baking;
     // surface it rather than reconstructing lane-id order downstream.
     warnings.append(&mut objects.warnings);
+    warnings.extend(ignored::place(root));
     let provenance = Provenance {
         lanes: topo
             .metas

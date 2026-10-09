@@ -6,12 +6,33 @@ use std::fmt;
 /// in [`Provenance::warnings`](crate::Provenance::warnings).
 ///
 /// Each variant names where in the file it happened, and `Display` gives the
-/// message. New kinds are not a breaking change. Elements the crate does not
-/// read at all, such as `<userData>` on a road, raise no warning.
+/// message. New kinds are not a breaking change. [`Warning::Ignored`] names
+/// what the crate skips in a file.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum Warning {
+    /// A feature of the file the crate ignores: an element it skips, such as
+    /// `<userData>`, or an attribute that changes a road or a junction and
+    /// means nothing to it yet, such as `perpToRoad="true"`. The warning
+    /// comes once per feature for each road, junction, or the rest of the
+    /// document, with the number of uses, so a map with 2,000 of them
+    /// raises one.
+    ///
+    /// `docs/support.md` and "What the importer ignores" in the crate docs
+    /// list the features. A feature leaves the list once the crate reads it.
+    Ignored {
+        /// The `<road id>` it is on. Empty for a feature of a junction or of
+        /// the document outside both.
+        road_id: String,
+        /// The `<junction id>` it is on. Empty for a feature of a road or of
+        /// the document outside both.
+        junction_id: String,
+        /// The feature, such as `<userData>` or `<object perpToRoad="true">`.
+        feature: String,
+        /// How many times the file uses it there.
+        count: usize,
+    },
     /// A `<road>` baked nothing, and everything on it went with it.
     RoadSkipped {
         /// Its `<road id>`.
@@ -507,6 +528,7 @@ impl Warning {
             | Self::VirtualLaneDropped { road_id, .. }
             | Self::UnknownStripMode { road_id, .. }
             | Self::StripDropped { road_id, .. }
+            | Self::Ignored { road_id, .. }
             | Self::LaneLinkDropped {
                 incoming_road_id: road_id,
                 ..
@@ -529,6 +551,22 @@ impl Warning {
 impl fmt::Display for Warning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Ignored {
+                road_id,
+                junction_id,
+                feature,
+                count,
+            } => {
+                let place = if !road_id.is_empty() {
+                    format!("road {road_id:?}")
+                } else if !junction_id.is_empty() {
+                    format!("junction {junction_id:?}")
+                } else {
+                    "the document".to_string()
+                };
+                let uses = if *count == 1 { "use" } else { "uses" };
+                write!(f, "{place}: {feature} ignored, {count} {uses}")
+            }
             Self::RoadSkipped { road_id, reason } => {
                 write!(f, "road {road_id:?} skipped: {reason}")
             }
