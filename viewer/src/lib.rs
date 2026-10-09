@@ -25,8 +25,9 @@
 //!   lines as world-space quads.
 //! - `warnings`: each [`Warning`]'s message and the road it names, then the
 //!   baker's own [`Scene::notes`].
-//! - `geoReference`, `priorities`, `roadNeighbors`, `junctionGroups` and
-//!   `crossPaths`: the map's records of each, by OpenDRIVE id.
+//! - `header`, `geoReference`, `priorities`, `roadNeighbors`,
+//!   `junctionGroups` and `crossPaths`: the map's records of each, by
+//!   OpenDRIVE id.
 //! - `junctionAreas` and `virtualJunctions`: each junction's boundary and
 //!   ground mesh, and each virtual junction's stretch and links as points.
 //! - `switches` and `platforms`: each railway switch's points, and each
@@ -193,6 +194,7 @@ fn build_scene(
         "controllers": controllers,
         "roadMarks": road_marks,
         "warnings": provenance.warnings.iter().map(warning_entry).collect::<Vec<_>>(),
+        "header": net.header(),
         "geoReference": net.geo_reference(),
         "priorities": priorities(net, provenance),
         "roadNeighbors": road_neighbors(net),
@@ -856,6 +858,14 @@ fn lane_entry(net: &RoadNetwork, provenance: &Provenance, span: &LaneSpan) -> Va
     entry.insert("laneId".into(), json!(span.lane.0));
     let road = net.road_lane(span.lane).and_then(|at| net.road(at.road));
     entry.insert("junction".into(), json!(road.and_then(|r| r.junction())));
+    entry.insert("roadName".into(), json!(road.map(|r| r.name())));
+    let junction = road
+        .and_then(|r| r.junction())
+        .and_then(|id| provenance.junctions.iter().find(|j| j.od_id == id));
+    entry.insert(
+        "junctionName".into(),
+        json!(junction.map(|j| j.name.as_str())),
+    );
     entry.insert("roadId".into(), json!(prov.map(|p| p.road_id.as_str())));
     entry.insert("section".into(), json!(prov.map(|p| p.section)));
     entry.insert("odLaneId".into(), json!(prov.map(|p| p.od_id)));
