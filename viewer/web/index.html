@@ -354,6 +354,20 @@ function geoText(geo) {
   return [geo.proj, offset].filter(Boolean).join(' · ');
 }
 
+// What the map's header says about it, for the map list to show on hover.
+function headerText(h) {
+  if (!h) return '';
+  const bounds = [h.north, h.south, h.east, h.west].some(v => v != null)
+    ? `bounds north ${h.north ?? '?'} south ${h.south ?? '?'} east ${h.east ?? '?'} west ${h.west ?? '?'}`
+    : '';
+  const revision = h.rev_major != null || h.rev_minor != null
+    ? `OpenDRIVE ${h.rev_major ?? '?'}.${h.rev_minor ?? '?'}` : '';
+  return [
+    h.name && `name ${h.name}`, revision, h.version && `version ${h.version}`,
+    h.date && `date ${h.date}`, h.vendor && `vendor ${h.vendor}`, bounds,
+  ].filter(Boolean).join('\n');
+}
+
 // What the page shows before a map is picked.
 function showPrompt(count) {
   const open = `<p><strong>open .xodr</strong> a map, with any .crg files it uses</p>`;
@@ -386,6 +400,7 @@ async function init() {
     }
   }
   document.getElementById('geo').textContent = geoText(data.geoReference);
+  document.getElementById('map').title = headerText(data.header);
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x12151a);
@@ -1576,7 +1591,7 @@ function onHover(ev) {
 
   const p = hit.point;
   const rows = [
-    `<b>road ${escapeHtml(String(lane.roadId))}</b>  lane ${lane.odLaneId}  <b>${lane.laneType}</b>`,
+    `<b>road ${escapeHtml(String(lane.roadId))}</b>${lane.roadName ? ` ${escapeHtml(JSON.stringify(lane.roadName))}` : ''}  lane ${lane.odLaneId}  <b>${lane.laneType}</b>`,
     `x ${p.x.toFixed(2)}   y ${p.y.toFixed(2)}   z ${p.z.toFixed(2)}`,
     ...roadRows(lane, i, u, s, t),
     `width ${laneWidth(lane, i, u).toFixed(2)} m   heading ${vec3(heading)}`,
@@ -1591,7 +1606,8 @@ function onHover(ev) {
   if (lane.junction != null) {
     const groups = junctionGroups.filter(g => g.junctions.includes(lane.junction));
     const label = groups.map(g => `, in ${g.kind} ${escapeHtml(g.name || g.id)}`).join('');
-    rows.push(`in junction ${escapeHtml(String(lane.junction))}${label}`);
+    const name = lane.junctionName ? ` ${escapeHtml(JSON.stringify(lane.junctionName))}` : '';
+    rows.push(`in junction ${escapeHtml(String(lane.junction))}${name}${label}`);
   }
   rows.push(...priorityRows(lane));
   rows.push(...crossPathRows(lane));
