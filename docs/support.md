@@ -99,7 +99,8 @@ files declaring 1.4, 1.6 and 1.7.
   `RoadNetwork::road_types` and `RoadNetwork::speed_limits`, in m/s. A
   lane's `<speed>` overrides its road's to the end of its lane section. A
   `<speed>` with no unit is in m/s. One the crate can't read raises a
-  warning. Speed limit signs don't set a limit.
+  warning. Speed limit signs don't set a limit. A road type's `country`
+  is in `RoadNetwork::road_countries`. The crate applies none of its rules.
 - Lane `<rule>`s, `<access>`es and `<material>`s, as stretches along each
   lane: `RoadNetwork::lane_rules`, `lane_access` and `lane_materials`.
   Each holds to the next of its kind or the end of its lane section.
@@ -211,7 +212,7 @@ are quads lying on the road surface.
 
 The crate docs list where it departs from the spec, such as reading a mark
 without a colour. `load_*_with_provenance` gives its road, lane section, lane
-and stretch.
+and stretch, and its `material` and its type's `name`.
 
 ## OpenCRG surfaces
 

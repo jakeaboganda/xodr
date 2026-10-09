@@ -12,6 +12,12 @@ metadata_bare.xodr is the same map with none of it, except a <header> whose
 numbers are unreadable: revMajor "one", revMinor "1.5", and a north of
 "NaN" beside a south, an east and a west that read.
 
+Road 1 has three <type> records, with country "DE" from 0 m, "AT" from 50 m
+and none from 80 m, and its lane -1 two road marks: a "thermoplastic" one
+named "Edge Line" by its <type>, and from 50 m a "cold-plastic" one named
+"Dashed". Its lane 1 mark has neither, and its center mark has a material
+and a <type> with no name.
+
 scenariogeneration writes some of these, but not all, and with a date that
 changes on every run, so they are set on its XML. The files are the same
 each run.
@@ -62,6 +68,27 @@ header.attrib.update({
 })
 root.find("road[@id='1']").set("name", "Main Street")
 root.find("junction[@id='100']").set("name", "Market Square")
+
+road = root.find("road[@id='1']")
+after_link = list(road).index(road.find("link")) + 1
+for k, (s, kind, country) in enumerate([(0, "town", "DE"), (50, "rural", "AT"), (80, "motorway", None)]):
+    element = ET.Element("type", {"s": str(s), "type": kind})
+    if country:
+        element.set("country", country)
+    road.insert(after_link + k, element)
+section = road.find("lanes/laneSection")
+outer = section.find("right/lane[@id='-1']")
+first = outer.find("roadMark")
+first.set("material", "thermoplastic")
+first.append(ET.Element("type", {"name": "Edge Line", "width": "0.2"}))
+second = ET.fromstring(ET.tostring(first, encoding="unicode"))
+second.set("sOffset", "50")
+second.set("material", "cold-plastic")
+second.find("type").set("name", "Dashed")
+outer.insert(list(outer).index(first) + 1, second)
+centre = section.find("center/lane/roadMark")
+centre.set("material", "paint")
+centre.append(ET.Element("type", {"width": "0.2"}))
 finish(path, tree)
 
 path, tree = build("metadata_bare")

@@ -57,11 +57,12 @@ impl SpeedDef {
     }
 }
 
-/// A road's `<type>`: what the road is from `s` on, and the speed limit it
-/// sets, if it has a `<speed>`.
+/// A road's `<type>`: what the road is from `s` on, the country whose rules
+/// it follows, and the speed limit it sets, if it has a `<speed>`.
 pub(super) struct TypeDef {
     s: f64,
     kind: RoadType,
+    country: String,
     speed: Option<SpeedDef>,
 }
 
@@ -83,6 +84,7 @@ pub(super) fn road_types(road: roxmltree::Node) -> Vec<TypeDef> {
             Some(TypeDef {
                 s: attr_f64(n, "s")?,
                 kind: road_type(n.attribute("type")),
+                country: n.attribute("country").unwrap_or_default().to_string(),
                 speed: n
                     .children()
                     .find(|c| c.has_tag_name("speed"))
@@ -306,6 +308,7 @@ fn road_type(od_type: Option<&str>) -> RoadType {
 pub(super) struct Placed {
     pub speed_limits: Vec<Along<SpeedLimit>>,
     pub road_types: Vec<Along<RoadType>>,
+    pub road_countries: Vec<Along<String>>,
     pub lane_rules: Vec<Along<String>>,
     pub lane_access: Vec<Along<Access>>,
     pub lane_materials: Vec<Along<Material>>,
@@ -339,6 +342,11 @@ pub(super) fn place<'a>(roads: impl Iterator<Item = &'a BakedRoad>, lanes: &[Lan
                 let type_starts = road.types.iter().map(|t| t.s);
                 let points = lanes[id.0].center.points();
                 let kinds = stretches(sec, type_starts.clone(), |s| type_at(s).map(|t| t.kind));
+                let countries = stretches(sec, type_starts.clone(), |s| {
+                    type_at(s)
+                        .map(|t| t.country.clone())
+                        .filter(|c| !c.is_empty())
+                });
                 let limits = stretches(sec, type_starts.chain(speeds.iter().map(|l| l.0)), |s| {
                     own(s).map(|l| l.1).or_else(|| {
                         type_at(s)
@@ -348,6 +356,8 @@ pub(super) fn place<'a>(roads: impl Iterator<Item = &'a BakedRoad>, lanes: &[Lan
                 });
                 out.road_types
                     .extend(on_lane(id, points, &sec.stations, kinds));
+                out.road_countries
+                    .extend(on_lane(id, points, &sec.stations, countries));
                 out.speed_limits
                     .extend(on_lane(id, points, &sec.stations, limits));
                 let rules = own_stretches(sec, &def.rules, |r| Some(r.clone()));

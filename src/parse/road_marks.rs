@@ -28,6 +28,9 @@ pub(super) struct MarkDef {
     kind: RoadMarkType,
     weight: RoadMarkWeight,
     color: String,
+    /// Its `material`, and its `<type>`'s `name`. Empty if it has none.
+    material: String,
+    type_name: String,
     /// Its width, if the map gives one above 0.
     width: Option<f64>,
     height: Option<f64>,
@@ -164,6 +167,11 @@ pub(super) fn parse<'a>(lane: roxmltree::Node<'a, 'a>) -> Vec<MarkDef> {
                     _ => RoadMarkWeight::Standard,
                 },
                 color: m.attribute("color").unwrap_or("standard").to_string(),
+                material: m.attribute("material").unwrap_or_default().to_string(),
+                type_name: kind
+                    .and_then(|t| t.attribute("name"))
+                    .unwrap_or_default()
+                    .to_string(),
                 width: attr_f32(m, "width").map(f64::from).filter(|w| *w > 0.0),
                 height: attr_f32(m, "height").map(f64::from),
                 lane_change: lane_change(m.attribute("laneChange")),
@@ -294,6 +302,8 @@ fn place_section(
                 od_lane_id: border.od_lane_id,
                 s: start,
                 length: end - start,
+                material: mark.material.clone(),
+                type_name: mark.type_name.clone(),
             });
             spans.push(MarkSpan {
                 od_lane_id: border.od_lane_id,

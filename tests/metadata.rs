@@ -89,4 +89,69 @@ fn the_header_and_the_road_names_survive_serde() {
     let back: RoadNetwork = serde_json::from_str(&json).unwrap();
     assert_eq!(back.header(), net.header());
     assert_eq!(back.road_by_od_id("1").unwrap().name(), "Main Street");
+    assert_eq!(back.road_countries(), net.road_countries());
+    assert!(!back.road_countries().is_empty());
+}
+
+fn lane_of(prov: &Provenance, road: &str, od_id: i32) -> xodr::LaneId {
+    prov.lanes
+        .iter()
+        .find(|p| p.road_id == road && p.od_id == od_id)
+        .unwrap()
+        .lane
+}
+
+#[test]
+fn a_road_types_country_holds_along_the_lanes_until_the_next_type() {
+    let (net, prov) = full();
+    for od_id in [-1, 1] {
+        let lane = lane_of(&prov, "1", od_id);
+        assert_eq!(net.road_country_at(lane, 10.0), Some("DE"), "lane {od_id}");
+        assert_eq!(net.road_country_at(lane, 49.0), Some("DE"), "lane {od_id}");
+        assert_eq!(net.road_country_at(lane, 51.0), Some("AT"), "lane {od_id}");
+        assert_eq!(net.road_country_at(lane, 79.0), Some("AT"), "lane {od_id}");
+        assert_eq!(net.road_country_at(lane, 90.0), None, "lane {od_id}");
+    }
+    assert_eq!(net.road_country_at(lane_of(&prov, "11", -1), 5.0), None);
+    assert_eq!(net.road_countries().len(), 4, "two lanes, two stretches");
+}
+
+#[test]
+fn a_country_changes_nothing_about_the_road_type() {
+    let (net, prov) = full();
+    let lane = lane_of(&prov, "1", -1);
+    assert_eq!(net.road_type_at(lane, 10.0), Some(xodr::RoadType::Town));
+    assert_eq!(net.road_type_at(lane, 60.0), Some(xodr::RoadType::Rural));
+    assert_eq!(net.road_type_at(lane, 90.0), Some(xodr::RoadType::Motorway));
+}
+
+#[test]
+fn a_road_mark_keeps_its_material_and_its_types_name() {
+    let (_, prov) = full();
+    let mut marks: Vec<_> = prov
+        .road_marks
+        .iter()
+        .filter(|m| m.road_id == "1")
+        .map(|m| (m.od_lane_id, m.s, m.material.as_str(), m.type_name.as_str()))
+        .collect();
+    marks.sort_by(|a, b| (a.0, a.1).partial_cmp(&(b.0, b.1)).unwrap());
+    assert_eq!(
+        marks,
+        [
+            (-1, 0.0, "thermoplastic", "Edge Line"),
+            (-1, 50.0, "cold-plastic", "Dashed"),
+            (0, 0.0, "paint", ""),
+            (1, 0.0, "", ""),
+        ]
+    );
+}
+
+#[test]
+fn a_map_without_them_has_no_country_material_or_type_name() {
+    let (net, prov) = bare();
+    assert!(net.road_countries().is_empty());
+    assert!(prov
+        .road_marks
+        .iter()
+        .all(|m| m.material.is_empty() && m.type_name.is_empty()));
 }
