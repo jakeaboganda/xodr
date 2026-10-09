@@ -1216,7 +1216,7 @@ function signalRows(sg) {
         const shows = s.value != null ? ` ${s.value}${s.unit ? ' ' + escapeHtml(s.unit) : ''}` : '';
         const means = s.semantics.length ? `: ${s.semantics.map(escapeHtml).join('; ')}` : '';
         const own = [s.id && `id ${escapeHtml(s.id)}`, s.name && escapeHtml(JSON.stringify(s.name)),
-          s.countryRevision && `rev ${escapeHtml(s.countryRevision)}`, s.orientation !== 'none' && `orientation ${s.orientation}`,
+          s.countryRevision && `rev ${escapeHtml(s.countryRevision)}`, s.orientation && s.orientation !== 'none' && `orientation ${s.orientation}`,
           s.dynamic && 'dynamic', s.invalidated && 'invalidated', s.temporary && 'temporary',
           s.hOffset && `hOffset ${s.hOffset.toFixed(2)}`, s.pitch && `pitch ${s.pitch.toFixed(2)}`,
           s.roll && `roll ${s.roll.toFixed(2)}`, s.length != null && `${+s.length.toFixed(2)} m deep`].filter(Boolean);
@@ -1987,13 +1987,13 @@ function crossPathRows(lane) {
 // The overlap zone of each junction lane link that joins this lane, as the
 // file gives it, with the lane on the other end.
 function overlapRows(lane) {
+  const via = o => o.connection ? ` (connection ${escapeHtml(o.connection)})` : '';
   const rows = [];
   for (const o of laneLinkOverlaps) {
-    const road = escapeHtml(String(lane.roadId));
     if (lane.roadId === o.incomingRoad && lane.odLaneId === o.from) {
-      rows.push(`overlap zone ${+o.overlapZone.toFixed(2)} m with lane ${o.to} of road ${escapeHtml(o.connectingRoad)}`);
+      rows.push(`overlap zone ${+o.overlapZone.toFixed(2)} m with lane ${o.to} of road ${escapeHtml(o.connectingRoad)}` + via(o));
     } else if (lane.roadId === o.connectingRoad && lane.odLaneId === o.to) {
-      rows.push(`overlap zone ${+o.overlapZone.toFixed(2)} m with lane ${o.from} of road ${escapeHtml(o.incomingRoad)}`);
+      rows.push(`overlap zone ${+o.overlapZone.toFixed(2)} m with lane ${o.from} of road ${escapeHtml(o.incomingRoad)}` + via(o));
     }
   }
   return rows;

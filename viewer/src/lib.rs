@@ -208,7 +208,6 @@ fn build_scene(
             .iter()
             .map(|o| {
                 json!({
-                    "junction": o.junction_id,
                     "connection": o.connection_id,
                     "incomingRoad": o.incoming_road,
                     "connectingRoad": o.connecting_road,
