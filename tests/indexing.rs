@@ -114,6 +114,7 @@ fn nan_never_finds_or_wins_a_lane() {
     let lane = |id: usize, points: Vec<Point>| Lane {
         id: LaneId(id),
         kind: LaneType::Driving,
+        layer: xodr::Layer::Permanent,
         direction: Direction::Forward,
         center: Polyline::new(points),
         width: 3.5,
@@ -147,6 +148,7 @@ fn the_lowest_point_skips_a_nan_height() {
     let lane = |id: usize, z: f32| Lane {
         id: LaneId(id),
         kind: LaneType::Driving,
+        layer: xodr::Layer::Permanent,
         direction: Direction::Forward,
         center: Polyline::new(vec![Point::new(0.0, 0.0, z), Point::new(10.0, 0.0, z)]),
         width: 3.5,

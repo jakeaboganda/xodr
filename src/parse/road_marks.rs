@@ -223,7 +223,7 @@ struct Border<'a> {
 impl Border<'_> {
     /// The border's `t` at road station `s`.
     fn t(&self, road: &Road, section: &RoadSection, s: f64) -> f64 {
-        let base = road.base(s);
+        let base = road.base_of(section.layer, s);
         side_borders(self.inner, self.sign, base, s - section.start)
             .last()
             .map_or(base, |b| b.outer)

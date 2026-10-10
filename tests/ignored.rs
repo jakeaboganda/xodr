@@ -38,18 +38,13 @@ fn every_ignored_feature_is_counted_where_the_file_uses_it() {
         of("", "", "<license>", 1),
         of("", "", "<defaultRegulations>", 1),
         of("", "", "<vmsGroup>", 1),
-        of("", "100", "<laneLink fromLayer or toLayer>", 2),
         of("", "100", "<junction> <objects>", 1),
         of("", "100", "<roadSection>", 2),
         of("", "100", "<segment transitionLength>", 2),
         of("1", "", "<userData>", 3),
         of("1", "", "<include>", 1),
-        of("1", "", "a second <lanes>", 1),
-        of("1", "", "<lanes layer=\"temporary\">", 1),
+        of("1", "", "a repeated <lanes> of one layer", 1),
         of("1", "", "<laneSection singleSide=\"true\">", 1),
-        of("1", "", "<predecessor layer>", 2),
-        of("1", "", "<successor layer>", 1),
-        of("1", "", "<validity layer>", 1),
         of("2", "", "<userData>", 1),
         of("2", "", "<object perpToRoad=\"true\">", 2),
         of("2", "", "<repeat bT, cT or dT>", 2),
@@ -89,7 +84,7 @@ fn a_feature_is_charged_to_the_road_that_uses_it() {
 }
 
 #[test]
-fn a_second_lanes_is_ignored_even_before_it_is_marked_temporary() {
+fn a_repeated_lanes_of_one_layer_is_ignored() {
     let xml = r#"<OpenDRIVE>
       <road length="20" id="1" junction="-1">
         <planView><geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
@@ -105,7 +100,7 @@ fn a_second_lanes_is_ignored_even_before_it_is_marked_temporary() {
             _ => None,
         })
         .collect();
-    assert_eq!(features, ["a second <lanes>"]);
+    assert_eq!(features, ["a repeated <lanes> of one layer"]);
 }
 
 #[test]
@@ -116,7 +111,7 @@ fn only_the_ignored_warnings_say_they_are() {
         .iter()
         .filter(|w| w.is_ignored())
         .count();
-    assert_eq!(ignored, 31);
+    assert_eq!(ignored, 26);
     assert!(
         provenance.warnings.len() > ignored,
         "the fixture's boundary doesn't close, which is a fault"
@@ -155,19 +150,6 @@ fn road_id_names_the_road_or_nothing() {
             assert!(road_id.is_empty() || junction_id.is_empty());
         }
     }
-}
-
-#[test]
-fn a_sign_validity_of_a_temporary_layer_is_a_sign_validity_and_not_a_layer() {
-    let found = ignored("tests/data/ignored.xodr");
-    let road = |name: &str| {
-        found
-            .iter()
-            .find(|(road, _, feature, _)| road == "3" && feature == name)
-            .map(|f| f.3)
-    };
-    assert_eq!(road("<sign> <validity>"), Some(2));
-    assert_eq!(road("<validity layer>"), None);
 }
 
 #[test]

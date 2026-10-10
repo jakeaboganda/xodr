@@ -3,9 +3,9 @@ counts that tell the uses apart, and the near misses that look like them.
 
     uv run -q --with scenariogeneration==0.16.6 tests/data/ignored.py
 
-Road 1 holds the lane layers: a second <lanes layer="temporary">, a lane
-section with singleSide="true" beside one with "false", and lane links
-that name a layer. Road 2 holds the objects: three that follow the road,
+Road 1 holds a <lanes layer="temporary">, which the crate reads, then a
+second permanent <lanes>, which it ignores, and a lane section with
+singleSide="true" beside one with "false". Road 2 holds the objects: three that follow the road,
 repeats with a cubic term or detached from the reference line, and an
 object with a <surface>, a <skeleton>, a <curveLocal> outline and two
 outline <markings>. Road 3 holds a static board whose two signs each carry
@@ -110,6 +110,12 @@ temporary = frag(
     "</right></laneSection></lanes>"
 )
 road["1"].insert(list(road["1"]).index(lanes) + 1, temporary)
+repeated = frag(
+    '<lanes><laneSection s="0"><right>'
+    '<lane id="-1" type="driving" level="false"><width sOffset="0" a="3"/></lane>'
+    "</right></laneSection></lanes>"
+)
+road["1"].insert(list(road["1"]).index(lanes) + 2, repeated)
 first.find("right/lane").append(frag('<userData code="a" value="1"/>'))
 first.find("right/lane/roadMark").append(frag('<userData code="b" value="2"/>'))
 add(road["1"], '<userData code="road" value="x"/>', '<include file="a.xodr"/>')

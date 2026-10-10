@@ -41,6 +41,30 @@
 - `tests/data/gantries.xodr` is a demo of gantry scenes: lane control,
   a sign bridge, a message board and traffic lights.
 
+### Lane layers
+
+- A road's temporary lane layer is read. Both `<lanes>` bake, each with its
+  own lane sections and `<laneOffset>`. A temporary section may give a
+  `length`. Before, a file that listed the temporary layer first baked it as
+  the road, and the other was dropped.
+- New `Layer`, `Lane::layer`, `LaneProvenance::layer`, and
+  `RoadNetwork::temporary_mesh`. `surface_mesh` is the permanent layer's
+  lanes alone, since the layers share one surface.
+- A lane's `<link>` may name several lanes, each with a `layer`, and a
+  junction `<laneLink>` has `fromLayer` and `toLayer`. A `<validity>` has a
+  `layer`.
+- Temporary lanes take precedence for driving. `nearest_lane`,
+  `lane_position`, `route` and `advance` find them where they hold the
+  point. New `LayerPolicy`, and `nearest_lane_with`, `lane_position_with`,
+  `route_with` and `advance_with` take it.
+- Breaking: `Lane` has a new `layer` field, serialized with a default of
+  permanent. Behaviour change on a map with a temporary layer: its lanes and
+  lane sections are baked, so the lane count, `Lane::successors` and a
+  section's index change.
+- `tests/data/lane_layers.xodr` has roads with temporary layers, links
+  between the layers, a layer listed first, validities of each layer and a
+  junction link between temporary lanes.
+
 ### Ignored features
 
 - New `Warning::Ignored` names each feature of a file the crate ignores,

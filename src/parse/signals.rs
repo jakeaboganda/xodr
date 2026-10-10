@@ -10,7 +10,7 @@ use super::{
 };
 use crate::coords::{Point, Vector};
 use crate::object::orient;
-use crate::road::Road;
+use crate::road::{Road, Validity};
 use crate::{
     BoardSign, Control, Controller, ControllerId, Dependency, Direction, DisplayArea, Lane, LaneId,
     MessageBoard, ObjectId, Reference, Referenced, RoadUser, Semantic, Signal, SignalBoard,
@@ -496,7 +496,7 @@ fn signal_lanes(
     lanes: &[Lane],
     s: f64,
     orientation: Orientation,
-    validity: Vec<(i32, i32)>,
+    validity: Vec<Validity>,
 ) -> Vec<LaneId> {
     let found = road.lanes((s, s), &validity);
     let wanted = match (validity.is_empty(), orientation) {

@@ -85,10 +85,10 @@ pub(super) fn place(
                     .filter(|m| m.road == road.od_id && m.section == section)
                     .filter_map(|m| {
                         let to = match end {
-                            RoadEnd::Start => m.pred_link,
-                            RoadEnd::End => m.succ_link,
+                            RoadEnd::Start => m.pred_links.first(),
+                            RoadEnd::End => m.succ_links.first(),
                         }?;
-                        Some((m.od_id, to))
+                        Some((m.od_id, to.id))
                     })
                     .collect();
                 pairs.extend(

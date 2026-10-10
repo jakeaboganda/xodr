@@ -17,14 +17,14 @@ use crate::object::orient;
 use crate::road::{
     active, along, height_at, is_valid, side_borders, side_heights, CrossSection, Cubic, GeomRec,
     GeomShape, HeightDef, LaneBorders, LaneExtent, LaneGeom, Lateral, Road, RoadId, RoadSection,
-    ShapeProfile, Strip, TrafficRule,
+    ShapeProfile, Strip, TrafficRule, Validity,
 };
 use crate::{
     Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgPose, CrgPurpose, CrgSurface,
     Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneAdvisory, LaneId, LaneType,
-    Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Polyline, Priority, RoadMarkId,
-    RoadMarkWeight, RoadNeighbor, RoadNetwork, Section, Shape, Side, SignalId, Structure,
-    StructureId, StructureKind, UserData,
+    Layer, Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Polyline, Priority,
+    RoadMarkId, RoadMarkWeight, RoadNeighbor, RoadNetwork, Section, Shape, Side, SignalId,
+    Structure, StructureId, StructureKind, UserData,
 };
 
 mod gaps;
@@ -104,9 +104,12 @@ pub struct LaneProvenance {
     pub lane: LaneId,
     /// The `<road id>` attribute the lane came from.
     pub road_id: String,
-    /// The zero-based lane-section index within that road (sections ordered by
-    /// `s`).
+    /// The zero-based lane-section index within that road: the permanent
+    /// layer's sections ordered by `s`, then the temporary layer's.
     pub section: usize,
+    /// The lane layer the lane is on.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub layer: Layer,
     /// The original OpenDRIVE `<lane id>` (signed; negative right of the
     /// reference line, positive left).
     pub od_id: i32,
@@ -610,6 +613,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
                 lane: m.id,
                 road_id: m.road.clone(),
                 section: m.section,
+                layer: m.layer,
                 od_id: m.od_id,
                 heights: m.heights.clone(),
                 advisory: m.flags.advisory,
@@ -803,8 +807,8 @@ fn sanitize(xml: &str) -> std::borrow::Cow<'_, str> {
 struct LaneDef {
     id: i32,
     kind: LaneType,
-    pred_link: Option<i32>,
-    succ_link: Option<i32>,
+    pred_links: Vec<links::LaneRef>,
+    succ_links: Vec<links::LaneRef>,
     /// The road marks on its outer border.
     marks: Vec<MarkDef>,
     speeds: Vec<properties::LaneSpeedDef>,
@@ -1090,12 +1094,12 @@ impl SectionDef {
                         continue;
                     }
                 };
-                let (pred_link, succ_link) = links::lane_link(lane);
+                let (pred_links, succ_links) = links::lane_refs(lane);
                 let def = LaneDef {
                     id,
                     kind: lane_type(lane.attribute("type")),
-                    pred_link,
-                    succ_link,
+                    pred_links,
+                    succ_links,
                     marks: road_marks::parse(lane),
                     speeds: properties::lane_speeds(lane),
                     rules: properties::lane_rules(lane),
@@ -1401,7 +1405,11 @@ fn parse_road(
     // laneOffset shifts the whole lane cross-section laterally off lane 0 (lane
     // widening, merges, a centerline that isn't the road reference). It adds to
     // every lane's offset, so it must be applied or all lanes are mis-placed.
-    let lane_offsets = child(road, "lanes")
+    let (permanent, temporary) = layer_nodes(road);
+    let lane_offsets = permanent
+        .map(|n| cubics_in(n, "laneOffset", "s"))
+        .unwrap_or_default();
+    let temporary_lane_offsets = temporary
         .map(|n| cubics_in(n, "laneOffset", "s"))
         .unwrap_or_default();
     let mut baked = BakedRoad {
@@ -1420,6 +1428,7 @@ fn parse_road(
             superelevations,
             lateral,
             lane_offsets,
+            temporary_lane_offsets,
             sections: Vec::new(),
         },
         types: properties::road_types(road),
@@ -1571,7 +1580,7 @@ impl BakedRoad {
                 .chain(&section.right)
                 .filter(|l| matches!(l.extent, LaneExtent::Border(_)))
         };
-        if offset_within(&road.lane_offsets, section.start, section.end) {
+        if offset_within(road.offsets_of(section.layer), section.start, section.end) {
             out.extend(border_lanes().map(|l| Warning::BorderWithLaneOffset {
                 road_id: road_id.clone(),
                 section: index,
@@ -1793,61 +1802,115 @@ fn bake_lanes(
     out: &mut Vec<Lane>,
     topo: &mut Topology,
 ) {
-    let Some(lanes_node) = child(road, "lanes") else {
-        return;
-    };
-
+    let (permanent, temporary) = layer_nodes(road);
     let start = |section: &roxmltree::Node| attr_f64(*section, "s").unwrap_or(0.0).max(0.0);
-    let mut sections: Vec<roxmltree::Node> = lanes_node
-        .children()
-        .filter(|n| n.has_tag_name("laneSection"))
-        .collect();
-    if sections.is_empty() {
-        return;
-    }
-    sections.sort_by(|a, b| start(a).total_cmp(&start(b)));
-
     let length = baked.road.length;
-    for (i, section) in sections.iter().enumerate() {
-        let s_start = start(section);
-        let s_end = sections.get(i + 1).map_or(length, start).min(length);
-        if s_end - s_start < 1e-3 {
-            continue; // zero-length section
-        }
-        let first = topo.metas.len();
-        let mut def = SectionDef::parse(*section);
-        let [left, right] = std::mem::take(&mut def.geoms);
-        let mut geom = RoadSection {
-            index: i,
-            start: s_start,
-            end: s_end,
-            stations: Vec::new(),
-            left,
-            right,
-            lanes: Vec::new(),
-            marks: Vec::new(),
+    let mut next_index = 0;
+    let mut any = false;
+    for (layer, lanes_node) in [(Layer::Permanent, permanent), (Layer::Temporary, temporary)] {
+        let Some(lanes_node) = lanes_node else {
+            continue;
         };
-        geom.stations = emit_section(&baked.road, &geom, &def, out, topo);
-        // emit_section records a lane's meta as it pushes the lane, so the
-        // new metas and the new lanes are in step.
-        geom.lanes = topo.metas[first..]
-            .iter()
-            .map(|m| (m.od_id, m.id))
+        let mut sections: Vec<roxmltree::Node> = lanes_node
+            .children()
+            .filter(|n| n.has_tag_name("laneSection"))
             .collect();
-        baked.road.sections.push(geom);
-        baked.defs.push(def);
+        sections.sort_by(|a, b| start(a).total_cmp(&start(b)));
+        any |= !sections.is_empty();
+        for (i, section) in sections.iter().enumerate() {
+            let index = next_index + i;
+            let s_start = start(section);
+            let next = sections.get(i + 1).map_or(length, start);
+            let explicit = match layer {
+                Layer::Temporary => attr_f64(*section, "length").filter(|l| *l > 0.0),
+                Layer::Permanent => None,
+            };
+            let s_end = explicit
+                .map_or(next, |l| (s_start + l).min(next))
+                .min(length);
+            if s_end - s_start < 1e-3 {
+                continue; // zero-length section
+            }
+            let first = topo.metas.len();
+            let mut def = SectionDef::parse(*section);
+            let [left, right] = std::mem::take(&mut def.geoms);
+            let mut geom = RoadSection {
+                index,
+                layer,
+                start: s_start,
+                end: s_end,
+                stations: Vec::new(),
+                left,
+                right,
+                lanes: Vec::new(),
+                marks: Vec::new(),
+            };
+            geom.stations = emit_section(&baked.road, &geom, &def, out, topo);
+            // emit_section records a lane's meta as it pushes the lane, so the
+            // new metas and the new lanes are in step.
+            geom.lanes = topo.metas[first..]
+                .iter()
+                .map(|m| (m.od_id, m.id))
+                .collect();
+            baked.road.sections.push(geom);
+            baked.defs.push(def);
+        }
+        next_index += sections.len();
+    }
+    if !any {
+        return;
     }
 
     let (predecessor, successor) = links::road_link(road);
     topo.roads.insert(
         baked.road.od_id.clone(),
         RoadInfo {
-            sections: baked.road.sections.iter().map(|s| s.index).collect(),
+            sections: baked
+                .road
+                .sections
+                .iter()
+                .map(|s| links::SectionInfo {
+                    index: s.index,
+                    layer: s.layer,
+                    start: s.start,
+                    end: s.end,
+                })
+                .collect(),
             junction: baked.road.junction().map(String::from),
+            length: baked.road.length,
             predecessor,
             successor,
         },
     );
+}
+
+/// The `<lanes>` of a road's permanent layer and of its temporary one.
+///
+/// The permanent layer is the first `<lanes>` that isn't `layer="temporary"`,
+/// or the first of all if every one is, as before layers were read. The
+/// temporary layer is the first other `<lanes>` that is. A further `<lanes>`
+/// of either layer is left out.
+fn layer_nodes<'a>(
+    road: roxmltree::Node<'a, 'a>,
+) -> (
+    Option<roxmltree::Node<'a, 'a>>,
+    Option<roxmltree::Node<'a, 'a>>,
+) {
+    let all: Vec<_> = road
+        .children()
+        .filter(|n| n.has_tag_name("lanes"))
+        .collect();
+    let temporary_of = |n: &roxmltree::Node| layer_of(n.attribute("layer")) == Layer::Temporary;
+    let permanent = all
+        .iter()
+        .find(|n| !temporary_of(n))
+        .or(all.first())
+        .copied();
+    let temporary = all
+        .iter()
+        .find(|n| temporary_of(n) && Some(**n) != permanent)
+        .copied();
+    (permanent, temporary)
 }
 
 /// Append each lane of one section as a `Lane` spanning `[s_start, s_end]`,
@@ -1868,7 +1931,7 @@ fn emit_section(
     let (road_id, section_idx) = (&road.od_id, section.index);
     let bends = section_bends(
         &road.geoms,
-        &road.lane_offsets,
+        road.offsets_of(section.layer),
         [&section.left, &section.right],
         s_start,
         s_end,
@@ -1895,8 +1958,16 @@ fn emit_section(
         // kind, direction). Consecutive ones are lateral neighbors (lane-change
         // edges), subject to the tests below.
         let mut emitted: Vec<(LaneId, usize, LaneType, Direction)> = Vec::new();
-        let across = side_across(road, side, sign, s_start, &sample_s);
-        let heights = side_height_rows(road, side, sign, s_start, &sample_s, &road_bank, &across);
+        let across = side_across(road, section.layer, side, sign, s_start, &sample_s);
+        let heights = side_height_rows(
+            road,
+            (section.layer, side),
+            sign,
+            s_start,
+            &sample_s,
+            &road_bank,
+            &across,
+        );
         let lanes = defs.iter().zip(side).zip(&across).zip(&heights);
         for (k, (((def, lane), borders), heights)) in lanes.enumerate() {
             let kind = def.kind;
@@ -1927,8 +1998,9 @@ fn emit_section(
                 section: section_idx,
                 od_id: lane.id,
                 direction,
-                succ_link: def.succ_link,
-                pred_link: def.pred_link,
+                layer: section.layer,
+                succ_links: def.succ_links.clone(),
+                pred_links: def.pred_links.clone(),
                 heights: lane_heights(lane, s_start, &sample_s),
                 flags: def.flags,
             });
@@ -1938,6 +2010,7 @@ fn emit_section(
             out.push(Lane {
                 id,
                 kind,
+                layer: section.layer,
                 direction,
                 center,
                 width,
@@ -2085,6 +2158,7 @@ fn sample_lane(
 /// [`side_borders`]: one row per lane, parallel to `sample_s`.
 fn side_across(
     road: &Road,
+    layer: Layer,
     side: &[LaneGeom],
     sign: f64,
     s_start: f64,
@@ -2094,7 +2168,7 @@ fn side_across(
         .map(|_| Vec::with_capacity(sample_s.len()))
         .collect();
     for &s in sample_s {
-        let base = road.base(s);
+        let base = road.base_of(layer, s);
         for (row, b) in rows
             .iter_mut()
             .zip(side_borders(side, sign, base, s - s_start))
@@ -2111,7 +2185,7 @@ fn side_across(
 /// superelevation at each station.
 fn side_height_rows(
     road: &Road,
-    side: &[LaneGeom],
+    (layer, side): (Layer, &[LaneGeom]),
     sign: f64,
     s_start: f64,
     sample_s: &[f64],
@@ -2128,7 +2202,7 @@ fn side_height_rows(
             sign,
             &road.lateral,
             (s, s - s_start),
-            road.base(s),
+            road.base_of(layer, s),
             phi,
             borders,
         );
@@ -2469,7 +2543,7 @@ fn place_structures(
             for &(_, id) in sec
                 .lanes
                 .iter()
-                .filter(|(od_id, _)| is_valid(*od_id, &validity))
+                .filter(|(od_id, _)| is_valid(*od_id, sec.layer, &validity))
             {
                 let center = &lanes[id.0].center;
                 covered.push(Coverage {
@@ -2538,7 +2612,7 @@ struct Placement<'a> {
     /// The `<validity>` lane ranges, `fromLane` and `toLane`, of the
     /// `<object>` or the `<objectReference>`. A reference does not take the
     /// `<object>`'s, which name lanes on the `<object>`'s road.
-    validity: Vec<(i32, i32)>,
+    validity: Vec<Validity>,
 }
 
 impl<'a> Placement<'a> {
@@ -2581,12 +2655,27 @@ impl<'a> Placement<'a> {
 
 /// The `fromLane`-`toLane` range of each `<validity>` under `node`. One
 /// missing either is skipped.
-fn validity(node: roxmltree::Node) -> Vec<(i32, i32)> {
+fn validity(node: roxmltree::Node) -> Vec<Validity> {
     let lane = |v: roxmltree::Node, name| v.attribute(name)?.parse::<i32>().ok();
     node.children()
         .filter(|n| n.has_tag_name("validity"))
-        .filter_map(|v| Some((lane(v, "fromLane")?, lane(v, "toLane")?)))
+        .filter_map(|v| {
+            Some((
+                lane(v, "fromLane")?,
+                lane(v, "toLane")?,
+                layer_of(v.attribute("layer")),
+            ))
+        })
         .collect()
+}
+
+/// The layer a `layer` attribute names. A missing or unrecognised one is
+/// the permanent layer, as the spec says.
+fn layer_of(name: Option<&str>) -> Layer {
+    match name {
+        Some("temporary") => Layer::Temporary,
+        _ => Layer::Permanent,
+    }
 }
 
 /// Which direction of the road an `<object>` or `<objectReference>` applies
@@ -5380,6 +5469,7 @@ mod tests {
             superelevations: vec![cubic(-0.2, 0.0)],
             lateral: Lateral::default(),
             lane_offsets: Vec::new(),
+            temporary_lane_offsets: Vec::new(),
             sections: Vec::new(),
         }
         .axes(5.0);

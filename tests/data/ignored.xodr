@@ -82,6 +82,15 @@
                 </right>
             </laneSection>
         </lanes>
+        <lanes>
+            <laneSection s="0">
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <width sOffset="0" a="3" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
         <userData code="road" value="x" />
         <include file="a.xodr" />
         <signals>

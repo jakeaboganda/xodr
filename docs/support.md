@@ -203,6 +203,28 @@ pose and size of its board.
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)` and
 orientation.
 
+## Lane layers
+
+A road's `<lanes layer="temporary">`, such as for road works, is read next to
+its permanent `<lanes>`. Each layer has its own lane sections and
+`<laneOffset>`, and `Lane::layer` says which a lane is on.
+
+- Both layers share the permanent layer's surface. `surface_mesh` and the
+  road's heights are the permanent layer's, and `temporary_mesh` has the
+  temporary lanes to draw over it.
+- A lane's `<link>` may name a lane on each layer, so traffic goes from the
+  permanent layer onto the temporary one and back. A junction `<laneLink>`
+  names its layers with `fromLayer` and `toLayer`.
+- A `<validity layer>` picks the lanes of that layer, and one with no `layer`
+  the permanent layer's.
+- Temporary lanes take precedence for driving. `nearest_lane`,
+  `lane_position`, `route` and `advance` find them where they hold the point,
+  and take a `LayerPolicy` to look at the permanent layer alone.
+
+A link with no `layer` reads as the permanent layer, except from a temporary
+lane to the next section of its own layer. The crate docs list where it
+departs from the spec.
+
 ## Road marks
 
 `RoadNetwork::road_marks` has the `<roadMark>`s on every lane border and the
@@ -336,9 +358,8 @@ Attributes it reads but ignores:
 
 | Feature | What the crate does |
 | --- | --- |
-| a second `<lanes>`, or `<lanes layer="temporary">` | bakes the first `<lanes>` as the road |
+| a second `<lanes>` of one layer | leaves it out |
 | `<laneSection singleSide="true">` | reads the section as two-sided |
-| a lane link's `layer`, a `<validity>`'s `layer`, a junction lane link's `fromLayer` or `toLayer` | reads them as the permanent layer |
 | `<object perpToRoad="true">` | places the object by its `hdg`, as if `perpToRoad` were `false` |
 | a `<repeat>`'s `bT`, `cT` or `dT`, or `detachFromReferenceLine="true"` | copies run straight along the road |
 | a boundary `<segment>`'s `transitionLength` above 0 | no blending |

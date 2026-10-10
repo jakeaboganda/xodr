@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use super::{RoadEnd, Warning};
-use crate::{Direction, Lane, LaneId};
+use crate::{Direction, Lane, LaneId, Layer};
 
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Contact {
@@ -37,11 +37,37 @@ pub(crate) struct LinkTarget {
     pub along: bool,
 }
 
+/// A lane section that baked: where it is on its road, and on which layer.
+pub(crate) struct SectionInfo {
+    pub index: usize,
+    pub layer: Layer,
+    pub start: f64,
+    pub end: f64,
+}
+
+/// A lane `<link>`'s `<predecessor>` or `<successor>`: the lane it names, and
+/// the layer it says that lane is on, if it says.
+#[derive(Clone, Copy)]
+pub(crate) struct LaneRef {
+    pub id: i32,
+    pub layer: Option<Layer>,
+}
+
+/// A junction `<laneLink>`.
+pub(crate) struct JunctionLaneLink {
+    pub from: i32,
+    pub to: i32,
+    pub from_layer: Layer,
+    pub to_layer: Layer,
+}
+
 pub(crate) struct RoadInfo {
-    /// The index among the road's `<laneSection>`s of each section that
-    /// baked, in order. A section shorter than a millimetre bakes no lanes,
-    /// so links step over it.
-    pub sections: Vec<usize>,
+    /// Each section that baked, permanent layer first, each layer in order.
+    /// A section shorter than a millimetre bakes no lanes, so links step
+    /// over it.
+    pub sections: Vec<SectionInfo>,
+    /// How long the road is.
+    pub length: f64,
     /// The road's `junction`, if it is in one.
     pub junction: Option<String>,
     pub predecessor: Option<LinkTarget>,
@@ -56,7 +82,7 @@ pub(crate) struct JunctionConn {
     pub incoming_road: String,
     pub connecting_road: String,
     pub contact: Contact,
-    pub lane_links: Vec<(i32, i32)>,
+    pub lane_links: Vec<JunctionLaneLink>,
 }
 
 /// Everything about one emitted lane needed to resolve its links: its assigned
@@ -68,8 +94,9 @@ pub(crate) struct LaneMeta {
     pub section: usize,
     pub od_id: i32,
     pub direction: Direction,
-    pub succ_link: Option<i32>,
-    pub pred_link: Option<i32>,
+    pub layer: Layer,
+    pub succ_links: Vec<LaneRef>,
+    pub pred_links: Vec<LaneRef>,
     pub heights: Vec<super::LaneHeight>,
     pub flags: super::LaneFlags,
 }
@@ -85,29 +112,54 @@ pub(crate) struct Topology {
     pub junctions: HashMap<String, Vec<JunctionConn>>,
 }
 
+/// How far, in metres, a section may stand from where a link leaves for the
+/// link to reach it.
+const REACH: f64 = 1e-2;
+
 impl Topology {
-    /// The index of `road`'s first lane section with lanes.
+    /// The index of `road`'s first permanent lane section with lanes.
     pub(crate) fn first_section(&self, road: &str) -> usize {
-        self.sections(road).first().copied().unwrap_or(0)
+        self.end_section(road, Layer::Permanent, Contact::Start)
+            .unwrap_or(0)
     }
 
-    /// The index of `road`'s last lane section with lanes.
+    /// The index of `road`'s last permanent lane section with lanes.
     pub(crate) fn last_section(&self, road: &str) -> usize {
-        self.sections(road).last().copied().unwrap_or(0)
+        self.end_section(road, Layer::Permanent, Contact::End)
+            .unwrap_or(0)
     }
 
-    /// The index of the lane section with lanes after `section` on `road`,
-    /// or before it if not `forward`.
-    fn next_section(&self, road: &str, section: usize, forward: bool) -> Option<usize> {
-        let sections = self.sections(road);
-        if forward {
-            sections.iter().copied().find(|&i| i > section)
-        } else {
-            sections.iter().copied().rev().find(|&i| i < section)
+    /// The index of `road`'s first (at its start) or last (at its end) lane
+    /// section on `layer`, if it has one.
+    fn end_section(&self, road: &str, layer: Layer, contact: Contact) -> Option<usize> {
+        let mut on = self.sections(road).iter().filter(|s| s.layer == layer);
+        match contact {
+            Contact::Start => on.next(),
+            Contact::End => on.next_back(),
         }
+        .map(|s| s.index)
     }
 
-    fn sections(&self, road: &str) -> &[usize] {
+    /// The index of the section of `layer` a link reaches leaving `road` at
+    /// `at` metres along it, forward or backward, if there is one. It is
+    /// the section that starts there or covers the place going forward, and
+    /// the one that ends there or covers the place just before going
+    /// backward.
+    fn reach(&self, road: &str, layer: Layer, at: f64, forward: bool) -> Option<usize> {
+        let mut on = self.sections(road).iter().filter(|s| s.layer == layer);
+        if forward {
+            on.find(|s| s.end > at + 1e-6 && s.start <= at + REACH)
+        } else {
+            on.rfind(|s| s.start < at - 1e-6 && s.end >= at - REACH)
+        }
+        .map(|s| s.index)
+    }
+
+    fn section_info(&self, road: &str, index: usize) -> Option<&SectionInfo> {
+        self.sections(road).iter().find(|s| s.index == index)
+    }
+
+    fn sections(&self, road: &str) -> &[SectionInfo] {
         self.roads.get(road).map_or(&[], |r| &r.sections)
     }
 }
@@ -211,27 +263,59 @@ fn successors_of(meta: &LaneMeta, topo: &Topology) -> Vec<LaneId> {
 /// with the end of its road it is entered at. Forward exits at the road's
 /// `+s` end (next section, or the road's successor); backward at the `-s`
 /// (start) end (previous section, or the predecessor).
+///
+/// A lane may name several lanes to go on to, each on a layer. A link with
+/// no `layer` reads as the permanent layer, as the spec says, except from a
+/// lane of the temporary layer to a section of the temporary layer that
+/// follows it, which a file that links its temporary lanes one to the next
+/// leaves unsaid.
 fn exits(meta: &LaneMeta, topo: &Topology, direction: Direction) -> Vec<(LaneId, Contact)> {
     let road = topo.roads.get(&meta.road);
     let forward = direction == Direction::Forward;
-    let (link, contact) = if forward {
-        (meta.succ_link, Contact::Start)
+    let (links, contact) = if forward {
+        (&meta.succ_links, Contact::Start)
     } else {
-        (meta.pred_link, Contact::End)
+        (&meta.pred_links, Contact::End)
     };
-    match topo.next_section(&meta.road, meta.section, forward) {
-        Some(next) => at(contact, lookup(topo, &meta.road, next, link)),
-        None => {
-            let target = road.and_then(|r| {
-                if forward {
-                    r.successor.clone()
-                } else {
-                    r.predecessor.clone()
-                }
-            });
-            cross(topo, meta, target, link)
+    let Some(info) = topo.section_info(&meta.road, meta.section) else {
+        return Vec::new();
+    };
+    let place = if forward { info.end } else { info.start };
+    let at_road_end = road.is_some_and(|r| {
+        if forward {
+            place >= r.length - 1e-3
+        } else {
+            place <= 1e-3
+        }
+    });
+    let target = || {
+        road.and_then(|r| {
+            if forward {
+                r.successor.clone()
+            } else {
+                r.predecessor.clone()
+            }
+        })
+    };
+    let mut out = Vec::new();
+    if links.is_empty() {
+        if at_road_end {
+            out.extend(cross(topo, meta, target(), None, meta.layer));
+        }
+        return out;
+    }
+    for link in links {
+        let own = topo
+            .reach(&meta.road, meta.layer, place, forward)
+            .map(|_| meta.layer);
+        let layer = link.layer.or(own).unwrap_or(Layer::Permanent);
+        match topo.reach(&meta.road, layer, place, forward) {
+            Some(next) => out.extend(at(contact, lookup(topo, &meta.road, next, Some(link.id)))),
+            None if at_road_end => out.extend(cross(topo, meta, target(), Some(link.id), layer)),
+            None => {}
         }
     }
+    out
 }
 
 /// Each of `lanes`, entered at `contact`.
@@ -249,23 +333,27 @@ fn lookup(topo: &Topology, road: &str, section: usize, od: Option<i32>) -> Vec<L
 /// Resolve a cross-road boundary: follow the road's link target (another road,
 /// or a junction) to the lane(s) it leads into, each with the end of its road
 /// it is entered at. `lane_link` is this lane's own `<link>` neighbor id (used
-/// for a direct road link).
+/// for a direct road link), and `layer` the layer it names or reads as.
 fn cross(
     topo: &Topology,
     meta: &LaneMeta,
     target: Option<LinkTarget>,
     lane_link: Option<i32>,
+    layer: Layer,
 ) -> Vec<(LaneId, Contact)> {
     let Some(target) = target else {
         return Vec::new();
     };
     match target.elem {
         // Direct road-to-road: the neighbor's section is its first (start
-        // contact) or last (end contact); the lane is our own <link> id.
+        // contact) or last (end contact) on the layer, or on the permanent
+        // layer if the neighbor has none there. The lane is our own <link> id.
         ElemType::Road => {
-            let section = match target.contact {
-                Contact::Start => topo.first_section(&target.id),
-                Contact::End => topo.last_section(&target.id),
+            let section = topo
+                .end_section(&target.id, layer, target.contact)
+                .or_else(|| topo.end_section(&target.id, Layer::Permanent, target.contact));
+            let Some(section) = section else {
+                return Vec::new();
             };
             at(target.contact, lookup(topo, &target.id, section, lane_link))
         }
@@ -277,14 +365,19 @@ fn cross(
             };
             let mut out = Vec::new();
             for c in conns.iter().filter(|c| c.incoming_road == meta.road) {
-                let section = match c.contact {
-                    Contact::Start => topo.first_section(&c.connecting_road),
-                    Contact::End => topo.last_section(&c.connecting_road),
-                };
-                for (_, to) in c.lane_links.iter().filter(|(f, _)| *f == meta.od_id) {
+                for link in c
+                    .lane_links
+                    .iter()
+                    .filter(|l| l.from == meta.od_id && l.from_layer == meta.layer)
+                {
+                    let Some(section) =
+                        topo.end_section(&c.connecting_road, link.to_layer, c.contact)
+                    else {
+                        continue;
+                    };
                     out.extend(at(
                         c.contact,
-                        lookup(topo, &c.connecting_road, section, Some(*to)),
+                        lookup(topo, &c.connecting_road, section, Some(link.to)),
                     ));
                 }
             }
@@ -325,18 +418,37 @@ pub(crate) fn road_link(road: roxmltree::Node) -> (Option<LinkTarget>, Option<Li
     (target("predecessor"), target("successor"))
 }
 
-/// A lane's `<link>` predecessor/successor lane ids.
+/// A lane's `<link>` predecessor/successor lane ids, the first of each.
 pub(crate) fn lane_link(lane: roxmltree::Node) -> (Option<i32>, Option<i32>) {
+    let (predecessors, successors) = lane_refs(lane);
+    (
+        predecessors.first().map(|r| r.id),
+        successors.first().map(|r| r.id),
+    )
+}
+
+/// Every lane a lane's `<link>` names before and after it, each with the
+/// layer it says it is on. A lane links to one lane on each layer, so a
+/// `<link>` may hold several of each.
+pub(crate) fn lane_refs(lane: roxmltree::Node) -> (Vec<LaneRef>, Vec<LaneRef>) {
     let Some(link) = lane.children().find(|n| n.has_tag_name("link")) else {
-        return (None, None);
+        return (Vec::new(), Vec::new());
     };
-    let id = |tag: &str| {
+    let refs = |tag: &str| {
         link.children()
-            .find(|n| n.has_tag_name(tag))
-            .and_then(|n| n.attribute("id"))
-            .and_then(|s| s.parse().ok())
+            .filter(|n| n.has_tag_name(tag))
+            .filter_map(|n| {
+                Some(LaneRef {
+                    id: n.attribute("id")?.parse().ok()?,
+                    layer: n.attribute("layer").map(|l| match l {
+                        "temporary" => Layer::Temporary,
+                        _ => Layer::Permanent,
+                    }),
+                })
+            })
+            .collect()
     };
-    (id("predecessor"), id("successor"))
+    (refs("predecessor"), refs("successor"))
 }
 
 /// Parse every `<junction>` in the document into `id -> connections`, and
@@ -417,8 +529,17 @@ pub(crate) fn junctions(
             let mut lane_links = Vec::new();
             for l in c.children().filter(|n| n.has_tag_name("laneLink")) {
                 let id = |name| l.attribute(name).and_then(|v| v.parse::<i32>().ok());
+                let layer = |name| match l.attribute(name) {
+                    Some("temporary") => Layer::Temporary,
+                    _ => Layer::Permanent,
+                };
                 match (id("from"), id("to")) {
-                    (Some(from), Some(to)) => lane_links.push((from, to)),
+                    (Some(from), Some(to)) => lane_links.push(JunctionLaneLink {
+                        from,
+                        to,
+                        from_layer: layer("fromLayer"),
+                        to_layer: layer("toLayer"),
+                    }),
                     _ => warnings.push(Warning::LaneLinkDropped {
                         incoming_road_id: incoming.to_string(),
                         junction_id: jid.to_string(),
@@ -544,7 +665,16 @@ fn reversed(
                 incoming_road: c.connecting_road.clone(),
                 connecting_road: c.incoming_road.clone(),
                 contact,
-                lane_links: c.lane_links.iter().map(|&(from, to)| (to, from)).collect(),
+                lane_links: c
+                    .lane_links
+                    .iter()
+                    .map(|l| JunctionLaneLink {
+                        from: l.to,
+                        to: l.from,
+                        from_layer: l.to_layer,
+                        to_layer: l.from_layer,
+                    })
+                    .collect(),
             })
         })
         .collect()

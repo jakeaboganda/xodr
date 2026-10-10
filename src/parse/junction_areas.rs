@@ -143,10 +143,14 @@ pub(super) fn cross_paths(
                         .find(|(id, _)| *id == od_id)
                         .map(|&(_, l)| l)
                 };
+                let mut permanent = crossing
+                    .sections
+                    .iter()
+                    .filter(|s| s.layer == crate::Layer::Permanent);
                 let crossing_end = if last {
-                    crossing.sections.last()
+                    permanent.next_back()
                 } else {
-                    crossing.sections.first()
+                    permanent.next()
                 };
                 Ok::<_, &str>(CrossPathEnd {
                     lane: at

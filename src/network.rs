@@ -179,6 +179,57 @@ impl std::fmt::Display for LaneType {
     }
 }
 
+/// The lane layer a lane is on, from its `<lanes layer>`.
+///
+/// A road has a permanent layer along its whole length, and may have a
+/// temporary one over parts of it, such as for road works. The temporary
+/// layer's lanes take precedence for driving. Both layers share one surface,
+/// which only the permanent layer defines.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Layer {
+    /// The road's lasting lanes. What a missing or unrecognised `layer`
+    /// reads as.
+    #[default]
+    Permanent,
+    /// Lanes laid over the permanent ones for a while.
+    Temporary,
+}
+
+impl Layer {
+    /// `permanent` or `temporary`, as the spec spells them.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Permanent => "permanent",
+            Self::Temporary => "temporary",
+        }
+    }
+}
+
+/// Which lane layers a query looks at, where a road has two.
+///
+/// The temporary layer's lanes take precedence for driving, so by default a
+/// query that finds a place on the road, or a way along it, may use them.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum LayerPolicy {
+    /// Both layers. Where a temporary lane covers a place it is the lane
+    /// found there, and the lane graph holds both layers' lanes.
+    #[default]
+    Temporary,
+    /// The permanent layer only, as if the map had no temporary lanes.
+    PermanentOnly,
+}
+
+impl LayerPolicy {
+    /// Whether a query under this policy may use `lane`.
+    pub fn admits(&self, lane: &Lane) -> bool {
+        match self {
+            Self::Temporary => true,
+            Self::PermanentOnly => lane.layer == Layer::Permanent,
+        }
+    }
+}
+
 /// Whether traffic from the lanes beside a lane may also use it, from a
 /// `<lane>`'s `advisory`. A bike lane that cars may also use is one.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -232,6 +283,10 @@ pub struct Lane {
     pub id: LaneId,
     /// What the lane is for.
     pub kind: LaneType,
+    /// Which lane layer it is on. A lane on the temporary layer is not part
+    /// of the road surface. [`RoadNetwork::surface_mesh`] leaves it out.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub layer: Layer,
     /// Which way traffic runs along `center`.
     pub direction: Direction,
     /// Lane centerline.
@@ -330,6 +385,8 @@ pub struct RoadNetwork {
     /// [`Self::nearest_lane`]. Derived from `lanes`, so it takes no part in
     /// equality.
     index: LaneIndex,
+    /// As `index`, for the temporary layer's lanes.
+    temporary_index: LaneIndex,
     /// Each lane's place on its road, from `roads`.
     road_lanes: HashMap<LaneId, RoadLane>,
     /// Every lane's surface bucketed by its XY footprint, for
@@ -516,8 +573,12 @@ impl LaneIndex {
     /// [`LaneType::is_drivable`] admits. Snapping a body to the road must land
     /// it on an ordinary traffic lane, so a bus lane or a slip lane beside it
     /// never wins on distance alone.
-    fn driving(lanes: &[Lane]) -> Self {
-        Self::build(lanes, |lane| lane.kind == LaneType::Driving, |_, _| 0.0)
+    fn driving(lanes: &[Lane], layer: Layer) -> Self {
+        Self::build(
+            lanes,
+            |lane| lane.kind == LaneType::Driving && lane.layer == layer,
+            |_, _| 0.0,
+        )
     }
 
     /// Every lane's surface: its centerline, widened by half its width and
@@ -620,7 +681,8 @@ impl RoadNetwork {
     /// Bake a lane list into a network, indexing the [`LaneType::Driving`]
     /// lanes by their ground footprint. Linear in the total number of centerline points.
     pub fn new(lanes: Vec<Lane>) -> Self {
-        let index = LaneIndex::driving(&lanes);
+        let index = LaneIndex::driving(&lanes, Layer::Permanent);
+        let temporary_index = LaneIndex::driving(&lanes, Layer::Temporary);
         Self {
             lanes,
             objects: Vec::new(),
@@ -648,6 +710,7 @@ impl RoadNetwork {
             switches: Vec::new(),
             stations: Vec::new(),
             index,
+            temporary_index,
             road_lanes: HashMap::new(),
             footprints: LaneIndex::default(),
         }
@@ -928,8 +991,31 @@ impl RoadNetwork {
     /// too at a road `s` no lane section covers, such as before a road's
     /// first section, where there is no lane.
     pub fn lane_position(&self, point: Point) -> Option<LanePosition> {
+        self.lane_position_with(point, LayerPolicy::default())
+    }
+
+    /// [`Self::lane_position`] under `policy`. With [`LayerPolicy::Temporary`],
+    /// a lane of the temporary layer that holds the point, between its
+    /// borders, is the one found. Otherwise it is the permanent layer's.
+    pub fn lane_position_with(&self, point: Point, policy: LayerPolicy) -> Option<LanePosition> {
         let at = self.road_position(point)?;
         let road = self.road(at.road)?;
+        if policy == LayerPolicy::Temporary {
+            let held = road
+                .section_of(Layer::Temporary, at.s)
+                .and_then(|section| Some((section, road.lane_at(section, at.s, at.t)?)))
+                .and_then(|(section, lane)| {
+                    let (_, id) = *section.lanes.iter().find(|(od, _)| *od == lane.od_id)?;
+                    Some(LanePosition {
+                        lane: id,
+                        s: at.s,
+                        offset: at.t - (lane.inner_t + lane.outer_t) / 2.0,
+                    })
+                });
+            if held.is_some() {
+                return held;
+            }
+        }
         let section = road
             .section_at(at.s)
             .filter(|section| (section.start..=section.end).contains(&at.s))?;
@@ -1355,11 +1441,50 @@ impl RoadNetwork {
     /// candidates for a point between them.
     ///
     /// `None` for a point that isn't finite.
+    ///
+    /// Where a temporary lane lies over the point, that lane is the one
+    /// found. See [`Self::nearest_lane_with`] to look at the permanent
+    /// layer only.
     pub fn nearest_lane(&self, point: Point) -> Option<(LaneId, Projection)> {
+        self.nearest_lane_with(point, LayerPolicy::default())
+    }
+
+    /// [`Self::nearest_lane`] under `policy`. With
+    /// [`LayerPolicy::Temporary`], a temporary lane that holds the point,
+    /// within its width, wins over a nearer lane of the permanent layer.
+    /// Otherwise, and with [`LayerPolicy::PermanentOnly`], only the
+    /// permanent layer's lanes are looked at.
+    pub fn nearest_lane_with(
+        &self,
+        point: Point,
+        policy: LayerPolicy,
+    ) -> Option<(LaneId, Projection)> {
         if !point.to_array().iter().all(|c| c.is_finite()) {
             return None;
         }
-        let index = &self.index;
+        if policy == LayerPolicy::Temporary {
+            let held = self
+                .nearest_of(point, Layer::Temporary)
+                .filter(|(id, projection)| {
+                    let Some(lane) = self.lane(*id) else {
+                        return false;
+                    };
+                    let (dx, dy) = (point.x - projection.point.x, point.y - projection.point.y);
+                    dx.hypot(dy) <= lane.width * 0.5 + 0.05
+                });
+            if held.is_some() {
+                return held;
+            }
+        }
+        self.nearest_of(point, Layer::Permanent)
+    }
+
+    /// The nearest driving lane of `layer` to `point`.
+    fn nearest_of(&self, point: Point, layer: Layer) -> Option<(LaneId, Projection)> {
+        let index = match layer {
+            Layer::Permanent => &self.index,
+            Layer::Temporary => &self.temporary_index,
+        };
         index.grid.nearest(point.x, point.y, |item, best| {
             let i = item as usize;
             // The footprint is a lower bound on the distance to the
@@ -1399,6 +1524,7 @@ mod tests {
         Lane {
             id: LaneId(id),
             kind: LaneType::Driving,
+            layer: crate::Layer::Permanent,
             direction: Direction::Forward,
             center: Polyline::new(points.iter().map(|p| Point::from_array(*p)).collect()),
             width: 3.5,

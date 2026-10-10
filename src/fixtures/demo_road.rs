@@ -23,6 +23,7 @@ pub(crate) fn demo_road() -> RoadNetwork {
         Lane {
             id: LaneId(0),
             kind: LaneType::Driving,
+            layer: crate::Layer::Permanent,
             direction: Direction::Forward,
             center: forward,
             width: LANE_WIDTH,
@@ -35,6 +36,7 @@ pub(crate) fn demo_road() -> RoadNetwork {
         Lane {
             id: LaneId(1),
             kind: LaneType::Driving,
+            layer: crate::Layer::Permanent,
             direction: Direction::Backward,
             center: backward,
             width: LANE_WIDTH,
