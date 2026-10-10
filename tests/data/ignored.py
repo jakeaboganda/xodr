@@ -4,16 +4,16 @@ counts that tell the uses apart, and the near misses that look like them.
     uv run -q --with scenariogeneration==0.16.6 tests/data/ignored.py
 
 Road 1 holds a <lanes layer="temporary">, which the crate reads, then a
-second permanent <lanes>, which it ignores, and a lane
-section with singleSide="true", which the crate reads. Road 2 holds the objects: three with perpToRoad, which the crate reads,
-repeats with a cubic term or detached from the reference line, and an
-object with a <surface>, a <skeleton>, a <curveLocal> outline and two
-outline <markings>. Road 3 holds a static board whose two signs each carry
-a <validity>, a <dependency> and a <reference>, one validity of a temporary layer. Road 4 uses each of those
-attributes at the value that means nothing, and holds an object
-<userData>, which the crate reads. Roads 1 to 3 also hold <userData> and
-<include> in places the crate skips. Road 5 holds 500 <userData> on one
-lane.
+second permanent <lanes>, which it ignores, and a lane section with
+singleSide="true", which the crate reads. Road 2 holds the objects: three
+with perpToRoad and repeats with a cubic term or detached from the
+reference line, which the crate reads, and an object with a <surface>, a
+<skeleton>, a <curveLocal> outline and two outline <markings>. Road 3 holds
+a static board whose two signs each carry a <validity>, a <dependency> and
+a <reference>, one validity of a temporary layer. Road 4 uses each of those
+attributes at the value that means nothing, and holds an object <userData>,
+which the crate reads. Roads 1 to 3 also hold <userData> and <include> in
+places the crate skips. Road 5 holds 500 <userData> on one lane.
 
 Junction 100 is a tee of roads 11, 12 and 13, with an <objects>, two
 <roadSection>s, boundary segments with and without a transitionLength, and

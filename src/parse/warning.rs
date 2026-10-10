@@ -79,6 +79,19 @@ pub enum Warning {
         /// Its `<object id>`.
         object_id: String,
     },
+    /// A `<repeat>` whose cubic `t`, from `bT`, `cT` and `dT`, ends more
+    /// than a millimetre from its `tEnd`. The spec says the two agree. The
+    /// crate follows the cubic.
+    RepeatEndMismatch {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+        /// Its `tEnd`.
+        t_end: f64,
+        /// The `t` its cubic reaches at its end.
+        reached: f64,
+    },
     /// A `<lane>` under `<left>` or `<right>` whose `id` isn't a whole
     /// number, or is 0, the center lane's. The crate can't tell which lane
     /// it is, so it drops it.
@@ -512,6 +525,7 @@ impl Warning {
             | Self::GeometryDropped { road_id, .. }
             | Self::LaneIdUnreadable { road_id, .. }
             | Self::TooManyCopies { road_id, .. }
+            | Self::RepeatEndMismatch { road_id, .. }
             | Self::RoadMarkLineDropped { road_id, .. }
             | Self::LaneDropped { road_id, .. }
             | Self::WidthAndBorder { road_id, .. }
@@ -661,6 +675,15 @@ impl fmt::Display for Warning {
             Self::TooManyCopies { road_id, object_id } => write!(
                 f,
                 "road {road_id:?}: object {object_id:?} would make over 100,000 copies or dashes, so they were left out"
+            ),
+            Self::RepeatEndMismatch {
+                road_id,
+                object_id,
+                t_end,
+                reached,
+            } => write!(
+                f,
+                "road {road_id:?}: a repeat of object {object_id:?} has tEnd {t_end:.3}, but its cubic reaches {reached:.3}"
             ),
             Self::LaneIdUnreadable {
                 road_id,
