@@ -368,14 +368,15 @@
 //!   the first closed outer outline of the same object that encloses it, and
 //!   the importer drops it if there is none.
 //!
-//! A junction's `<objects>` stand along its reference line, the `<planView>`
-//! of the junction, as a road's stand along its own. The line has no lanes,
-//! elevation or superelevation, as the spec says, so such an object stands
-//! at `z` 0, raised by its `zOffset`, and applies to no lanes. Its
-//! [`ObjectProvenance::junction_id`] names the junction, and its `road_id`
+//! A junction's `<objects>` stand along its reference line, the `<planView>` of
+//! the junction, as a road's stand along its own. The line has no lanes,
+//! elevation or superelevation, as the spec says, so such an object stands at
+//! `z` 0, raised by its `zOffset`. Its [`Object::lanes`] is empty, and its
+//! `<surface>` CRG, if it has one, covers the lanes of the junction's roads.
+//! Its [`ObjectProvenance::junction_id`] names the junction, and its `road_id`
 //! is empty. The spec allows the line one `<line>`. The crate departs from it
-//! and bakes any geometry a road may have. A junction with `<objects>` but
-//! no geometry to place them along raises [`Warning::JunctionObjectsDropped`].
+//! and bakes any geometry a road may have. A junction with `<objects>` but no
+//! geometry to place them along raises [`Warning::JunctionObjectsDropped`].
 //!
 //! An `<objectReference>` bakes the `<object>` it names, on whichever road
 //! that is, as if it stood at the reference's `s` and `t` with the
@@ -1086,13 +1087,15 @@
 //! An object's `<surface>` CRG is a [`CrgMode::Object`] record, one for each
 //! box the object bakes to, a discrete repeat's copies too. Its `(u, v)` are
 //! the object's own, from its origin along its heading, and the file's
-//! reference line plays no part. Inside the object's box, where the file has
-//! a value, `crgEvaluv2z` times `zScale` adds to the height the road's CRGs
-//! and mesh give there, and tilts the normal by its slope. Elsewhere it
-//! plays no part. With `hideRoadSurfaceCRG`, which is true unless the file
-//! says otherwise, an `attached` road CRG under it plays no part either. The
-//! object's `zOffset` and `height` play no part, as the spec says. A
-//! junction's object's CRG covers the lanes of the junction's roads.
+//! reference line plays no part. Inside the object's box, where the file has a
+//! value, `crgEvaluv2z` times `zScale` adds to the height the road's CRGs and
+//! mesh give there, and tilts the normal by its slope. Elsewhere it plays no
+//! part. With `hideRoadSurfaceCRG`, which is true unless the file says
+//! otherwise, an `attached` road CRG under it plays no part either. The
+//! object's `zOffset` and `height` play no part, as the spec says. A road's
+//! object's CRG covers that road's lanes near it, so where its box reaches over
+//! another road it plays no part. A junction's object's CRG covers the lanes of
+//! the junction's roads.
 //!
 //! The crate departs from the spec here:
 //!

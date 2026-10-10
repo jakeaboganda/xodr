@@ -116,6 +116,8 @@ pub enum Warning {
     ObjectSurfaceDropped {
         /// The `<road id>` it is on. Empty for an object of a junction.
         road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
         /// Its `<object id>`.
         object_id: String,
     },
@@ -741,9 +743,14 @@ impl fmt::Display for Warning {
                 f,
                 "junction {junction_id:?}: its objects have no reference line to stand along, so they were left out"
             ),
-            Self::ObjectSurfaceDropped { road_id, object_id } => write!(
+            Self::ObjectSurfaceDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
                 f,
-                "road {road_id:?}: object {object_id:?} has a <surface> but no box to lay it in, so it was left out"
+                "{}: object {object_id:?} has a <surface> but is no box, the one shape the spec allows one on, so the surface was left out",
+                place(road_id, junction_id)
             ),
             Self::CrgHideIgnored {
                 road_id,
@@ -752,11 +759,7 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "{}: object {object_id:?} hides a road CRG that replaces the road's height, which the spec forbids, so the road CRG stays",
-                if junction_id.is_empty() {
-                    format!("road {road_id:?}")
-                } else {
-                    format!("junction {junction_id:?}")
-                }
+                place(road_id, junction_id)
             ),
             Self::LaneIdUnreadable {
                 road_id,
@@ -975,5 +978,14 @@ impl fmt::Display for RoadSkipReason {
             Self::TooLong => "a length over 100 km",
             Self::OutOfRange => "lanes too far out for an f32",
         })
+    }
+}
+
+/// Where an object is, for a warning: its road, or its junction.
+fn place(road_id: &str, junction_id: &str) -> String {
+    if junction_id.is_empty() {
+        format!("road {road_id:?}")
+    } else {
+        format!("junction {junction_id:?}")
     }
 }

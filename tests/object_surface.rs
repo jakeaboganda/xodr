@@ -172,7 +172,7 @@ fn each_copy_of_a_discrete_repeat_has_its_own_crg() {
         .iter()
         .filter(|c| matches!(c.mode, CrgMode::Object(_)))
         .count();
-    assert_eq!(objects, 1 + 1 + 3 + 1 + 2 + 2 + 1);
+    assert_eq!(objects, 1 + 1 + 3 + 1 + 4 + 2 + 1);
 }
 
 #[test]
@@ -181,10 +181,12 @@ fn an_object_crg_that_hides_the_road_crg_replaces_its_bumps() {
     let mesh = net.surface_mesh();
     let surface = RoadSurface::new(&net, &mesh, load);
     let (u, v) = (0.3, 0.2);
-    let got = sample(&surface, at_object((20.0, 38.25), 0.0, (u, v)));
-    assert_near(got.z, eval(&plate(), u, v), "hider");
-    let open = sample(&surface, (40.0, 38.25));
-    assert_near(open.z, bump(&road(), 40.0, -1.75), "between the objects");
+    for (s, what) in [(20.0, "hider"), (40.0, "hiding by default")] {
+        let got = sample(&surface, at_object((s, 38.25), 0.0, (u, v)));
+        assert_near(got.z, eval(&plate(), u, v), what);
+    }
+    let open = sample(&surface, (30.0, 38.25));
+    assert_near(open.z, bump(&road(), 30.0, -1.75), "between the objects");
 }
 
 #[test]
@@ -193,9 +195,11 @@ fn an_object_crg_that_does_not_hide_stacks_on_the_road_crg() {
     let mesh = net.surface_mesh();
     let surface = RoadSurface::new(&net, &mesh, load);
     let (u, v) = (0.3, 0.2);
-    let got = sample(&surface, at_object((60.0, 38.25), 0.0, (u, v)));
-    let want = bump(&road(), 60.0 + u, -1.75 + v) + eval(&plate(), u, v);
-    assert_near(got.z, want, "stacker");
+    for (s, what) in [(60.0, "stacker"), (80.0, "zero")] {
+        let got = sample(&surface, at_object((s, 38.25), 0.0, (u, v)));
+        let want = bump(&road(), s + u, -1.75 + v) + eval(&plate(), u, v);
+        assert_near(got.z, want, what);
+    }
 }
 
 #[test]

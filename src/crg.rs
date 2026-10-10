@@ -452,36 +452,45 @@ impl<'a> RoadSurface<'a> {
         if hint.patches.len() < records.len() {
             hint.patches.resize_with(records.len(), PatchHint::default);
         }
-        let covering = lane.and_then(|l| self.by_lane.get(&l));
+        let covering: &[usize] = lane
+            .and_then(|l| self.by_lane.get(&l))
+            .map_or(&[], Vec::as_slice);
         let mut sample = SurfaceSample {
             z: f64::from(height),
             normal: normal.to_array().map(f64::from),
             crg_height: None,
             friction: None,
         };
-        let loaded = covering.into_iter().flatten().filter_map(|&i| {
+        let at = |i: usize| {
             let patch = self.patches[i].as_ref()?;
-            let at = At {
+            Some(At {
                 record: &records[i],
                 grid: &self.grids[patch.grid],
                 rigid: patch.rigid,
-            };
-            Some((i, at))
-        });
-        let (objects, roads): (Vec<_>, Vec<_>) =
-            loaded.partition(|(_, at)| matches!(at.record.mode, CrgMode::Object(_)));
-        let object = objects.iter().find_map(|(_, at)| {
+            })
+        };
+        let object = covering.iter().find_map(|&i| {
+            let at = at(i)?;
             let CrgMode::Object(placed) = at.record.mode else {
                 return None;
             };
             Some((at.object(placed, x, y)?, placed.hide_road))
         });
         let hides = object.is_some_and(|(_, hide)| hide);
-        for (i, at) in roads {
+        for &i in covering {
+            let Some(at) = at(i) else {
+                continue;
+            };
+            let hidden = match at.record.mode {
+                CrgMode::Object(_) => true,
+                CrgMode::Attached(_) => hides && at.record.purpose == CrgPurpose::Elevation,
+                _ => false,
+            };
+            if hidden {
+                continue;
+            }
             let hint = &mut hint.patches[i];
             match at.record.purpose {
-                CrgPurpose::Elevation
-                    if hides && matches!(at.record.mode, CrgMode::Attached(_)) => {}
                 CrgPurpose::Elevation if sample.crg_height.is_none() => {
                     if let Some((z, normal, bump)) = at.elevation(x, y, hint) {
                         sample.z = z;

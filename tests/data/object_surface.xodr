@@ -100,9 +100,19 @@
                     <CRG file="plate.crg" hideRoadSurfaceCRG="true" zScale="1" />
                 </surface>
             </object>
+            <object id="default" name="Default" type="roadSurface" s="40" t="-1.75" zOffset="0" length="2" width="2" height="0.05">
+                <surface>
+                    <CRG file="plate.crg" zScale="1" />
+                </surface>
+            </object>
             <object id="stacker" name="Stacker" type="roadSurface" s="60" t="-1.75" zOffset="0" length="2" width="2" height="0.05">
                 <surface>
                     <CRG file="plate.crg" hideRoadSurfaceCRG="false" zScale="1" />
+                </surface>
+            </object>
+            <object id="zero" name="Zero" type="roadSurface" s="80" t="-1.75" zOffset="0" length="2" width="2" height="0.05">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="0" zScale="1" />
                 </surface>
             </object>
         </objects>
