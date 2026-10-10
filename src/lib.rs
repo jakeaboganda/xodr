@@ -17,8 +17,9 @@
 //! A position is a [`Point`] and a direction or displacement is a [`Vector`].
 //! They are separate types carrying the arithmetic that relates them:
 //! `point - point` is a `Vector`, `point + vector` is a `Point`, and adding
-//! two positions does not compile. One three-float type used for all three
-//! roles would make `nearest_lane(sample.up)` legal, which it is not.
+//! two positions does not compile. One three-float type for position,
+//! direction and displacement would let `nearest_lane(sample.up)` compile.
+//! That call passes a direction where a position belongs.
 //!
 //! Both are `#[repr(C)]` structs of three public `f32` fields, so handing one
 //! to another math library is `Point::to_array`.
@@ -34,26 +35,26 @@
 //! # Which OpenDRIVE version
 //!
 //! The importer keeps a `<header>`'s attributes in [`RoadNetwork::header`]
-//! and its geo reference in [`RoadNetwork::geo_reference`]. It never inspects
-//! `revMajor` or `revMinor` to
-//! decide how to read the file, and it never rejects a file for its
-//! version. Whether a file loads depends only on whether it uses the
-//! elements below.
+//! and its geo reference in [`RoadNetwork::geo_reference`]. That includes
+//! `revMajor` and `revMinor`, which it does not use to decide how to read the
+//! file. It never rejects a file for its version. Whether a file loads
+//! depends only on whether it uses the elements below.
 //!
-//! Every one of those elements but two is in ASAM OpenDRIVE 1.9.0, the
-//! current revision. `poly3`, and a signal's `<positionRoad>` and
-//! `<positionInertial>`, are deprecated there, still specified, and still
-//! read here. A lane's `<visibility>` is not in 1.9 at all. The crate reads
-//! it from the older files that write it, as CARLA does. See
-//! [Lane visibility](#lane-visibility). A road's `<neighbor>`, from 1.4, is
-//! not in 1.9 either. libOpenDRIVE reads it too, as raw strings. The crate
-//! resolves and checks it: each is a [`RoadNeighbor`] in
-//! [`RoadNetwork::road_neighbors`], the road beside a road, on its left or
-//! right, running the same way or the other. The crate
-//! derives no lane changes from it. One naming no baked road, or with a
-//! `side` or `direction` 1.4 doesn't allow, is dropped, with a
-//! [`Warning::NeighborDropped`]. The test suite imports real files
-//! declaring 1.4, 1.6 and 1.7.
+//! Two of those elements are not in ASAM OpenDRIVE 1.9.0, the current
+//! revision: a lane's `<visibility>` and a road's `<neighbor>`. The crate
+//! reads them from the older files that write them. It reads `<visibility>`
+//! as CARLA does. See [Lane visibility](#lane-visibility). libOpenDRIVE reads
+//! `<neighbor>`, from 1.4, as raw strings. The crate resolves and checks it.
+//! Each is a [`RoadNeighbor`] in [`RoadNetwork::road_neighbors`]. It names
+//! the road beside this one, on its left or right, running the same way or
+//! the other. The crate derives no lane changes from it. One naming no baked
+//! road, or with a `side` or `direction` 1.4 doesn't allow, is dropped, with
+//! a [`Warning::NeighborDropped`].
+//!
+//! Three more elements are deprecated in 1.9: `poly3`, and a signal's
+//! `<positionRoad>` and `<positionInertial>`. The spec still defines them and
+//! the crate still reads them. The test suite imports real files declaring
+//! 1.4, 1.6 and 1.7.
 //!
 //! # Which elements
 //!
@@ -164,7 +165,7 @@
 //! | `<road><surface><CRG>` | `file`, `mode`, `purpose`, `orientation`, `sStart`, `sEnd`, `sOffset`, `tOffset`, `hOffset`, `xOffset`, `yOffset`, `zOffset`, `zScale` |
 //! | `<junction><surface><CRG>` | `file`, `mode`, `purpose`, `xOffset`, `yOffset`, `hOffset`, `zOffset`, `zScale` |
 //!
-//! Six attribute values steer the import:
+//! Eight attribute values steer the import:
 //!
 //! - `<road rule>` is `LHT` for left-hand traffic, or right-hand traffic
 //!   for `RHT` or none. See [Coordinate frame](#coordinate-frame).
@@ -179,6 +180,10 @@
 //! - `contactPoint` is `end`, or the start for any other value.
 //! - `<paramPoly3 pRange>` is `arcLength`, matched without case, or
 //!   normalized for any other value.
+//! - `<laneSection singleSide>` is `true` or `1` for a section that gives
+//!   only some sides, and any other value for one that gives all. See below.
+//! - `<lanes layer>` is `temporary` for the temporary layer, and the
+//!   permanent layer for any other value. See [Lane layers](#lane-layers).
 //!
 //! `<link>`s and `<junction>`s resolve into a drive-direction lane graph.
 //! "Successor" means "a lane you can drive into off this lane's exit end",
@@ -188,16 +193,17 @@
 //! `<laneSection>` without the `s` the spec requires starts at 0, as
 //! libOpenDRIVE reads it, so a section that also starts at 0 has no length.
 //!
-//! A `<laneSection singleSide="true">` gives only the sides it has an
-//! element for, `<left>`, `<center>` or `<right>`. The spec shows this in a
-//! figure and does not say what the other sides do. The crate carries them
-//! on from the sections before, and splits the road into a full section at
-//! each one, so every lane section has both sides. A carried lane is the
-//! same lane, read as it stands where the new section starts: its widths,
-//! `<height>`s, marks and the rest as the `sOffset`s of the section that gave
-//! it. A lane links on to its own copy, and the last copy to the lanes the
-//! file links it to. A section without `singleSide`, or with `"false"`,
-//! gives every side, so one with a single side gives nothing for the rest.
+//! A `<laneSection singleSide="true">` gives only the sides it has an element
+//! for, `<left>`, `<center>` or `<right>`. The spec shows this in a figure
+//! and does not say what the other sides do. The crate carries them on from
+//! the sections before. It splits the road into a full section at each one,
+//! so every lane section has both sides. A carried lane is the same lane,
+//! read as it stands where the new section starts. Its widths, `<height>`s,
+//! marks and other records keep the `sOffset`s of the section that gave them.
+//! Each copy of a lane links to the next copy. The last copy links to the
+//! lanes the file names. A section without `singleSide`, or with any value
+//! but `true` or `1`, gives every side. A side it leaves out has no lanes,
+//! and the crate does not carry one on.
 //!
 //! A direct junction joins roads end to end, with no connecting road
 //! between them. Each `<laneLink>` there says which lane of the linked road
@@ -209,18 +215,18 @@
 //! missing its `incomingRoad`, or the road it leads into, is dropped with a
 //! [`Warning::ConnectionDropped`].
 //!
-//! A `<junctionGroup>` groups junctions that routing should see as one, such
-//! as the junctions round a roundabout. Each is a [`JunctionGroup`] in
+//! A `<junctionGroup>` groups junctions that routing should see as one, such as
+//! the junctions round a roundabout. Each is a [`JunctionGroup`] in
 //! [`RoadNetwork::junction_groups`], with the `<junction id>`s it names, and
-//! [`RoadNetwork::junction_groups_of`] finds a road's through its
-//! [`Road::junction`]: every group, since the spec lets a junction be in
-//! more than one. The router does not use them. A reference to a junction
-//! the file lacks is left out, with a [`Warning::JunctionReferenceDropped`],
-//! and one repeating a junction the group already names is left out too. A
-//! `type` the spec does not allow, or a missing one, reads as
-//! [`JunctionGroupKind::Unknown`], with a
-//! [`Warning::UnknownJunctionGroupType`]. No other reader to compare
-//! against reads them.
+//! [`RoadNetwork::junction_groups_of`] returns the groups of a road's junction,
+//! found through [`Road::junction`]. It returns every group, since the spec
+//! lets a junction be in more than one. The router does not use them. A
+//! reference to a junction the file lacks is left out, with a
+//! [`Warning::JunctionReferenceDropped`], and one repeating a junction the
+//! group already names is left out too. A `type` the spec does not allow, or a
+//! missing one, reads as [`JunctionGroupKind::Unknown`], with a
+//! [`Warning::UnknownJunctionGroupType`]. No other reader to compare against
+//! reads them.
 //!
 //! A junction's `<crossPath>`s are paths for pedestrians across its roads,
 //! such as a crosswalk. Each is a [`CrossPath`] in
@@ -243,32 +249,30 @@
 //!
 //! # Virtual junctions
 //!
-//! A `<junction type="virtual">` joins roads to a main road part way along
-//! it, such as a driveway, without cutting it. Each is a
-//! [`VirtualJunction`] in [`RoadNetwork::virtual_junctions`], with its
-//! [`MainRoad`] and the stretch of it the junction spans, its
-//! [`Orientation`], and a
-//! [`VirtualLink`] for each place a road meets another part way along. A
-//! link comes from a road of the junction whose `<predecessor>` or
-//! `<successor>` gives an `elementS`, with the lane pairs its lanes'
-//! `<link>`s and the junction's `<laneLink>`s give, or from a deprecated
-//! `<connection type="virtual">`. Each side is a [`LinkPoint`]: an end of a
-//! road, or an `s` along one and which way the link runs there.
+//! A `<junction type="virtual">` joins roads to a main road part way along it,
+//! such as a driveway, without cutting it. Each is a [`VirtualJunction`] in
+//! [`RoadNetwork::virtual_junctions`], with its [`MainRoad`] and the stretch of
+//! it the junction spans, its [`Orientation`], and a [`VirtualLink`] for each
+//! place a road meets another part way along. A link comes from a road of the
+//! junction whose `<predecessor>` or `<successor>` gives an `elementS`. The
+//! lane pairs come from that road's lane `<link>`s and the junction's
+//! `<laneLink>`s. A link can also come from a deprecated `<connection
+//! type="virtual">`. Each side is a [`LinkPoint`]: an end of a road, or an `s`
+//! along one and which way the link runs there.
 //!
-//! The lane graph joins lanes end to end, so these links are kept beside
-//! it, and the router does not follow them. A connection whose incoming
-//! road is the main road adds no lane-graph link either. The junction's
-//! other connections, such as from a lot road into a connecting road that
-//! ends on the main road, are read as in a common junction. A road link
-//! with an `elementS` outside a virtual junction is read by its
-//! `contactPoint`, since files such as ASAM's `UC_ParamPoly3` give one
-//! there. A junction without its main road, one naming a road the load
-//! lacks, or an `sStart` or `sEnd` off it, as the spec's own example of
-//! virtual connections is, keeps its links with no [`MainRoad`], and raises
-//! a [`Warning::VirtualJunctionWithoutMainRoad`]. A link naming a road the
-//! load lacks, an `s` off it, or an `elementDir` other than `+` or `-` is
-//! dropped, with a [`Warning::VirtualLinkDropped`]. esmini reads a virtual
-//! junction as a
+//! The lane graph joins lanes end to end, so these links are kept beside it,
+//! and the router does not follow them. A connection whose incoming road is the
+//! main road adds no lane-graph link either. The junction's other connections,
+//! such as from a lot road into a connecting road that ends on the main road,
+//! are read as in a common junction. A road link with an `elementS` outside a
+//! virtual junction is read by its `contactPoint`, since files such as ASAM's
+//! `UC_ParamPoly3` give one there. A virtual junction keeps its links but gets
+//! no [`MainRoad`] when it has no main road, when the main road is not in the
+//! load, or when `sStart` or `sEnd` lie off the road. The spec's own example of
+//! virtual connections does the last. The crate raises a
+//! [`Warning::VirtualJunctionWithoutMainRoad`]. A link naming a road the load
+//! lacks, an `s` off it, or an `elementDir` other than `+` or `-` is dropped,
+//! with a [`Warning::VirtualLinkDropped`]. esmini reads a virtual junction as a
 //! common one. No other reader to compare against reads `elementS`.
 //!
 //! A road's lanes drive into a common junction from the end whose road
@@ -285,13 +289,12 @@
 //! Each `<object>` bakes to one or more [`Object`]s in world coordinates,
 //! sitting on the road surface. As in libOpenDRIVE, an object's own frame
 //! follows the road under it: `hdg`, `pitch` and `roll` turn it against the
-//! road's grade and bank, and `zOffset` raises it square to the surface. So
-//! an object on a banked road leans with the bank. `<repeat>` sweeps and
+//! road's grade and bank, and `zOffset` raises it square to the surface. So an
+//! object on a banked road leans with the bank. `<repeat>` sweeps and
 //! `<cornerRoad>` corners are given in road coordinates, not the object's
 //! frame, and still rise straight up. libOpenDRIVE raises a `<cornerRoad>`
-//! along the road's normal instead, which differs on a banked road.
-//! `<object type>`
-//! chooses their [`ObjectType`], and an unrecognised name bakes as
+//! along the road's normal instead, which differs on a banked road. `<object
+//! type>` chooses an object's [`ObjectType`], and an unrecognised name bakes as
 //! [`ObjectType::Unknown`]. The [`Shape`] follows libOpenDRIVE:
 //!
 //! - A plain object is a [`Shape::Solid`] at its `(s, t)`. A `radius` makes
@@ -355,8 +358,8 @@
 //! [`load_file_with_provenance`], the same way [`LaneProvenance`] names a
 //! lane's road. For a referenced object, those are the reference's, and
 //! [`ObjectProvenance::referenced_from`] names the road the original is on.
-//! [`RoadNetwork::object_mesh`] turns them all into triangles. Markings and borders
-//! are not in it: they are already quads, in [`Marking::pieces`] and
+//! [`RoadNetwork::object_mesh`] turns them all into triangles. Markings and
+//! borders are not in it: they are already quads, in [`Marking::pieces`] and
 //! [`Border::pieces`].
 //!
 //! Each `<tunnel>` and `<bridge>` bakes to a [`Structure`] with no geometry,
@@ -434,8 +437,8 @@
 //! [`RoadNetwork::controllers`], with the signals its `<control>`s name, and
 //! each of those signals lists it in [`Signal::controllers`]. A control that
 //! names no signal is skipped, and its controller kept. A `<junction>`'s own
-//! `<controller>` list names controllers that switch in step there. The
-//! baked network has no list of junctions, so each entry is in the
+//! `<controller>` list names controllers that switch in step there. A
+//! [`RoadNetwork`] has no list of junctions, so each entry is in the
 //! [`ControllerProvenance`] of the controller it names.
 //!
 //! # Junction areas
@@ -454,10 +457,12 @@
 //!
 //! Its [`JunctionArea::grid`] is the grid of heights along the junction's
 //! reference line, its `<planView>`, and square to it.
-//! [`JunctionArea::height_at`] reads a smooth surface through it, the
-//! spec's bicubic interpolation: from a square's corners and their slopes and twist, each slope from the
-//! cubic through the four grid points in line with the square's edge, or the
-//! straight line along the edge where the grid has too few. So between two
+//! [`JunctionArea::height_at`] reads a smooth surface through the grid. It
+//! uses the spec's bicubic interpolation over each square. The square's
+//! corners, their slopes and their twist set the surface. Each slope comes
+//! from the cubic through the four grid points in line with the edge. Where
+//! the grid has fewer than four, the slope comes from the straight line along
+//! the edge. So between two
 //! equal heights the ground can rise past them, as the cubic through its
 //! neighbours does. [`JunctionArea::mesh`] triangulates the ground inside
 //! the boundary at the grid's spacing, at the grid's height where it
@@ -473,10 +478,11 @@
 //!   and raises [`Warning::ElevationGridNotApplied`]. So where a file's roads
 //!   and grid disagree, the lanes and the junction mesh do too.
 //! - The spec requires the segments to close the boundary. The crate joins
-//!   them straight, and raises [`Warning::BoundaryNotClosed`] where two are
-//!   more than 10 cm apart in plan, as a boundary of one segment is. A
-//!   segment naming no baked road, or a lane its road lacks, is dropped
-//!   with a [`Warning::BoundarySegmentDropped`].
+//!   them straight, and raises [`Warning::BoundaryNotClosed`] where two
+//!   segments end more than 10 cm apart in plan. A boundary of one segment
+//!   raises it too, if the segment does not close on itself. A segment naming
+//!   no baked road, or a lane its road lacks, is dropped with a
+//!   [`Warning::BoundarySegmentDropped`].
 //! - The spec orders the segments counter-clockwise. The crate turns a
 //!   clockwise boundary round, and raises [`Warning::BoundaryClockwise`].
 //! - The spec orders a joint from `jointLaneStart` to `jointLaneEnd`. Where
@@ -494,63 +500,76 @@
 //!
 //! # Railways
 //!
-//! A road's `<railroad>` holds its switches, each a [`Switch`] in
-//! [`RoadNetwork::switches`]: where on the main track it is, where the side
-//! track leaves it, each a [`TrackPoint`] with a road, an `s` and which way
-//! along it the switch leads, which way it is set, and its partner's id and
-//! name. A switch joins tracks part way along them, so, as a cross path is, it is
-//! kept beside the lane graph, and the router does not follow it. Each
-//! `<station>` is a [`Station`] in [`RoadNetwork::stations`], with its
-//! platforms and the stretches of track each runs beside. A switch or a
-//! platform segment naming a road the load lacks, an `s` off it, an `sEnd`
-//! before its `sStart`, or a `position`, `dir` or `side` the spec does not
-//! allow is dropped, with a
-//! [`Warning::RailwayDropped`]. No other reader to compare against reads
-//! either.
+//! A road's `<railroad>` holds its switches. Each is a [`Switch`] in
+//! [`RoadNetwork::switches`]. It has the point on the main track where it
+//! sits, the point where the side track leaves it, and which way it is set.
+//! Each point is a [`TrackPoint`] with a road, an `s` and which way along the
+//! road the switch leads. A switch also keeps its partner as a [`Partner`],
+//! with its id and name. A switch joins tracks part way along them. Like a
+//! cross path, it is kept beside the lane graph, and the router does not
+//! follow it.
+//!
+//! Each `<station>` is a [`Station`] in [`RoadNetwork::stations`], with its
+//! platforms and the stretches of track each runs beside. The crate drops a
+//! switch or platform segment, with a [`Warning::RailwayDropped`], if it
+//! names a road the load lacks, has an `s` off the road, has an `sEnd`
+//! before its `sStart`, or gives a `position`, `dir` or `side` the spec does
+//! not allow. No other reader to compare against reads either.
 //!
 //! # Lane layers
 //!
 //! A road has a permanent lane layer along its whole length, and may have a
-//! temporary one over parts of it, as for road works. Each is a `<lanes>`,
-//! with its own lane sections and its own `<laneOffset>`. A [`Lane`] says
-//! which it is on in [`Lane::layer`]. A lane section's index counts the
-//! permanent sections first, and the temporary ones follow, as
-//! [`LaneProvenance::section`] has it. A temporary section may give a
-//! `length`. It then ends there, or at the next section of its layer.
-//! A further `<lanes>` of a layer is left out, with a [`Warning::Ignored`].
+//! temporary one over parts of it, as for road works. Each layer is a
+//! `<lanes>` element with its own lane sections and its own `<laneOffset>`.
+//! Its `layer` attribute says which layer it is: `temporary` for the
+//! temporary one, and the permanent layer for any other value, or none.
+//!
+//! A [`Lane`] says which layer it is on in [`Lane::layer`]. A lane section's
+//! index counts the permanent sections first, and the temporary ones follow,
+//! as [`LaneProvenance::section`] has it. A temporary section may give a
+//! `length`. It then ends at its `s` plus that length, or where the next
+//! section of its layer starts, whichever comes first. If a road has two
+//! `<lanes>` of one [`Layer`], the crate keeps the first and raises a
+//! [`Warning::Ignored`] for the other. A temporary lane has its own speed
+//! limits, rules, access, materials and visibility, and `singleSide` works in
+//! each layer.
 //!
 //! Both layers share one surface, which only the permanent layer defines.
 //! [`RoadNetwork::surface_mesh`], [`RoadNetwork::road_point`] and heights
 //! follow the permanent lanes. [`RoadNetwork::temporary_mesh`] has the
-//! temporary lanes, to draw over them at the same height. The crate does not
-//! clip a temporary lane that reaches past the permanent surface. The
-//! temporary layer's road marks are baked like any, on its lanes.
+//! temporary lanes, to draw over them at the same height. It is empty on a
+//! map with no temporary layer. The crate does not clip a temporary lane
+//! that reaches past the permanent surface. The temporary layer's road marks
+//! are baked like any, on its lanes.
 //!
 //! A lane's `<link>` may name several lanes before and after it, each with
-//! a `layer`. That is how traffic goes from a permanent lane onto a
-//! temporary one, and back, and a lane of one layer then has lanes of both
-//! as successors. A junction `<laneLink>` says which layer it leaves from
-//! and arrives on with `fromLayer` and `toLayer`. A `<validity>` with a
-//! `layer` picks lanes of that layer, and one without picks the permanent
-//! layer's. An object or signal with no `<validity>` applies to the lanes of
-//! both layers.
+//! a `layer`. Traffic uses this to move from a permanent lane onto a
+//! temporary one, and back. A lane can then have successors in both layers.
+//! A junction `<laneLink>` says which layer it leaves from and arrives on
+//! with `fromLayer` and `toLayer`.
+//!
+//! A `<validity>` with a `layer` picks lanes of that layer, and one without
+//! picks the permanent layer's. An object with no `<validity>` applies to all
+//! the lanes of both layers beside it. A signal with no `<validity>` applies
+//! to the lanes of both layers whose traffic runs the way its `orientation`
+//! names.
 //!
 //! The temporary lanes take precedence for driving, as the spec says. So
 //! [`RoadNetwork::nearest_lane`], [`RoadNetwork::lane_position`],
-//! [`RoadNetwork::route`] and [`RoadNetwork::advance`] look at both layers,
-//! and a temporary driving lane that holds a point is the one they find
-//! there. A lane holds a point if the point lies within half its width of
-//! its centerline, and not past either end of it.
-//! Their `_with` forms take a [`LayerPolicy`], and
+//! [`RoadNetwork::route`] and [`RoadNetwork::advance`] look at both layers.
+//! A temporary driving lane that holds a point is the lane they find there.
+//! A lane holds a point if the point lies within half its width of its
+//! centerline, and not past either end of it. Each has a `_with` form that
+//! takes a [`LayerPolicy`]. [`LayerPolicy::Both`] is the default, and
 //! [`LayerPolicy::PermanentOnly`] looks at the permanent layer alone.
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:
 //!
 //! - The spec says a link with no `layer` means the permanent layer. The
-//!   crate keeps such a link on the lane's own layer when that layer has a
-//!   section to go on to there, and otherwise sends it to the permanent
-//!   layer. For a lane of the permanent layer the two rules are the same.
-//!   Without this, a temporary layer's own sections would not join.
+//!   crate keeps such a link on the lane's own layer if that layer has a
+//!   next section. Otherwise it sends the link to the permanent layer. For
+//!   a lane of the permanent layer the two rules are the same. Without this,
+//!   a temporary layer's own sections would not join.
 //! - A road with no permanent `<lanes>`, only a temporary one, bakes the
 //!   first as the permanent layer, as it did before layers were read.
 //! - A permanent `<laneSection>`'s `length`, which the spec forbids, is
@@ -601,16 +620,16 @@
 //! `t` goes linearly along `s`. The height stands off the road along its
 //! normal, which superelevation tilts, as a lane height does.
 //!
-//! The shape folds into the lane heights. Each lane border stands at the
-//! shape under it plus the lane's `<height>` there, and the lane goes
-//! straight across from one border to the other. Its centerline stands at
-//! the mean of the two, and [`Lane::bank`] adds the slope between them.
-//! Neighbouring lanes share a border height, so the mesh stays closed. A
-//! crown that breaks on a lane border is exact. A curve inside a lane is
-//! lost: the straight line across a parabola `c t²` is `c w² / 4` off at its
-//! middle, 5.5 mm on a 3.5 m lane of a crown falling 2.5 % at 7 m out.
-//! [`LaneProvenance::heights`] still gives the `<height>`s only. Each
-//! profile's `s` is a station of every lane section it falls in.
+//! The shape folds into the lane heights. Each lane border stands at the shape
+//! under it plus the lane's `<height>` there, and the lane goes straight across
+//! from one border to the other. Its centerline stands at the mean of the two,
+//! and [`Lane::bank`] adds the slope between them. Neighbouring lanes share a
+//! border height, so the mesh stays closed. A crown that breaks on a lane
+//! border is exact. A curve inside a lane is lost. For a parabola `c t²`, the
+//! straight line across a lane of width `w` is `c w² / 4` off at the middle.
+//! That is 5.5 mm on a 3.5 m lane where a crown's slope reaches 2.5 % at 7 m
+//! from the ridge. [`LaneProvenance::heights`] still gives the `<height>`s
+//! only. Each profile's `s` is a station of every lane section it falls in.
 //!
 //! Objects, signals and road marks stand on the lane under them, so on the
 //! shape as the mesh has it. A mark on the center line lies flat at the
@@ -641,14 +660,14 @@
 //!
 //! # Cross-section surfaces
 //!
-//! A road's `<crossSectionSurface>` gives its surface across it another
-//! way than `<shape>`s do: up to two strips each side of the reference line,
-//! shifted across it by a `<tOffset>`. Each strip's height is a cubic in
-//! `dt`, the distance across the strip, whose four coefficients, its
-//! `<constant>`, `<linear>`, `<quadratic>` and `<cubic>`, are each cubics in
-//! `s`. An inner strip, `id` 1 or -1, reaches as far as its `<width>`, and an
-//! outer strip, 2 or -2, from there to the road's edge, measured from the
-//! inner strip's edge. A `mode="relative"` outer strip stands on the inner
+//! A road's `<crossSectionSurface>` gives its surface across it another way
+//! than `<shape>`s do: up to two strips each side of the reference line,
+//! shifted across it by a `<tOffset>`. Each strip's height is a cubic in `dt`,
+//! the distance across the strip. The four coefficients of that cubic are
+//! `<constant>`, `<linear>`, `<quadratic>` and `<cubic>`. Each is itself a
+//! cubic in `s`. An inner strip, `id` 1 or -1, reaches as far as its `<width>`,
+//! and an outer strip, 2 or -2, from there to the road's edge, measured from
+//! the inner strip's edge. A `mode="relative"` outer strip stands on the inner
 //! strip's edge, and an `independent` one on the reference plane.
 //!
 //! The crate bakes it as it bakes shapes: each lane border stands at the
@@ -722,12 +741,12 @@
 //! The mesh builder tilts a raised lane's cross axis by its slope, rather
 //! than moving each edge to its own height. The lane's width is the straight
 //! line across its surface, so each edge lands on its border and at its height.
-//! On a grade the edges also sit half the rise times the grade along the
-//! road from where the road's normal puts them, 1.5 mm for a 0.1 m rise at
-//! 3 %.
-//! Where a lane's kerb and outer edge change height at different paces, as
-//! on a ramp, each quad of its mesh is twisted, and its two triangles cut
-//! the corner by up to a quarter of the rise across that quad. Halfway up
+//! On a grade, each edge also shifts along the road by half the rise times
+//! the grade, compared with where the road's normal puts it. For a 0.1 m rise
+//! at 3 % that is 1.5 mm.
+//! A lane's kerb edge and outer edge may change height at different paces, as
+//! on a ramp. Each mesh quad is then twisted, and its two triangles miss the
+//! true surface by up to a quarter of the rise across the quad. Halfway up
 //! a 0.1 m kerb ramp the mesh is 25 mm off. libOpenDRIVE also meshes a lane
 //! as quads between its borders.
 //!
@@ -785,15 +804,15 @@
 //!
 //! Each of its [`RoadMark::lines`] is quads lying in the road surface, placed
 //! at the lane's own stations, so the paint lies on the lane mesh. A mark's
-//! `<type><line>`s and `<explicit><line>`s are its lines, whatever its
-//! `type` other than `none`. Each is a [`RoadMarkLine`] with its own width,
-//! colour, [`LinePattern`] and [`LineRule`], `tOffset` from the border. A
-//! `<type><line>` repeats from its `sOffset` to the end of the mark, and an
-//! `<explicit><line>` paints once. A mark with no lines gets stand-ins for
-//! its type: one line for `solid` and `broken`, two for a double type, and
-//! none for the rest. Each `<sway>` moves every line of the mark sideways by
-//! its cubic, from its `ds` along the mark to the next. The marks of a lane
-//! section too short to bake do not bake either.
+//! `<type><line>`s and `<explicit><line>`s are its lines, whatever its `type`
+//! other than `none`. Each is a [`RoadMarkLine`] with its own width, colour,
+//! [`LinePattern`] and [`LineRule`]. Its `tOffset` is measured from the border.
+//! A `<type><line>` repeats from its `sOffset` to the end of the mark, and an
+//! `<explicit><line>` paints once. A mark with no lines gets stand-ins for its
+//! type: one line for `solid` and `broken`, two for a double type, and none for
+//! the rest. Each `<sway>` moves every line of the mark sideways by its cubic,
+//! from its `ds` along the mark to the next. The marks of a lane section too
+//! short to bake do not bake either.
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:
 //!
@@ -848,13 +867,13 @@
 //! [`SpeedLimit::Unlimited`]. Where the map says nothing, there is no
 //! stretch.
 //!
-//! A road's `<type>` holds from its `s` to the next, or to the end of the
-//! road, across every lane. So does the limit its `<speed>` sets. Its
-//! `country` is in [`RoadNetwork::road_countries`] the same way, where the
-//! map gives one. The crate applies none of a country's rules. A
-//! `max="undefined"` sets none. A lane's own `<speed>` holds from its
-//! `sOffset` to the next, or to the end of its lane section, and overrides
-//! its road's. A `<speed>` without a `unit` is in m/s, as the spec says.
+//! A road's `<type>` holds from its `s` to the next, or to the end of the road,
+//! across every lane. So does the limit its `<speed>` sets. The `country` of a
+//! `<type>` is in [`RoadNetwork::road_countries`], over the same stretch, where
+//! the map gives one. The crate applies none of a country's rules. A
+//! `max="undefined"` sets none. A lane's own `<speed>` holds from its `sOffset`
+//! to the next, or to the end of its lane section, and overrides its road's. A
+//! `<speed>` without a `unit` is in m/s, as the spec says.
 //!
 //! The limits come from `<speed>` records only. The spec says a speed limit
 //! sign takes precedence, but the crate does not read signs as limits. A
@@ -896,8 +915,8 @@
 //!   together. Two with the same `rule` merge their road users. An `allow`
 //!   and a `deny` merge into the `allow`, less the road users the `deny`
 //!   names, since only those may then use the lane.
-//! - A lane has one material, speed and visibility at a time. Of two at the
-//!   same `sOffset`, the later in the file holds.
+//! - A lane has one material, speed and visibility at a time. Of two of one
+//!   kind at the same `sOffset`, the later in the file holds.
 //! - A material is a [`Material`], as on an object. The crate does not use
 //!   its friction, which a CRG gives through [`RoadSurface`].
 //!
@@ -946,11 +965,11 @@
 //! it covers the point, and the surface mesh answers everywhere else. The CRG
 //! does not change the mesh.
 //!
-//! Where several records of one purpose cover a point, the last in the file
-//! wins, as rule `road.crg.use_last_entry` has it, and the rest are ignored.
-//! Elevation and friction count apart. The crate lists a junction's
-//! records after every road's, so they win over its roads', which the spec
-//! doesn't rank.
+//! Where several records of one purpose cover a point, the last in map order
+//! wins, as rule `road.crg.use_last_entry` has it. The others do not apply at
+//! that point. Elevation and friction count apart. The crate lists a
+//! junction's records after every road's, so they win over its roads'. The
+//! spec does not rank them.
 //!
 //! The modes follow the road surface section of ASAM OpenDRIVE 1.9:
 //!
@@ -978,9 +997,9 @@
 //!
 //! A road's CRG applies between `sStart` and `sEnd`, on the lanes of the
 //! sections there. A junction's CRG applies on every lane of the roads in the
-//! junction, before any CRG of those roads, since the spec says it supersedes
-//! their elevation. A junction's CRG must be `global`. The importer reads no
-//! junction reference line, so it skips the other modes there.
+//! junction, and wins over the CRGs of those roads, since the spec says it
+//! supersedes their elevation. A junction's CRG must be `global`. The importer
+//! reads no junction reference line, so it skips the other modes there.
 //!
 //! A friction CRG ignores `zOffset` and `zScale`, as the spec says, and gives
 //! the grid values exactly as the file has them. OpenCRG, like its C-API,
@@ -989,9 +1008,11 @@
 //!
 //! # What the importer ignores
 //!
-//! Everything else in the file. Each feature below raises a
-//! [`Warning::Ignored`], once per road, junction, or the rest of the
-//! document, with how many times the file uses it.
+//! The crate skips what the sections above do not list as read. It raises one
+//! [`Warning::Ignored`] for each feature below in each road, in each
+//! junction, and in the rest of the document. The warning gives how many
+//! times the file uses the feature. [`Warning::is_ignored`] tells these from
+//! the warnings for faults.
 //!
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
 //! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a
@@ -1003,7 +1024,8 @@
 //!
 //! It also ignores these uses of elements it reads:
 //!
-//! - a second `lanes` of one layer on a road, which the crate leaves out;
+//! - a second `lanes` of one [`Layer`] on a road, which the crate leaves out.
+//!   It keeps the first;
 //! - `perpToRoad="true"` on an object;
 //! - a repeat's `bT`, `cT` or `dT` other than 0, and
 //!   `detachFromReferenceLine="true"`;
@@ -1011,9 +1033,33 @@
 //!
 //! One omission changes the road you get back, rather than only dropping
 //! detail around it: the center lane, lane 0, never becomes a [`Lane`].
-//! Its road marks are read, and its `id`, `type`, `level` and `link`,
-//! which are in [`Provenance::center_lanes`]. The lane graph does not follow
-//! its link.
+//! The crate reads its road marks. It keeps its `id`, `type`, `level` and
+//! `link` as a [`CenterLaneProvenance`] in [`Provenance::center_lanes`]. The
+//! lane graph does not follow its link.
+//!
+//! # Kept for the caller
+//!
+//! The crate keeps some attributes it builds nothing from. It does not use
+//! them to read the map, and it applies none of them. They are here:
+//!
+//! - the `<header>`, in [`RoadNetwork::header`] as a [`Header`];
+//! - a road's `name` in [`Road::name`], and a junction's in
+//!   [`Provenance::junctions`], as a [`JunctionProvenance`];
+//! - a road type's `country`, in [`RoadNetwork::road_countries`];
+//! - a road mark's `material` and its type's `name`, in
+//!   [`RoadMarkProvenance`];
+//! - a lane's `advisory`, `dynamicLaneType`, `dynamicLaneDirection` and
+//!   `roadWorks`, in [`LaneProvenance`], where `advisory` is a
+//!   [`LaneAdvisory`];
+//! - the center lane's `id`, `type`, `level` and `link`, in
+//!   [`Provenance::center_lanes`], as a [`CenterLaneProvenance`];
+//! - an object's `invalidated` and `temporary`, in [`Object`], a marking's
+//!   `weight`, in [`Marking`], and a material's `roadMarkColor`, a
+//!   `fillType` and a `laneType`, in [`ObjectProvenance`];
+//! - a sign's own attributes, in [`BoardSign`];
+//! - a switch's partner, as a [`Partner`] in [`Switch`];
+//! - a junction `<laneLink>`'s `overlapZone`, in
+//!   [`Provenance::lane_link_overlaps`], as a [`LaneLinkOverlap`].
 //!
 //! # Coordinate frame
 //!
@@ -1038,24 +1084,25 @@
 //! `RHT`, the spec's default, and raises [`Warning::UnknownTrafficRule`].
 //! esmini also reads `lht` as left-hand traffic. The crate does not.
 //!
-//! A lane's `direction` overrides its side's. `reversed` runs it against
-//! its side, and `both` makes it a [`Direction::Both`] lane, which runs
-//! either way. A lane of the deprecated `type="bidirectional"` with no
-//! `direction` runs both ways too, since the spec says `both` replaces it.
-//! Two two-way lanes that join lead into each other both ways, even where
-//! only one names the other. A two-way lane's successors are the lanes off
-//! both of its ends, and its predecessors those that drive into it at either
-//! end. Of the lanes off a two-way lane's end, only those whose traffic runs
-//! away from the joint count. A lane
-//! change is only ever to a lane running the same way. [`RoadNetwork::route`]
-//! drives a two-way lane toward the next lane on the route, and
-//! [`RoadNetwork::advance`] each way from one. esmini, libOpenDRIVE and
-//! CARLA ignore `direction`.
-//!
-//! The crate departs from the OpenDRIVE 1.9 spec here: the spec allows only
+//! A lane's `direction` overrides its side's. The spec allows only
 //! `standard`, `reversed` and `both`. The crate reads any other value as
 //! `standard`, the spec's default, and raises
-//! [`Warning::UnknownLaneDirection`].
+//! [`Warning::UnknownLaneDirection`]. `reversed` runs a lane against its
+//! side, and `both` makes it a [`Direction::Both`] lane, which runs either
+//! way. A lane of the deprecated `type="bidirectional"` with no `direction`
+//! runs both ways too, since the spec says `both` replaces it.
+//!
+//! Two two-way lanes that join lead into each other both ways, even where
+//! only one names the other. Of the lanes off a two-way lane's end, only
+//! those whose traffic runs away from the joint count. So a two-way lane's
+//! successors are the lanes off both of its ends that run away from them,
+//! and its predecessors are those that drive into it at either end.
+//!
+//! The lane graph links a lane change only to a lane running the same way.
+//! [`RoadNetwork::left_of`] and [`RoadNetwork::may_change_left`] do not check
+//! this. [`RoadNetwork::route`] drives a two-way lane toward the next lane
+//! on the route, and [`RoadNetwork::advance`] each way from one. esmini,
+//! libOpenDRIVE and CARLA ignore `direction`.
 //!
 //! # Road coordinates
 //!
@@ -1088,26 +1135,26 @@
 //! of a [`Point`].
 //!
 //! The inverse finds the roads whose lanes come near the point, and on each
-//! solves for the `(s, t)` whose surface lies straight under or over it.
-//! It takes the road whose surface is nearest in 3D, so a point on a bridge
-//! finds the bridge. Where roads overlap in a junction, their surfaces meet
-//! to within rounding, and which road comes back is not defined.
-//! [`RoadNetwork::road_position_on`] takes the road to use. A point off
-//! every road gets the nearest road's `(s, t)`, with `s` held within the
-//! road. A road
-//! without lanes has no surface to find. On every map in the test corpus,
-//! a point on a lane comes back to within 0.2 mm, or within the `f32` step
-//! of its coordinates where that is larger: 0.5 m on a map in UTM
-//! coordinates. Where the surface steps at a lane section seam, as a lane's
-//! `<height>` can, a station on the seam is on the section that starts
-//! there, so the end of the lane before it comes back at the new height.
+//! solves for the `(s, t)` whose surface lies straight under or over it. It
+//! takes the road whose surface is nearest in 3D, so a point on a bridge finds
+//! the bridge. Where roads overlap in a junction, their surfaces meet to within
+//! rounding, and which road comes back is not defined.
+//! [`RoadNetwork::road_position_on`] takes the road to use. A point off every
+//! road gets the nearest road's `(s, t)`, with `s` held within the road. A road
+//! without lanes has no surface to find. On every map in the test corpus, a
+//! point on a lane comes back to within 0.2 mm. Where the `f32` step of its
+//! coordinates is larger, it comes back to within that step. On a map in UTM
+//! coordinates the step is 0.5 m. A lane's `<height>` can make the surface step
+//! at a lane section seam. An `s` on the seam belongs to the section that
+//! starts there. So the end of the lane before the seam comes back at the new
+//! height.
 //!
 //! A network built with [`RoadNetwork::new`], or serialized before roads were
 //! kept, has none, so the road queries answer `None`.
 //!
-//! Where a road bends tighter than its lanes are wide, as some exports do at
-//! a sharp turn, its outer lanes fold over its inner ones. A point there has
-//! more than one road position, and the crate returns one of them.
+//! Where a road bends tighter than the half-width of its lanes, as some exports
+//! do at a sharp turn, the inner edge of a lane folds over itself. A point
+//! there has more than one road position, and the crate returns one of them.
 //!
 //! # Lane positions
 //!
@@ -1152,22 +1199,23 @@
 //! # Ok::<(), xodr::ImportError>(())
 //! ```
 //!
-//! The distance runs along the lanes' centerlines, so it is how far a
-//! vehicle on them travels. esmini's `MoveAlongS` and CARLA step by road `s`,
-//! which the outside of a bend covers in fewer metres of road than of lane.
+//! The distance runs along the lanes' centerlines, so it is how far a vehicle
+//! on them travels. esmini's `MoveAlongS` and CARLA step by road `s`. Along
+//! the outside of a bend, a span of road `s` is shorter than the same span of
+//! lane.
 //! The offset keeps its side of the traffic, so onto a road that runs the
 //! other way it changes sign. esmini picks one branch by a heading or a
 //! route. The crate gives them all: a caller with a heading or a route can
 //! pick, and one without can see every way on.
 //!
-//! Every way on grows fast. Each fork splits the branches, and on a map with
-//! loops two paths that reach the same lane have rarely come the same
-//! length, so they end at different places and don't merge. From one lane
-//! of Town07, 400 m gives 26 places, 1.2 km 1,343, 2 km 72,912 in about
-//! 150 ms, and 2.4 km 464,066 in 1.3 s: about seven times as many for each
-//! further 400 m. Nothing caps it, so a long enough distance runs out of
-//! memory. Step a few metres at a time, as CARLA's callers do, and pick a
-//! branch at each fork. An infinite or NaN distance gives no places.
+//! Every way on grows fast. Each fork splits the branches. On a map with loops,
+//! two paths that reach the same lane rarely have the same length. They end at
+//! different places, so they don't merge. From one lane of Town07, 400 m gives
+//! 26 places, 1.2 km 1,343, 2 km 72,912 in about 150 ms, and 2.4 km 464,066 in
+//! 1.3 s: about seven times as many for each further 400 m. Nothing caps it, so
+//! a long enough distance runs out of memory. Step a few metres at a time, as
+//! CARLA's callers do, and pick a branch at each fork. An infinite or NaN
+//! distance gives no places.
 //!
 //! [`RoadNetwork::left_of`] and [`RoadNetwork::right_of`] step to the lane
 //! beside, at the same `s`, left and right of the lane's traffic. That is
@@ -1201,12 +1249,13 @@
 //! the map on the earth, apply the offset and then the projection, with a
 //! library such as PROJ.
 //!
-//! The spec rotates a point by the offset's `hdg` and then adds its `x`,
-//! `y` and `z`. Not every exporter agrees: `netconvert` writes the offset
-//! that takes the projected frame back to the map's. Check a map's sign
-//! against a known point before relying on it.
+//! The spec rotates a point by the offset's `hdg` and then adds its `x`, `y`
+//! and `z`. Not every exporter agrees: `netconvert` writes the offset in the
+//! opposite direction: it takes the projected frame to the map's frame. Check
+//! the offset's sign against a known point before you rely on it.
 //!
-//! A missing or unreadable `<offset>` attribute reads as 0, as in esmini. A
+//! A missing or unreadable `x`, `y`, `z` or `hdg` on `<offset>` reads as 0,
+//! as in esmini. A
 //! blank `<geoReference>` reads as none, which the spec takes to mean a
 //! local Cartesian frame.
 //!
@@ -1216,15 +1265,15 @@
 //! interpret is skipped rather than fatal, because losing a whole city map to
 //! one junk road is the worse failure. [`load_str`] still errors if the
 //! document yielded no lanes at all. Non-finite attribute values are rejected
-//! at parse. Rust's float parser accepts `NaN` and turns `1e400` into
-//! infinity, and one such value poisons every point derived from it. A
-//! number the crate keeps as an `f32`, such as a signal's or a road mark's size, counts as
+//! at parse. Rust's float parser accepts `NaN` and turns `1e400` into infinity,
+//! and one such value poisons every point derived from it. A number the crate
+//! keeps as an `f32`, such as a signal's or a road mark's size, counts as
 //! unreadable too when it is too large for one.
 //!
 //! [`Provenance::warnings`] says what the load did with a bad file. Each
-//! [`Warning`] names where in the file it happened, and prints as a
-//! sentence. The crate raises one where it drops or ignores something, or
-//! reads a file that breaks a rule of the spec:
+//! [`Warning`] names where in the file it happened, and prints as a sentence.
+//! The crate raises one where it drops or ignores most things, or reads a file
+//! that breaks a rule of the spec:
 //!
 //! - [`Warning::Ignored`] for a feature of the file the crate ignores. See
 //!   [What the importer ignores](#what-the-importer-ignores).
@@ -1281,13 +1330,13 @@
 //!   `<neighbor>` the crate can't read.
 //! - [`Warning::RoadLengthMismatch`] for a road whose `length` is more than
 //!   1 cm from where its `<planView>` ends. The road bakes to its `length`.
-//! - [`Warning::LinkGap`] for a lane link whose lanes don't meet: more than
-//!   10 cm apart, measured across both lanes from border to border where one
-//!   leaves off and the next begins. So a lane that splits in two, or hands
-//!   over to one opening out of nothing beside it, meets it. The link is
-//!   kept. The check measures the lanes as baked, so where the file changes
-//!   `level` across a lane section seam, and the crate's reading stacks the
-//!   level lanes' heights, the lanes step there and warn too, as in ASAM's
+//! - [`Warning::LinkGap`] for a lane link whose lanes don't meet. They are
+//!   more than 10 cm apart, measured across both lanes from border to border
+//!   where one leaves off and the next begins. So a lane that splits in two,
+//!   or hands over to one opening out of nothing beside it, still meets its
+//!   successor. The link is kept. The check measures the lanes as baked. Where
+//!   the file changes `level` across a lane section seam, the level lanes'
+//!   heights stack and the lanes step there, so the check warns, as in ASAM's
 //!   `Ex_CrossFall_LeftTurn`.
 //! - [`Warning::AccessDropped`] for an `<access>` it can't read. See
 //!   [Lane rules, access and materials](#lane-rules-access-and-materials).

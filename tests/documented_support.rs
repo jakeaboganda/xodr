@@ -113,7 +113,7 @@ fn tags_the_docs_call_ignored() -> Vec<String> {
     let mut found: Vec<String> = angle_bracketed(section(
         CRATE_DOCS,
         "# What the importer ignores",
-        "# Coordinate frame",
+        "# Kept for the caller",
     ))
     .collect();
     found.sort();
