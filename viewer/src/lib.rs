@@ -1138,7 +1138,8 @@ fn spacing(grid: &CrgGrid) -> f64 {
 /// The CRG overlay: [`RoadSurface`] sampled over every lane a road or
 /// junction CRG covers, on a grid draped `LIFT` above the road mesh, and
 /// over each object CRG's box at its file's spacing, `LIFT` above the
-/// surface. Each vertex carries the CRG
+/// surface. The object grids share [`CELLS_PER_FILE`] cells between them,
+/// at most 200 a side each, and coarsen to fit. Each vertex carries the CRG
 /// grid height (`heights`), the surface height (`z`) and the friction, null
 /// where none applies. A cell is drawn only where all four corners have one
 /// of them. The grid is as fine as the finest loaded file, or coarser to stay
@@ -1237,13 +1238,17 @@ fn crg_overlay(
             previous = row;
         }
     }
+    let mut cells_left = CELLS_PER_FILE;
     for c in net.crg_surfaces() {
         let (CrgMode::Object(object), Some(&step)) = (c.mode, loaded.get(&c.file)) else {
             continue;
         };
         let (sin, cos) = object.origin.heading.sin_cos();
+        let area = 4.0 * object.half_length * object.half_width;
+        let step = step.max((area / cells_left.max(1.0)).sqrt()).max(1e-3);
         let count = |half: f64| (2.0 * half / step).ceil().clamp(1.0, 200.0) as usize;
         let (nu, nv) = (count(object.half_length), count(object.half_width));
+        cells_left -= (nu * nv) as f64;
         let mut previous: Vec<Option<u32>> = vec![];
         for i in 0..=nu {
             let u = object.half_length * (2.0 * i as f64 / nu as f64 - 1.0);

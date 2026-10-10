@@ -260,7 +260,9 @@ solid yellow one on the other. The two blue boxes are parking spaces.
 ![A crosswalk's markings and two parking spaces](markings.png)
 
 A closed outline filled with paint, such as an arrow on the road, lies flat
-on the road in the colour of paint: its material's `roadMarkColor`, or white.
+on the road in the colour of paint: the first `roadMarkColor` among its
+materials, or white. A colour the page does not know is magenta, as for
+markings.
 Markings inside an outline, as OpenDRIVE 1.9 writes them, draw like any
 other.
 
@@ -404,7 +406,8 @@ The grid is as fine as the finest CRG file, or coarser to keep to about
 
 An object's `<surface>` CRG, such as a pothole, gets a grid of its own over
 the object's box, at its file's spacing, so a small one is not lost between
-the cells over the road. It hangs 5 mm above the surface with the object's
+the cells over the road. The object grids keep to about 250,000 cells
+between them, and 200 a side each, and coarsen to fit. It hangs 5 mm above the surface with the object's
 CRG added. Hover it for the CRG height there, which takes in the object's.
 
 `tests/data/crg.xodr` lays the same generated file on four roads, one per
