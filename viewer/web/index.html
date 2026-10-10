@@ -1347,7 +1347,9 @@ function showRoadMarkTip(ev, rect, hit) {
   const rows = [`<b>road mark</b> ${m.type}${m.typeName ? ` ${escapeHtml(JSON.stringify(m.typeName))}` : ''}  ${escapeHtml(m.color)}` +
     (m.material ? `  of ${escapeHtml(m.material)}` : '')];
   if (m.roadId != null) {
-    const center = m.centerLane ? ` (${m.centerLane.type}${m.centerLane.level ? ', level' : ''})` : '';
+    const c = m.centerLane;
+    const links = c ? [c.predecessor != null && `after lane ${c.predecessor}`, c.successor != null && `before lane ${c.successor}`].filter(Boolean) : [];
+    const center = c ? ` (${[c.id != null && `id ${c.id}`, c.type, c.level && 'level', ...links].filter(Boolean).join(', ')})` : '';
     const where = m.odLaneId === 0 ? `center lane${center}` : `lane ${m.odLaneId}`;
     rows.push(`road ${escapeHtml(m.roadId)}  section ${m.section}  ${where}   ` +
       `s ${m.s.toFixed(2)}–${(m.s + m.length).toFixed(2)} m`);
