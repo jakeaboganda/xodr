@@ -27,6 +27,7 @@ use crate::{
     Structure, StructureId, StructureKind, UserData,
 };
 
+mod curve_local;
 mod gaps;
 mod ignored;
 mod junction_areas;
@@ -2583,6 +2584,15 @@ impl Frame {
     }
 }
 
+/// What placing one object found that its warnings report.
+#[derive(Default)]
+struct Faults {
+    /// Whether a repeat or a dashed marking would make too many copies.
+    too_many: Cell<bool>,
+    /// The widest gap between one `<curveLocal>` and the next, in metres.
+    gap: Cell<f64>,
+}
+
 /// The structures baked so far, and the provenance of each, in step.
 #[derive(Default)]
 struct Structures {
@@ -2820,7 +2830,8 @@ fn place_objects(
 /// Each baked object applies to the lanes alongside the stretch of road it
 /// spans, narrowed by `at`'s validity.
 fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Objects) {
-    let too_many = Cell::new(false);
+    let faults = Faults::default();
+    let too_many = &faults.too_many;
     let base = Station {
         s: at.s,
         t: at.t,
@@ -2847,7 +2858,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             extent: extent(st),
         };
         let mut part = Part::new(solid, st, (st.s, st.s));
-        part.markings = side_markings(node, &f, extent(st), &too_many);
+        part.markings = side_markings(node, &f, extent(st), too_many);
         part
     };
 
@@ -2869,7 +2880,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     let outlined = |st: &Station| {
         let origin = road.on_road(st.s).then(|| frame(st));
         let shift = (at.shift.0 + st.s - base.s, at.shift.1 + st.t - base.t);
-        outline_parts(node, &outlines, origin.as_ref(), st, shift, road, &too_many)
+        outline_parts(node, &outlines, origin.as_ref(), st, shift, road, &faults)
     };
     for repeat in &repeats {
         if repeat.distance > 0.0 {
@@ -2933,6 +2944,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             object_id: text("id"),
         });
     }
+    if faults.gap.get() > 0.0 {
+        out.warnings.push(Warning::OutlineGap {
+            road_id: road.od_id.clone(),
+            object_id: text("id"),
+            gap: faults.gap.get(),
+        });
+    }
     for part in parts {
         let id = ObjectId(out.baked.len());
         let (markings, marking_weights): (Vec<Marking>, Vec<RoadMarkWeight>) =
@@ -2982,14 +3000,16 @@ fn outline_parts(
     st: &Station,
     shift: (f64, f64),
     road: &Road,
-    too_many: &Cell<bool>,
+    faults: &Faults,
 ) -> Vec<Part> {
+    let too_many = &faults.too_many;
     let mut parts = Vec::new();
     let mut holes = Vec::new();
     for &outline_node in outlines {
         let Some(ring) = outline(outline_node, origin, st.s, shift, road) else {
             continue;
         };
+        faults.gap.set(faults.gap.get().max(ring.gap));
         if outline_node.attribute("outer") == Some("false") {
             holes.push((outline_node, ring));
             continue;
@@ -3292,8 +3312,14 @@ fn outline_nodes<'a>(object: roxmltree::Node<'a, 'a>) -> Vec<roxmltree::Node<'a,
 }
 
 /// One `<outline>` placed in the network's frame.
-struct Ring {
+struct Ring<'a> {
     corners: Vec<Corner>,
+    /// The `id` of each corner, in step with `corners`, for a
+    /// `<cornerReference>` to name. A `<curveLocal>`'s is on its first.
+    ids: Vec<Option<&'a str>>,
+    /// Whether each corner is a sample along a `<curveLocal>` after its
+    /// first, in step with `corners`.
+    sampled: Vec<bool>,
     /// The normal of the surface each corner is given on, in step with
     /// `corners`: the road's for a `<cornerRoad>`, the object frame's z axis
     /// for a `<cornerLocal>`. Bands along the edges lie in it.
@@ -3301,9 +3327,11 @@ struct Ring {
     closed: bool,
     /// The stretch of road the outline spans.
     stretch: (f64, f64),
+    /// The widest gap between one `<curveLocal>` and the next, in metres.
+    gap: f64,
 }
 
-impl Ring {
+impl Ring<'_> {
     /// The corners as an area of paint: each base raised [`PAINT_RAISE`]
     /// along its normal, with no height.
     fn paint(&self) -> Vec<Corner> {
@@ -3315,6 +3343,31 @@ impl Ring {
                 Corner { base, top: base }
             })
             .collect()
+    }
+
+    /// The samples of the curve from corner `from` to corner `to`, either
+    /// way round the ring, or none if no curve joins them.
+    fn along_curve(&self, from: usize, to: usize) -> Vec<usize> {
+        let n = self.corners.len();
+        let walk = |step: usize| {
+            let mut found = Vec::new();
+            let mut k = from;
+            loop {
+                let wraps = if step == 1 { k + 1 == n } else { k == 0 };
+                if wraps && !self.closed {
+                    return None;
+                }
+                k = (k + step) % n;
+                if k == to {
+                    return Some(found);
+                }
+                if !self.sampled[k] {
+                    return None;
+                }
+                found.push(k);
+            }
+        };
+        walk(1).or_else(|| walk(n - 1)).unwrap_or_default()
     }
 
     /// Each corner's base, with its normal.
@@ -3333,24 +3386,33 @@ impl Ring {
 /// `dz` straight up, with its top `height` straight above its base. A
 /// `<cornerLocal>` is `(u, v, z)` in the object's own frame, so it needs the
 /// object's origin to be on the road, with its top `height` up that frame's
-/// axis. libOpenDRIVE raises a `<cornerRoad>` along the road's normal
-/// instead, which differs on a banked road. An outline with a corner
-/// that cannot be placed is dropped whole, because the polygon without it is
-/// a different shape. So is one with fewer than two corners.
+/// axis. A `<curveLocal>` is a curve in the object's frame too, sampled to
+/// corners by [`curve_local::sample`]. libOpenDRIVE raises a `<cornerRoad>`
+/// along the road's normal instead, which differs on a banked road. An
+/// outline with a corner that cannot be placed is dropped whole, because
+/// the polygon without it is a different shape. So is one with fewer than
+/// two corners.
 ///
 /// The stretch of road it spans runs from its first `<cornerRoad>` station to
 /// its last, taking in `s`, the object's own station, if it has a
-/// `<cornerLocal>`.
-fn outline(
-    node: roxmltree::Node,
+/// `<cornerLocal>` or a `<curveLocal>`.
+fn outline<'a>(
+    node: roxmltree::Node<'a, 'a>,
     frame: Option<&Frame>,
     s: f64,
     (shift_s, shift_t): (f64, f64),
     road: &Road,
-) -> Option<Ring> {
+) -> Option<Ring<'a>> {
     let mut stretch = (f64::INFINITY, f64::NEG_INFINITY);
     let mut spans = |s: f64| stretch = (stretch.0.min(s), stretch.1.max(s));
-    let corner = |c: roxmltree::Node| -> Option<(Corner, Vector)> {
+    let closed = node.attribute("closed") != Some("false");
+    let nodes: Vec<roxmltree::Node> = corner_nodes(node).collect();
+    let mut corners = Vec::new();
+    let mut ups = Vec::new();
+    let mut ids = Vec::new();
+    let mut sampled = Vec::new();
+    let mut gap: f64 = 0.0;
+    for (i, &c) in nodes.iter().enumerate() {
         let height = attr_f64(c, "height").unwrap_or(0.0);
         if c.has_tag_name("cornerRoad") {
             let (s, t) = (attr_f64(c, "s")? + shift_s, attr_f64(c, "t")? + shift_t);
@@ -3360,37 +3422,49 @@ fn outline(
             spans(s);
             let (mut base, _) = road.surface(s, t);
             base.z += attr_f64(c, "dz").unwrap_or(0.0) as f32;
-            let corner = Corner {
+            corners.push(Corner {
                 base,
                 top: base + Vector::Z * height as f32,
-            };
-            Some((corner, normal(road.axes(s))))
+            });
+            ups.push(normal(road.axes(s)));
+            ids.push(c.attribute("id"));
+            sampled.push(false);
+            continue;
+        }
+        let frame = frame?;
+        spans(s);
+        let local: Vec<[f64; 4]> = if c.has_tag_name("curveLocal") {
+            let next = nodes.get(i + 1).or(nodes.first().filter(|_| closed));
+            let curve =
+                curve_local::sample(c, next.filter(|n| !n.has_tag_name("cornerRoad")).copied())?;
+            gap = gap.max(curve.gap);
+            curve.points
         } else {
-            let frame = frame?;
-            spans(s);
-            let (u, v) = (attr_f64(c, "u")?, attr_f64(c, "v")?);
             let z = attr_f64(c, "z").unwrap_or(0.0);
-            let corner = Corner {
+            vec![[attr_f64(c, "u")?, attr_f64(c, "v")?, z, height]]
+        };
+        for (k, [u, v, z, height]) in local.into_iter().enumerate() {
+            corners.push(Corner {
                 base: frame.point([u, v, z]),
                 top: frame.point([u, v, z + height]),
-            };
-            Some((corner, normal(frame.axes)))
+            });
+            ups.push(normal(frame.axes));
+            ids.push(c.attribute("id").filter(|_| k == 0));
+            sampled.push(k > 0);
         }
-    };
-    let (corners, ups): (Vec<Corner>, Vec<Vector>) = corner_nodes(node)
-        .map(corner)
-        .collect::<Option<Vec<_>>>()?
-        .into_iter()
-        .unzip();
+    }
     if corners.len() < 2 {
         return None;
     }
     Some(Ring {
         corners,
+        ids,
+        sampled,
         ups,
         // Closed unless the file says otherwise, as libOpenDRIVE reads it.
-        closed: node.attribute("closed") != Some("false"),
+        closed,
         stretch,
+        gap,
     })
 }
 
@@ -3414,9 +3488,11 @@ fn encloses(ring: &[Corner], point: Point) -> bool {
 fn corner_nodes<'a>(
     outline: roxmltree::Node<'a, 'a>,
 ) -> impl Iterator<Item = roxmltree::Node<'a, 'a>> {
-    outline
-        .children()
-        .filter(|n| n.has_tag_name("cornerRoad") || n.has_tag_name("cornerLocal"))
+    outline.children().filter(|n| {
+        n.has_tag_name("cornerRoad")
+            || n.has_tag_name("cornerLocal")
+            || n.has_tag_name("curveLocal")
+    })
 }
 
 /// The `<marking>` elements under the `<markings>` of `node`, an object or
@@ -3445,10 +3521,9 @@ fn markings(
     ring: &Ring,
     too_many: &Cell<bool>,
 ) -> Vec<(Marking, RoadMarkWeight)> {
-    let ids: Vec<Option<&str>> = corner_nodes(outline).map(|c| c.attribute("id")).collect();
     marking_nodes(outline)
         .chain(marking_nodes(object))
-        .filter_map(|m| paint(m, &corner_path(m, &ids, ring)?, too_many))
+        .filter_map(|m| paint(m, &corner_path(m, ring)?, too_many))
         .collect()
 }
 
@@ -3543,7 +3618,6 @@ fn borders(
     ring: &Ring,
     closed: bool,
 ) -> Vec<Border> {
-    let ids: Vec<Option<&str>> = corner_nodes(outline).map(|c| c.attribute("id")).collect();
     let Some(borders) = child(object, "borders") else {
         return Vec::new();
     };
@@ -3563,7 +3637,7 @@ fn borders(
                 }
                 path
             } else {
-                corner_path(b, &ids, ring)?
+                corner_path(b, ring)?
             };
             Some(Border {
                 kind: b.attribute("type").unwrap_or_default().to_string(),
@@ -3575,24 +3649,32 @@ fn borders(
 }
 
 /// The bases of the corners `node`'s `<cornerReference>`s name, in order,
-/// with their normals. `ids` are the corners' `id`s, in step with `ring`'s.
-/// `None` if a reference names no corner in `ids`, or there are fewer than
-/// two.
-fn corner_path(
-    node: roxmltree::Node,
-    ids: &[Option<&str>],
-    ring: &Ring,
-) -> Option<Vec<(Point, Vector)>> {
-    let path = node
+/// with their normals, by the `id`s of `ring`'s corners. Between two named
+/// corners joined by a `<curveLocal>`, either way round, the path follows
+/// the curve's samples. `None` if a reference names no corner, or there are
+/// fewer than two.
+fn corner_path(node: roxmltree::Node, ring: &Ring) -> Option<Vec<(Point, Vector)>> {
+    let named = node
         .children()
         .filter(|n| n.has_tag_name("cornerReference"))
         .map(|r| {
             let id = r.attribute("id")?;
-            let at = ids.iter().position(|c| *c == Some(id))?;
-            Some((ring.corners[at].base, ring.ups[at]))
+            ring.ids.iter().position(|c| *c == Some(id))
         })
-        .collect::<Option<Vec<_>>>()?;
-    (path.len() >= 2).then_some(path)
+        .collect::<Option<Vec<usize>>>()?;
+    if named.len() < 2 {
+        return None;
+    }
+    let mut path = vec![named[0]];
+    for w in named.windows(2) {
+        path.extend(ring.along_curve(w[0], w[1]));
+        path.push(w[1]);
+    }
+    Some(
+        path.into_iter()
+            .map(|k| (ring.corners[k].base, ring.ups[k]))
+            .collect(),
+    )
 }
 
 /// A strip `half_width` either side of the line through `path`, from `start`

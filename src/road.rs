@@ -568,7 +568,7 @@ fn bake_spiral(
 }
 
 /// Evaluate `a + b*p + c*p^2 + d*p^3`.
-fn eval_poly3([a, b, c, d]: [f64; 4], p: f64) -> f64 {
+pub(crate) fn eval_poly3([a, b, c, d]: [f64; 4], p: f64) -> f64 {
     a + b * p + c * p * p + d * p * p * p
 }
 

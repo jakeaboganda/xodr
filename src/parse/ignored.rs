@@ -66,11 +66,6 @@ const FEATURES: &[Feature] = &[
         when: always,
     },
     Feature {
-        name: "<curveLocal>",
-        path: "objects/object/outlines/outline/curveLocal",
-        when: always,
-    },
-    Feature {
         name: "<sign> <validity>",
         path: "signals/signal/staticBoard/sign/validity",
         when: always,

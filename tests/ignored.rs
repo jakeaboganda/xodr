@@ -47,7 +47,6 @@ fn every_ignored_feature_is_counted_where_the_file_uses_it() {
         of("2", "", "<userData>", 1),
         of("2", "", "<object> <surface>", 1),
         of("2", "", "<object> <skeleton>", 1),
-        of("2", "", "<curveLocal>", 1),
         of("3", "", "<userData>", 1),
         of("3", "", "<sign> <validity>", 2),
         of("3", "", "<sign> <dependency>", 2),
@@ -106,7 +105,7 @@ fn only_the_ignored_warnings_say_they_are() {
         .iter()
         .filter(|w| w.is_ignored())
         .count();
-    assert_eq!(ignored, 21);
+    assert_eq!(ignored, 20);
     assert!(
         provenance.warnings.len() > ignored,
         "the fixture's boundary doesn't close, which is a fault"

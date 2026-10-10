@@ -269,6 +269,13 @@ following the road with `perpToRoad`. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/object_poses.py
 
+`curve_local.xodr` comes from `curve_local.py`. It has outlines drawn with
+`<curveLocal>` lines, arcs and paramPoly3 curves, with and without lengths,
+one with gaps between its curves, and one that cannot be drawn. Regenerate
+with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/curve_local.py
+
 `outline_markings.xodr` comes from `outline_markings.py`. It has markings
 inside outlines, beside one under its object, and closed and open areas of
 paint, one with a hole and one with a border, on a banked road. Regenerate

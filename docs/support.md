@@ -215,7 +215,8 @@ surface.
   it runs on the straight line between its two ends instead of along the
   road.
 - An `<outline>`, in road or local coordinates, becomes a footprint polygon
-  with a height at every corner. An `outer="false"` outline is a hole cut out
+  with a height at every corner. Its `<curveLocal>` lines, arcs and
+  paramPoly3 curves are cut into corners at most 25 cm apart. An `outer="false"` outline is a hole cut out
   of the outline round it. Under a `<repeat>` with a `distance`, the outline
   repeats at every step.
 - A closed outline with `fillType="paint"` is an area of paint. It lies
@@ -373,6 +374,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `GeometryDropped` | a `<geometry>` missing its pose or `length`, with a `length` that isn't above 0 or is over 100 km, or of a shape the crate doesn't know |
 | `RoadMarkLineDropped` | a road mark line with more dashes than the crate paints (100,000 on the line, or 1,000,000 in the whole file), or whose paint lands out of range |
 | `TooManyCopies` | an `<object>` whose `<repeat>` or dashed `<marking>` would make over 100,000 copies or dashes |
+| `OutlineGap` | an `<outline>` whose `<curveLocal>`s leave a gap over 1 cm. The crate joins it with a straight edge |
 | `RepeatEndMismatch` | a `<repeat>` whose cubic `t` ends more than a millimetre from its `tEnd`. The crate follows the cubic |
 | `LaneIdUnreadable` | a `<lane>` under `<left>` or `<right>` whose `id` isn't a whole number, or is 0 |
 | `LaneDropped` | a lane with no `<width>` or `<border>` the crate can read |
@@ -417,8 +419,8 @@ of the document, with how many times the file uses it.
 
 Elements it skips: `<vmsGroup>`, a header's `<license>` and
 `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a junction's
-`<objects>` and `<roadSection>`s, and an object's `<surface>`,
-`<skeleton>` and `<curveLocal>` outlines. It skips `<userData>` anywhere but
+`<objects>` and `<roadSection>`s, and an object's `<surface>` and
+`<skeleton>`. It skips `<userData>` anywhere but
 directly on an object, which it reads. It also skips the `<validity>`,
 `<dependency>` and `<reference>` of a board sign.
 

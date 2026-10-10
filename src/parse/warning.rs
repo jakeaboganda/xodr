@@ -92,6 +92,17 @@ pub enum Warning {
         /// The `t` its cubic reaches at its end.
         reached: f64,
     },
+    /// An `<outline>` whose `<curveLocal>`s do not join: one ends more than
+    /// a centimetre from where the next starts. The spec says they join.
+    /// The crate joins the gap with a straight edge.
+    OutlineGap {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+        /// The widest gap, in metres.
+        gap: f64,
+    },
     /// A `<lane>` under `<left>` or `<right>` whose `id` isn't a whole
     /// number, or is 0, the center lane's. The crate can't tell which lane
     /// it is, so it drops it.
@@ -526,6 +537,7 @@ impl Warning {
             | Self::LaneIdUnreadable { road_id, .. }
             | Self::TooManyCopies { road_id, .. }
             | Self::RepeatEndMismatch { road_id, .. }
+            | Self::OutlineGap { road_id, .. }
             | Self::RoadMarkLineDropped { road_id, .. }
             | Self::LaneDropped { road_id, .. }
             | Self::WidthAndBorder { road_id, .. }
@@ -684,6 +696,14 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "road {road_id:?}: a repeat of object {object_id:?} has tEnd {t_end:.3}, but its cubic reaches {reached:.3}"
+            ),
+            Self::OutlineGap {
+                road_id,
+                object_id,
+                gap,
+            } => write!(
+                f,
+                "road {road_id:?}: object {object_id:?} has an outline whose curves leave a gap of {gap:.3} m"
             ),
             Self::LaneIdUnreadable {
                 road_id,

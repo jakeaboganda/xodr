@@ -72,6 +72,13 @@
   cutting it back, as the spec says.
 - `tests/data/outline_markings.xodr` has markings inside outlines and areas
   of paint on a banked road.
+- Behaviour change: `<curveLocal>` outlines are read, as lines, arcs and
+  paramPoly3 curves in the object's frame, cut into corners.
+  `Ex_SmoothObjectOutline_traffic_island` gets its island. New
+  `Warning::OutlineGap` where one curve ends away from the next, as two of
+  that file's curves do.
+- `tests/data/curve_local.xodr` has a stadium, a circle, a paramPoly3, a gap
+  and a curve that cannot be drawn.
 
 ### Single-side lane sections
 
