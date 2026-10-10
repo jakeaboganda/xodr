@@ -203,6 +203,15 @@ pose and size of its board.
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)` and
 orientation.
 
+## Single-side lane sections
+
+A `<laneSection singleSide="true">` gives the sides it has an element for.
+The crate carries the other sides on from the sections before, and splits
+the road into a full section at each one. A carried lane keeps its widths,
+heights and marks as they stand where the new section starts, and links on
+to its own copy. The spec does not say what the other sides do. A section
+without `singleSide` gives every side.
+
 ## Lane layers
 
 A road may have a temporary layer, such as for road works. It is a
@@ -362,7 +371,6 @@ Attributes it reads but ignores:
 | Feature | What the crate does |
 | --- | --- |
 | a second `<lanes>` of one layer | leaves it out |
-| `<laneSection singleSide="true">` | reads the section as two-sided |
 | `<object perpToRoad="true">` | places the object by its `hdg`, as if `perpToRoad` were `false` |
 | a `<repeat>`'s `bT`, `cT` or `dT`, or `detachFromReferenceLine="true"` | copies run straight along the road |
 | a boundary `<segment>`'s `transitionLength` above 0 | no blending |

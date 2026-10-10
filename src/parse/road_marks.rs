@@ -22,9 +22,10 @@ const BROKEN_LENGTH: f64 = 4.0;
 const BROKEN_SPACE: f64 = 8.0;
 
 /// A `<roadMark>` as the file gives it, before it is placed.
+#[derive(Clone)]
 pub(super) struct MarkDef {
     /// Where it starts, in metres from the start of its lane section.
-    s_offset: f64,
+    pub(super) s_offset: f64,
     kind: RoadMarkType,
     weight: RoadMarkWeight,
     color: String,
@@ -45,6 +46,7 @@ pub(super) struct MarkDef {
 
 /// A line of a road mark, before it is placed: one of its `<type><line>`s
 /// or `<explicit><line>`s, or one of the lines that stand in for its type.
+#[derive(Clone)]
 struct LineDef {
     pattern: LinePattern,
     s_offset: f64,

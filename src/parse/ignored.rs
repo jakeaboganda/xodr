@@ -56,11 +56,6 @@ const FEATURES: &[Feature] = &[
         when: repeats_a_layer,
     },
     Feature {
-        name: "<laneSection singleSide=\"true\">",
-        path: "lanes/laneSection",
-        when: single_sided,
-    },
-    Feature {
         name: "<object perpToRoad=\"true\">",
         path: "objects/object",
         when: follows_the_road,
@@ -151,10 +146,6 @@ fn repeats_a_layer(node: roxmltree::Node) -> bool {
 
 fn flag(node: roxmltree::Node, name: &str) -> bool {
     matches!(node.attribute(name), Some("true" | "1"))
-}
-
-fn single_sided(node: roxmltree::Node) -> bool {
-    flag(node, "singleSide")
 }
 
 fn follows_the_road(node: roxmltree::Node) -> bool {

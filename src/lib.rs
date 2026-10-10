@@ -84,7 +84,7 @@
 //! | `<coefficients>`, under each of those and `<tOffset>` | `s`, `a`, `b`, `c`, `d` |
 //! | `<lanes><laneOffset>` | `s`, `a`, `b`, `c`, `d` |
 //! | `<lanes>` | `layer` |
-//! | `<laneSection>` | `s`, `length` |
+//! | `<laneSection>` | `s`, `length`, `singleSide` |
 //! | `<left>`, `<center>`, `<right>` | none |
 //! | `<lane>` | `id`, `type`, `level`, `direction`, `advisory`, `dynamicLaneType`, `dynamicLaneDirection`, `roadWorks` |
 //! | `<center><lane>` | `id`, `type`, `level` |
@@ -187,6 +187,17 @@
 //! no lanes, and links step over it to the section beyond. A
 //! `<laneSection>` without the `s` the spec requires starts at 0, as
 //! libOpenDRIVE reads it, so a section that also starts at 0 has no length.
+//!
+//! A `<laneSection singleSide="true">` gives only the sides it has an
+//! element for, `<left>`, `<center>` or `<right>`. The spec shows this in a
+//! figure and does not say what the other sides do. The crate carries them
+//! on from the sections before, and splits the road into a full section at
+//! each one, so every lane section has both sides. A carried lane is the
+//! same lane, read as it stands where the new section starts: its widths,
+//! `<height>`s, marks and the rest as the `sOffset`s of the section that gave
+//! it. A lane links on to its own copy, and the last copy to the lanes the
+//! file links it to. A section without `singleSide`, or with `"false"`,
+//! gives every side, so one with a single side gives nothing for the rest.
 //!
 //! A direct junction joins roads end to end, with no connecting road
 //! between them. Each `<laneLink>` there says which lane of the linked road
@@ -993,7 +1004,6 @@
 //! It also ignores these uses of elements it reads:
 //!
 //! - a second `lanes` of one layer on a road, which the crate leaves out;
-//! - `singleSide="true"` on a lane section;
 //! - `perpToRoad="true"` on an object;
 //! - a repeat's `bT`, `cT` or `dT` other than 0, and
 //!   `detachFromReferenceLine="true"`;
