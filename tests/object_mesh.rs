@@ -304,8 +304,6 @@ fn an_outline_with_no_corners_meshes_to_nothing() {
         subtype: String::new(),
         name: String::new(),
         dynamic: false,
-        invalidated: false,
-        temporary: false,
         lanes: Vec::new(),
         markings: Vec::new(),
         borders: Vec::new(),

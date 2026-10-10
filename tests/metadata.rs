@@ -94,7 +94,7 @@ fn the_header_and_the_road_names_survive_serde() {
     assert_eq!(back.objects(), net.objects());
     assert_eq!(back.signals(), net.signals());
     assert_eq!(back.header().name, "Caf\u{e9} & <Co> \"q\"");
-    assert!(net.objects().iter().any(|o| o.invalidated));
+    assert!(!net.objects().is_empty());
     assert_eq!(back.road_countries(), net.road_countries());
     assert!(!back.road_countries().is_empty());
 }
@@ -294,7 +294,7 @@ fn an_object_keeps_whether_it_is_invalidated_or_temporary() {
     let flags = |id| {
         let found = baked(&net, &prov, id);
         assert_eq!(found.len(), 1, "object {id}");
-        (found[0].0.invalidated, found[0].0.temporary)
+        (found[0].1.invalidated, found[0].1.temporary)
     };
     assert_eq!(flags("a1"), (true, true));
     assert_eq!(flags("a2"), (false, true));
@@ -322,8 +322,13 @@ fn an_object_keeps_the_colour_of_the_marks_on_each_material() {
 fn an_object_marking_keeps_its_weight_and_reads_anything_else_as_standard() {
     use xodr::RoadMarkWeight::{Bold, Standard};
     let (net, prov) = full();
-    let marks = &baked(&net, &prov, "w")[0].0.markings;
-    let weights: Vec<_> = marks.iter().map(|m| (m.side.as_str(), m.weight)).collect();
+    let (object, record) = baked(&net, &prov, "w")[0];
+    let weights: Vec<_> = object
+        .markings
+        .iter()
+        .map(|m| m.side.as_str())
+        .zip(record.marking_weights.iter().copied())
+        .collect();
     assert_eq!(
         weights,
         [
@@ -364,10 +369,14 @@ fn a_solid_has_no_fill_type() {
     assert_eq!(solid.1.outline_lane_type, None);
 }
 
-fn signs(net: &RoadNetwork, prov: &Provenance) -> Vec<xodr::BoardSign> {
+/// The three signs of signal "sg", with what they say about themselves.
+fn signs(
+    net: &RoadNetwork,
+    prov: &Provenance,
+) -> (Vec<xodr::BoardSign>, Vec<xodr::SignProvenance>) {
     let placed = prov.signals.iter().find(|p| p.od_id == "sg").unwrap();
     match &net.signals()[placed.signal.0].boards[..] {
-        [xodr::SignalBoard::Static(signs)] => signs.clone(),
+        [xodr::SignalBoard::Static(signs)] => (signs.clone(), placed.signs.clone()),
         other => panic!("one static board, got {other:?}"),
     }
 }
@@ -375,32 +384,35 @@ fn signs(net: &RoadNetwork, prov: &Provenance) -> Vec<xodr::BoardSign> {
 #[test]
 fn a_sign_on_a_board_keeps_every_attribute_it_has() {
     let (net, prov) = full();
-    let signs = signs(&net, &prov);
-    assert_eq!(signs.len(), 3);
-    let one = &signs[0];
-    assert_eq!((one.id.as_str(), one.name.as_str()), ("p1", "limit"));
-    assert_eq!(one.country_revision, "2017");
-    assert_eq!(one.orientation, xodr::Orientation::Positive);
-    assert!(one.dynamic && one.invalidated && one.temporary);
-    assert_eq!((one.h_offset, one.pitch, one.roll), (0.5, 0.25, -0.125));
-    assert_eq!(one.length, Some(0.15));
+    let (signs, own) = signs(&net, &prov);
+    assert_eq!((signs.len(), own.len()), (3, 3));
+    let (one, own) = (&signs[0], &own[0]);
+    assert_eq!((own.board, own.sign), (0, 0));
+    assert_eq!((own.id.as_str(), one.name.as_str()), ("p1", "limit"));
+    assert_eq!(own.country_revision, "2017");
+    assert_eq!(own.orientation, xodr::Orientation::Positive);
+    assert!(own.dynamic && own.invalidated && own.temporary);
+    assert_eq!((own.h_offset, own.pitch, own.roll), (0.5, 0.25, -0.125));
+    assert_eq!(own.length, Some(0.15));
     assert_eq!((one.width, one.height), (Some(0.6), Some(0.8)));
 }
 
 #[test]
 fn a_sign_turns_wrap_and_its_orientation_is_its_own() {
     let (net, prov) = full();
-    let two = &signs(&net, &prov)[1];
+    let two = &signs(&net, &prov).1[1];
     let wrapped = 7.0 - 2.0 * std::f32::consts::PI;
     assert!((two.h_offset - wrapped).abs() < 1e-5, "{}", two.h_offset);
     assert_eq!(two.orientation, xodr::Orientation::Negative);
+    assert_eq!((two.board, two.sign), (0, 1));
 }
 
 #[test]
 fn a_sign_with_a_type_only_has_the_defaults() {
     let (net, prov) = full();
-    let three = &signs(&net, &prov)[2];
-    assert_eq!(three.kind, "101");
+    let (signs, own) = signs(&net, &prov);
+    assert_eq!(signs[2].kind, "101");
+    let three = &own[2];
     assert_eq!(
         (three.id.as_str(), three.country_revision.as_str()),
         ("", "")

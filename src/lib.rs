@@ -1056,10 +1056,11 @@
 //!   [`LaneAdvisory`];
 //! - the center lane's `id`, `type`, `level` and `link`, in
 //!   [`Provenance::center_lanes`], as a [`CenterLaneProvenance`];
-//! - an object's `invalidated` and `temporary`, in [`Object`], a marking's
-//!   `weight`, in [`Marking`], and a material's `roadMarkColor`, a
-//!   `fillType` and a `laneType`, in [`ObjectProvenance`];
-//! - a sign's own attributes, in [`BoardSign`];
+//! - an object's `invalidated` and `temporary`, its markings' `weight`, its
+//!   materials' `roadMarkColor`, and its outline's `fillType` and
+//!   `laneType`, in [`ObjectProvenance`];
+//! - a sign's own attributes, in [`SignalProvenance::signs`], as a
+//!   [`SignProvenance`];
 //! - a switch's partner, as a [`Partner`] in [`Switch`];
 //! - a junction `<laneLink>`'s `overlapZone`, in
 //!   [`Provenance::lane_link_overlaps`], as a [`LaneLinkOverlap`].
@@ -1429,8 +1430,8 @@ pub use parse::{
     load_file, load_file_with_provenance, load_str, load_str_with_provenance, CenterLaneProvenance,
     ControllerProvenance, CrossPathProvenance, ImportError, JunctionControllerProvenance,
     JunctionProvenance, LaneHeight, LaneLinkOverlap, LaneProvenance, ObjectProvenance, Orientation,
-    PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance, RoadSkipReason, SignalProvenance,
-    SignalReferenceProvenance, StructureProvenance, Warning, MAX_LENGTH,
+    PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance, RoadSkipReason, SignProvenance,
+    SignalProvenance, SignalReferenceProvenance, StructureProvenance, Warning, MAX_LENGTH,
 };
 pub use railway::{
     Partner, Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint,

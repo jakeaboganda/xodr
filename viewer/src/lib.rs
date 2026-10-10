@@ -48,9 +48,10 @@ use xodr::{
     CrgPurpose, CrgSurface, CrossPathEnd, Direction, Extent, JunctionArea, JunctionGroupKind,
     LaneId, LanePosition, LaneSpan, LinePattern, LinkPoint, Marking, Mesh, Object,
     ObjectProvenance, Orientation, PlatformSegment, Point, Provenance, Referenced, RoadEnd,
-    RoadMark, RoadMarkProvenance, RoadNetwork, RoadPosition, RoadSurface, RoadUser, Semantic,
-    Shape, Side, Signal, SignalBoard, SignalProvenance, SpeedLimit, Structure, StructureKind,
-    StructureProvenance, SurfaceHint, SwitchPosition, TrackPoint, VirtualJunction, Warning,
+    RoadMark, RoadMarkProvenance, RoadMarkWeight, RoadNetwork, RoadPosition, RoadSurface, RoadUser,
+    Semantic, Shape, Side, SignProvenance, Signal, SignalBoard, SignalProvenance, SpeedLimit,
+    Structure, StructureKind, StructureProvenance, SurfaceHint, SwitchPosition, TrackPoint,
+    VirtualJunction, Warning,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -433,24 +434,26 @@ fn semantic_text(semantic: &Semantic) -> String {
 
 /// A signal board's viewer record: its kind, and its signs or display
 /// areas, each with its position and what it says.
-fn board_entry(board: &SignalBoard) -> Value {
+fn board_entry(index: usize, board: &SignalBoard, own: &[SignProvenance]) -> Value {
     match board {
         SignalBoard::Static(signs) => json!({
             "kind": "static",
             "signs": signs
                 .iter()
-                .map(|s| json!({
-                    "id": s.id,
+                .enumerate()
+                .map(|(k, s)| (s, own.iter().find(|p| p.board == index && p.sign == k)))
+                .map(|(s, p)| json!({
+                    "id": p.map(|p| p.id.as_str()),
                     "name": s.name,
-                    "countryRevision": s.country_revision,
-                    "dynamic": s.dynamic,
-                    "invalidated": s.invalidated,
-                    "temporary": s.temporary,
-                    "orientation": orientation(s.orientation),
-                    "hOffset": s.h_offset,
-                    "pitch": s.pitch,
-                    "roll": s.roll,
-                    "length": s.length,
+                    "countryRevision": p.map(|p| p.country_revision.as_str()),
+                    "dynamic": p.map(|p| p.dynamic),
+                    "invalidated": p.map(|p| p.invalidated),
+                    "temporary": p.map(|p| p.temporary),
+                    "orientation": p.map(|p| orientation(p.orientation)),
+                    "hOffset": p.map(|p| p.h_offset),
+                    "pitch": p.map(|p| p.pitch),
+                    "roll": p.map(|p| p.roll),
+                    "length": p.and_then(|p| p.length),
                     "type": s.kind,
                     "subtype": s.subtype,
                     "value": s.value,
@@ -673,10 +676,15 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
         "subtype": object.subtype,
         "name": object.name,
         "dynamic": object.dynamic,
-        "invalidated": object.invalidated,
-        "temporary": object.temporary,
+        "invalidated": prov.map(|p| p.invalidated),
+        "temporary": prov.map(|p| p.temporary),
         "lanes": object.lanes.iter().map(|l| l.0).collect::<Vec<_>>(),
-        "markings": object.markings.iter().map(marking_entry).collect::<Vec<_>>(),
+        "markings": object
+            .markings
+            .iter()
+            .enumerate()
+            .map(|(i, m)| marking_entry(m, prov.and_then(|p| p.marking_weights.get(i)).copied()))
+            .collect::<Vec<_>>(),
         "parkingSpace": object
             .parking_space
             .as_ref()
@@ -739,7 +747,12 @@ fn signal_entry(s: &Signal, prov: Option<&SignalProvenance>) -> Value {
         "temporary": s.temporary,
         "controllers": s.controllers.iter().map(|c| c.0).collect::<Vec<_>>(),
         "semantics": s.semantics.iter().map(semantic_text).collect::<Vec<_>>(),
-        "boards": s.boards.iter().map(board_entry).collect::<Vec<_>>(),
+        "boards": s
+            .boards
+            .iter()
+            .enumerate()
+            .map(|(i, b)| board_entry(i, b, prov.map_or(&[], |p| &p.signs)))
+            .collect::<Vec<_>>(),
         "dependencies": s
             .dependencies
             .iter()
@@ -890,11 +903,11 @@ fn structure_entry(s: &Structure, prov: Option<&StructureProvenance>) -> Value {
 
 /// One marking's viewer record: its attributes, and its pieces, each four
 /// world-space points.
-fn marking_entry(m: &Marking) -> Value {
+fn marking_entry(m: &Marking, weight: Option<RoadMarkWeight>) -> Value {
     json!({
         "side": m.side,
         "color": m.color,
-        "weight": m.weight.as_str(),
+        "weight": weight.map(|w| w.as_str()),
         "width": m.width,
         "lineLength": m.line_length,
         "spaceLength": m.space_length,

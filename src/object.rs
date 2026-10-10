@@ -3,7 +3,7 @@
 //! a world pose, and nothing here knows where it came from.
 
 use crate::coords::Point;
-use crate::{LaneId, RoadMarkWeight};
+use crate::LaneId;
 
 /// `[u, v, z]` turned by yaw about Z, then pitch about the turned Y, then
 /// roll about the turned X: an offset in an object's own frame, in the
@@ -216,10 +216,6 @@ pub struct Marking {
     /// The colour the map names, such as `white`, or `standard` for the
     /// usual road-marking colour. Free text, and empty if the map gives none.
     pub color: String,
-    /// How heavy its paint is, from `weight`. `Standard` if the map does
-    /// not say, or says something else. It sets no width: `width` does.
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub weight: RoadMarkWeight,
     /// Metres across.
     pub width: f32,
     /// The length of each painted dash, in metres.
@@ -301,14 +297,6 @@ pub struct Object {
     /// Whether the object can move, such as a gate or a barrier arm. Its
     /// shape is where it stands in the map.
     pub dynamic: bool,
-    /// Whether the map marks the object as no longer valid, from
-    /// `invalidated`. A removed road sign is one. The crate still bakes it.
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub invalidated: bool,
-    /// Whether the object is there for a while only, such as a cone at road
-    /// works, from `temporary`.
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub temporary: bool,
     /// The lanes the object applies to, such as the lanes a crosswalk
     /// crosses. Taken from the lanes alongside the stretch of road the object
     /// spans, and every one of them unless the map narrows it down. Empty if

@@ -118,15 +118,16 @@ The crate now keeps descriptive attributes it builds nothing from.
 - New `Provenance::center_lanes` of `CenterLaneProvenance` has the center
   lane's `id`, `type`, `level` and `<link>` for each lane section. The lane
   graph does not follow the link, since lane 0 is no `Lane`.
-- `Object` has `invalidated` and `temporary`, `Marking` has `weight`, and
-  `ObjectProvenance` has the `material_road_mark_colors` of its materials,
-  and the `fill_type` and `outline_lane_type` of the outline it baked from.
+- `ObjectProvenance` has the object's `invalidated` and `temporary`, the
+  `marking_weights` of its markings and the `material_road_mark_colors` of
+  its materials, and the `fill_type` and `outline_lane_type` of the outline
+  it baked from.
 - `RoadMarkProvenance` has the mark's `material` and its `<type>`'s `name`.
-- `BoardSign` has a sign's `id`, `country_revision`, `dynamic`,
-  `invalidated`, `temporary`, `orientation`, `h_offset`, `pitch`, `roll` and
-  `length`. The crate turns the sign by none of them. `Switch::partner` is
-  a new `Partner` with the partner's `id` and `name`. Breaking: it was the
-  id alone.
+- `SignalProvenance::signs` has a `SignProvenance` for each sign on a static
+  board, with its `id`, `country_revision`, `dynamic`, `invalidated`,
+  `temporary`, `orientation`, `h_offset`, `pitch`, `roll` and `length`. The
+  crate turns the sign by none of them. `Switch::partner` is a new `Partner`
+  with the partner's `id` and `name`. Breaking: it was the id alone.
 - New `Provenance::lane_link_overlaps` of `LaneLinkOverlap` has each
   junction lane link's `overlapZone`.
 - The viewer shows all of it on hover. The map list shows the `<header>`.
@@ -134,11 +135,12 @@ The crate now keeps descriptive attributes it builds nothing from.
   its `advisory` and flags, and each junction lane link's `overlapZone`. A
   mark on the center line shows the center lane. Objects, road marks and
   signs show their new attributes, and a switch its partner's `name`.
-- Breaking: `Object`, `Marking`, `BoardSign`, `Switch`, `LaneProvenance`,
-  `ObjectProvenance`, `RoadMarkProvenance` and `Provenance` have new fields,
-  so a struct literal needs them. `LaneProvenance` has `layer` too, from the
-  lane layers below. Each new field has a serde default, so a network
-  serialized before still loads.
+- Breaking: `Switch`, `LaneProvenance`, `ObjectProvenance`,
+  `RoadMarkProvenance`, `SignalProvenance` and `Provenance` have new fields
+  or types, so a struct literal needs them. `LaneProvenance` has `layer` too,
+  from the lane layers below. `Object`, `Marking` and `BoardSign` keep their
+  fields. Each new field has a serde default, so a network serialized before
+  still loads.
 
 ### Signals
 
