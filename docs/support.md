@@ -205,9 +205,11 @@ orientation.
 
 ## Lane layers
 
-A road's `<lanes layer="temporary">`, such as for road works, is read next to
-its permanent `<lanes>`. Each layer has its own lane sections and
-`<laneOffset>`, and `Lane::layer` says which a lane is on.
+A road may have a temporary layer, such as for road works. It is a
+`<lanes layer="temporary">` next to the permanent `<lanes>`. Each layer has
+its own lane sections and `<laneOffset>`, and `Lane::layer` says which a lane
+is on. A further `<lanes>` of one layer is left out, with an `Ignored`
+warning.
 
 - Both layers share the permanent layer's surface. `surface_mesh` and the
   road's heights are the permanent layer's, and `temporary_mesh` has the
@@ -218,12 +220,13 @@ its permanent `<lanes>`. Each layer has its own lane sections and
 - A `<validity layer>` picks the lanes of that layer, and one with no `layer`
   the permanent layer's.
 - Temporary lanes take precedence for driving. `nearest_lane`,
-  `lane_position`, `route` and `advance` find them where they hold the point,
-  and take a `LayerPolicy` to look at the permanent layer alone.
+  `lane_position`, `route` and `advance` find them where they hold the point.
+  Their `_with` forms take a `LayerPolicy`, and `PermanentOnly` looks at the
+  permanent layer alone. Only driving lanes take precedence in `nearest_lane`.
 
-A link with no `layer` reads as the permanent layer, except from a temporary
-lane to the next section of its own layer. The crate docs list where it
-departs from the spec.
+A link with no `layer` stays on the lane's own layer when that layer has a
+section to go on to, and otherwise goes to the permanent layer. The crate docs
+list where it departs from the spec.
 
 ## Road marks
 

@@ -1900,7 +1900,8 @@ fn layer_nodes<'a>(
         .children()
         .filter(|n| n.has_tag_name("lanes"))
         .collect();
-    let temporary_of = |n: &roxmltree::Node| layer_of(n.attribute("layer")) == Layer::Temporary;
+    let temporary_of =
+        |n: &roxmltree::Node| Layer::from_attr(n.attribute("layer")) == Layer::Temporary;
     let permanent = all
         .iter()
         .find(|n| !temporary_of(n))
@@ -2663,19 +2664,10 @@ fn validity(node: roxmltree::Node) -> Vec<Validity> {
             Some((
                 lane(v, "fromLane")?,
                 lane(v, "toLane")?,
-                layer_of(v.attribute("layer")),
+                Layer::from_attr(v.attribute("layer")),
             ))
         })
         .collect()
-}
-
-/// The layer a `layer` attribute names. A missing or unrecognised one is
-/// the permanent layer, as the spec says.
-fn layer_of(name: Option<&str>) -> Layer {
-    match name {
-        Some("temporary") => Layer::Temporary,
-        _ => Layer::Permanent,
-    }
 }
 
 /// Which direction of the road an `<object>` or `<objectReference>` applies

@@ -179,7 +179,8 @@ impl std::fmt::Display for LaneType {
     }
 }
 
-/// The lane layer a lane is on, from its `<lanes layer>`.
+/// The lane layer a lane is on, from its `<lanes layer>`, or the permanent
+/// layer for a road whose only `<lanes>` is a temporary one.
 ///
 /// A road has a permanent layer along its whole length, and may have a
 /// temporary one over parts of it, such as for road works. The temporary
@@ -197,6 +198,15 @@ pub enum Layer {
 }
 
 impl Layer {
+    /// The layer a `layer` attribute names. A missing or unrecognised one is
+    /// the permanent layer, as the spec says.
+    pub(crate) fn from_attr(name: Option<&str>) -> Self {
+        match name {
+            Some("temporary") => Self::Temporary,
+            _ => Self::Permanent,
+        }
+    }
+
     /// `permanent` or `temporary`, as the spec spells them.
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -211,11 +221,12 @@ impl Layer {
 /// The temporary layer's lanes take precedence for driving, so by default a
 /// query that finds a place on the road, or a way along it, may use them.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum LayerPolicy {
-    /// Both layers. Where a temporary lane covers a place it is the lane
-    /// found there, and the lane graph holds both layers' lanes.
+    /// Both layers. Where a temporary driving lane holds a place it is the
+    /// lane found there, and the lane graph holds both layers' lanes.
     #[default]
-    Temporary,
+    Both,
     /// The permanent layer only, as if the map had no temporary lanes.
     PermanentOnly,
 }
@@ -224,7 +235,7 @@ impl LayerPolicy {
     /// Whether a query under this policy may use `lane`.
     pub fn admits(&self, lane: &Lane) -> bool {
         match self {
-            Self::Temporary => true,
+            Self::Both => true,
             Self::PermanentOnly => lane.layer == Layer::Permanent,
         }
     }
@@ -565,7 +576,31 @@ struct LaneIndex {
     grid: Grid,
 }
 
+/// How much further than half a lane's width, in metres, a point may lie
+/// from its centerline and still be on the lane.
+const HOLD_MARGIN: f32 = 0.05;
+
+/// How far, in metres, a point may stand over or under a lane's centerline
+/// and still be on the lane, rather than on a road above or below it.
+const HOLD_HEIGHT: f32 = 1.5;
+
+/// Whether `point` is on `lane`, which it projects onto as `projection`:
+/// across it, within half its width where it is, and not beyond either
+/// end of it or far above or below it.
+fn holds(lane: &Lane, point: Point, projection: &Projection) -> bool {
+    let along = (point.x - projection.point.x).hypot(point.y - projection.point.y);
+    let across = projection.offset.abs();
+    across <= lane.width_at(projection.s) * 0.5 + HOLD_MARGIN
+        && along <= across + HOLD_MARGIN
+        && (point.z - projection.point.z).abs() <= HOLD_HEIGHT
+}
+
 impl LaneIndex {
+    /// Whether it holds no lane.
+    fn is_empty(&self) -> bool {
+        self.spans.is_empty()
+    }
+
     /// The [`LaneType::Driving`] lanes' centerlines, for
     /// [`RoadNetwork::nearest_lane`].
     ///
@@ -994,13 +1029,13 @@ impl RoadNetwork {
         self.lane_position_with(point, LayerPolicy::default())
     }
 
-    /// [`Self::lane_position`] under `policy`. With [`LayerPolicy::Temporary`],
+    /// [`Self::lane_position`] under `policy`. With [`LayerPolicy::Both`],
     /// a lane of the temporary layer that holds the point, between its
     /// borders, is the one found. Otherwise it is the permanent layer's.
     pub fn lane_position_with(&self, point: Point, policy: LayerPolicy) -> Option<LanePosition> {
         let at = self.road_position(point)?;
         let road = self.road(at.road)?;
-        if policy == LayerPolicy::Temporary {
+        if policy == LayerPolicy::Both {
             let held = road
                 .section_of(Layer::Temporary, at.s)
                 .and_then(|section| Some((section, road.lane_at(section, at.s, at.t)?)))
@@ -1449,11 +1484,11 @@ impl RoadNetwork {
         self.nearest_lane_with(point, LayerPolicy::default())
     }
 
-    /// [`Self::nearest_lane`] under `policy`. With
-    /// [`LayerPolicy::Temporary`], a temporary lane that holds the point,
-    /// within its width, wins over a nearer lane of the permanent layer.
-    /// Otherwise, and with [`LayerPolicy::PermanentOnly`], only the
-    /// permanent layer's lanes are looked at.
+    /// [`Self::nearest_lane`] under `policy`. With [`LayerPolicy::Both`], a
+    /// temporary driving lane whose width holds the point wins over a nearer
+    /// lane of the permanent layer. Where none does, and with
+    /// [`LayerPolicy::PermanentOnly`], only the permanent layer's lanes are
+    /// looked at.
     pub fn nearest_lane_with(
         &self,
         point: Point,
@@ -1462,25 +1497,23 @@ impl RoadNetwork {
         if !point.to_array().iter().all(|c| c.is_finite()) {
             return None;
         }
-        if policy == LayerPolicy::Temporary {
-            let held = self
-                .nearest_of(point, Layer::Temporary)
-                .filter(|(id, projection)| {
-                    let Some(lane) = self.lane(*id) else {
-                        return false;
-                    };
-                    let (dx, dy) = (point.x - projection.point.x, point.y - projection.point.y);
-                    dx.hypot(dy) <= lane.width * 0.5 + 0.05
-                });
+        if policy == LayerPolicy::Both && !self.temporary_index.is_empty() {
+            let held = self.nearest_of(point, Layer::Temporary, true);
             if held.is_some() {
                 return held;
             }
         }
-        self.nearest_of(point, Layer::Permanent)
+        self.nearest_of(point, Layer::Permanent, false)
     }
 
-    /// The nearest driving lane of `layer` to `point`.
-    fn nearest_of(&self, point: Point, layer: Layer) -> Option<(LaneId, Projection)> {
+    /// The nearest driving lane of `layer` to `point`, or if `must_hold`, the
+    /// nearest one whose width holds the point.
+    fn nearest_of(
+        &self,
+        point: Point,
+        layer: Layer,
+        must_hold: bool,
+    ) -> Option<(LaneId, Projection)> {
         let index = match layer {
             Layer::Permanent => &self.index,
             Layer::Temporary => &self.temporary_index,
@@ -1497,6 +1530,9 @@ impl RoadNetwork {
             let (lane, segments) = &index.spans[i];
             let lane = &self.lanes[*lane];
             let projection = lane.center.project_segments(point, segments.clone());
+            if must_hold && !holds(lane, point, &projection) {
+                return None;
+            }
             Some((
                 (point - projection.point).length_squared(),
                 (lane.id, projection),

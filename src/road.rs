@@ -1092,17 +1092,14 @@ impl Road {
     /// counts only if the stretch is a single station, so a station on a
     /// section boundary is in the section that starts there.
     pub(crate) fn lanes(&self, (from, to): (f64, f64), validity: &[Validity]) -> Vec<LaneId> {
-        let last = |layer| self.sections.iter().rposition(|s| s.layer == layer);
-        let last = [last(Layer::Permanent), last(Layer::Temporary)];
         self.sections
             .iter()
-            .enumerate()
-            .filter(|(i, sec)| {
-                let ends_the_road = last.contains(&Some(*i));
+            .filter(|sec| {
+                let ends_the_road = sec.end >= self.length - 1e-9;
                 let starts = sec.start < to || (from == to && sec.start <= to);
                 starts && (from < sec.end || (ends_the_road && from <= sec.end))
             })
-            .flat_map(|(_, sec)| sec.lanes.iter().map(move |lane| (sec.layer, lane)))
+            .flat_map(|sec| sec.lanes.iter().map(move |lane| (sec.layer, lane)))
             .filter(|(layer, (od_id, _))| is_valid(*od_id, *layer, validity))
             .map(|(_, &(_, id))| id)
             .collect()
