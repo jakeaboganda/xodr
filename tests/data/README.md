@@ -227,4 +227,53 @@ with
 
     python3 tests/data/lateral_shapes.py
 
+`ignored.xodr` comes from `ignored.py`, which uses [scenariogeneration] and
+splices in what it can't write. It uses each feature the crate ignores,
+in counts that tell the uses apart, beside the values that look like them
+and mean nothing. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/ignored.py
+
+`types.xodr` comes from `types.py` the same way. It has one lane of each lane
+type and one object of each object type the schema names, and shared lanes
+beside driving and sidewalk lanes. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/types.py
+
+`crg_order.xodr` comes from `crg_order.py`. It has roads and a junction whose
+`<CRG>` records overlap, to show the last in the file wins. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/crg_order.py
+
+`signal_direction.xodr` comes from `signal_direction.py`. It has signals on
+roads with reversed, two-way and left-hand lanes. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/signal_direction.py
+
+`metadata.xodr` and `metadata_bare.xodr` come from `metadata.py`. The first
+gives every descriptive attribute the crate keeps, from the header to a sign
+on a board. The second gives none, or an unreadable one. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/metadata.py
+
+`lane_layers.xodr` comes from `lane_layers.py`. It has roads with a temporary
+lane layer over a permanent one, with links between the layers, a layer
+listed first, validities of each layer, and a junction link between
+temporary lanes. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/lane_layers.py
+
+`single_side.xodr` comes from `single_side.py`. It has lane sections that give
+only the left or only the right side, with widths, heights, marks and links
+the other side carries on. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/single_side.py
+
+`junction_wraps.xodr` comes from `junction_wraps.py`. It has fourteen
+junctions laid out to stress the OpenUSD junction wrap: crossroads, tees,
+rings, slopes, a flyover, kerbs and a boundary with an elevation grid.
+Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/junction_wraps.py
+
 [scenariogeneration]: https://github.com/pyoscx/scenariogeneration

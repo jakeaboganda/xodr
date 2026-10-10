@@ -45,6 +45,10 @@ buffers it owns. Buffers plus spans are enough to pick the lane under a
 cursor, or give one lane its own material without rebuilding the mesh. The viewer
 uses the same spans to resolve a raycast hit to a lane.
 
+A road's temporary lane layer shares the permanent layer's surface, so
+`surface_mesh()` has the permanent lanes only. `temporary_mesh()` has the
+temporary ones, to draw over it.
+
 `object_mesh()` does the same for objects: every box, cylinder, outline and
 sweep turned into triangles in one mesh of outward-facing faces, with an `ObjectSpan`
 per object.
@@ -76,14 +80,17 @@ broken file would need more memory than any machine has.
 data, not a log line: one enum variant per kind, naming the road, lane section
 or lane it happened at. A test can assert on it, and a caller can filter the
 kinds it doesn't care about. The crate prints nothing and depends on no
-logging crate. A clean file allocates no warnings.
+logging crate. A file that uses nothing the crate ignores and breaks no rule
+allocates no warnings.
 
 The crate warns where it drops something, or reads a file that breaks a rule
 of the spec, such as a road with no geometry, a lane with no `<width>` or
 `<border>`, or a junction boundary that isn't closed. The `Warning` enum
-lists every kind. The crate doesn't warn for elements it doesn't read, such
-as `<userData>`, which real maps are full of. [support.md](support.md) lists
-those.
+lists every kind. It also says what it ignores. A `Warning::Ignored` names
+each feature of the file the crate doesn't read, such as `<userData>`, once
+for each road, junction, or the rest of the document, with a count, so a map
+full of them raises a few. `Warning::is_ignored` tells these from the
+warnings for faults. [support.md](support.md) lists what is ignored.
 
 The parser rejects non-finite attribute values as it reads them. Rust's float
 parser accepts `NaN` and turns `1e400` into infinity, and one such value

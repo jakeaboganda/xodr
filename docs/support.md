@@ -10,15 +10,15 @@ esmini, libOpenDRIVE and CARLA do with it.
 
 ## Which OpenDRIVE version
 
-The importer keeps a `<header>`'s attributes in `RoadNetwork::header`, and its
-geo reference apart. It never inspects `revMajor` or `revMinor` to decide how
-to read the file, and never rejects a file for its declared version.
-Whether a file loads depends only on whether it uses the elements listed
-below.
+The importer keeps a `<header>`'s attributes in `RoadNetwork::header` and its
+geo reference in `RoadNetwork::geo_reference`. That includes `revMajor` and
+`revMinor`, which it does not use to decide how to read the file. It never
+rejects a file for its declared version. Whether a file loads depends only on
+whether it uses the elements listed below.
 
-Every one of those elements but a lane's `<visibility>` and a road's
-`<neighbor>` is in ASAM OpenDRIVE 1.9.0, the current revision. 1.9 defines
-neither, and the importer reads them from the older files that write them:
+Every element listed below is in ASAM OpenDRIVE 1.9.0, the current revision,
+except a lane's `<visibility>` and a road's `<neighbor>`. 1.9 defines
+neither. The importer reads them from the older files that write them:
 `<visibility>` as CARLA does, and `<neighbor>` as libOpenDRIVE does.
 1.9.0 deprecates `poly3` in favour of `paramPoly3`, and 1.8 deprecated a
 signal's `<positionRoad>` and `<positionInertial>`. The importer reads them
@@ -115,6 +115,58 @@ files declaring 1.4, 1.6 and 1.7.
   element. The crate reads it as CARLA does, from older files. One with a
   distance the crate can't read raises a warning.
 
+## Single-side lane sections
+
+A `<laneSection singleSide="true">` gives the sides it has an element for.
+The crate carries the other sides on from the sections before, and splits
+the road into a full section at each one. A carried lane keeps its widths,
+heights and marks as they stand where the new section starts, and links on
+to its own copy. The spec does not say what the other sides do. A section
+without `singleSide` gives every side.
+
+## Lane layers
+
+A road may have a temporary layer, such as for road works. It is a
+`<lanes layer="temporary">` next to the permanent `<lanes>`. Each layer has
+its own lane sections and `<laneOffset>`. `Lane::layer` says which a lane is
+on. A lane section's index counts the permanent sections first. A temporary
+section may give a `length`, and then ends there or at the next section of its
+layer. A further `<lanes>` of one layer is left out, with an `Ignored`
+warning. A road with only a temporary `<lanes>` bakes it as the permanent
+layer.
+
+- Both layers share the permanent layer's surface. `surface_mesh` and the
+  road's heights are the permanent layer's. `temporary_mesh` has the
+  temporary lanes, to draw over them, and is empty on a map with none. The
+  crate does not clip a temporary lane that reaches past the permanent
+  surface.
+- A lane's `<link>` may name a lane on each layer, so traffic goes from the
+  permanent layer onto the temporary one and back. A junction `<laneLink>`
+  names its layers with `fromLayer` and `toLayer`.
+- A `<validity layer>` picks the lanes of that layer, and one with no `layer`
+  the permanent layer's. An object or signal with no `<validity>` applies to
+  the lanes of both layers.
+- Temporary lanes take precedence for driving. `nearest_lane`,
+  `lane_position`, `route` and `advance` find a temporary lane where it holds
+  the point. Only driving lanes take precedence in `nearest_lane`.
+
+To ask for the permanent layer alone, call the `_with` form of each query
+with `LayerPolicy::PermanentOnly`. The default, `LayerPolicy::Both`, is what
+the plain call does.
+
+```rust
+use xodr::{LayerPolicy, Point};
+
+let at = Point::new(70.0, -2.75, 0.0);
+let driving = net.nearest_lane(at);
+let underneath = net.nearest_lane_with(at, LayerPolicy::PermanentOnly);
+```
+
+A link with no `layer` stays on the lane's own layer when that layer has a
+next section, and otherwise goes to the permanent layer. The
+[crate docs](https://docs.rs/xodr/latest/xodr/#lane-layers) list where it
+departs from the spec.
+
 ## Road and lane positions
 
 - `RoadNetwork::roads` keeps each road's reference line, profiles and lane
@@ -185,6 +237,10 @@ pose and size of its board.
   addresses.
 - A `<positionRoad>` or `<positionInertial>` moves the board, such as onto a
   gantry. The signal still applies where its `(s, t)` says.
+- A signal applies to the lanes whose traffic runs the way its
+  `orientation` names, so a reversed lane, a left-hand-traffic lane and a
+  two-way lane get the right signals. A `<validity>` picks lanes by id
+  instead.
 - A `<signalReference>` applies the signal on another road too, adding the
   lanes there.
 - `RoadNetwork::controllers` groups the signals that always show the same
@@ -203,40 +259,6 @@ pose and size of its board.
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)` and
 orientation.
 
-## Single-side lane sections
-
-A `<laneSection singleSide="true">` gives the sides it has an element for.
-The crate carries the other sides on from the sections before, and splits
-the road into a full section at each one. A carried lane keeps its widths,
-heights and marks as they stand where the new section starts, and links on
-to its own copy. The spec does not say what the other sides do. A section
-without `singleSide` gives every side.
-
-## Lane layers
-
-A road may have a temporary layer, such as for road works. It is a
-`<lanes layer="temporary">` next to the permanent `<lanes>`. Each layer has
-its own lane sections and `<laneOffset>`, and `Lane::layer` says which a lane
-is on. A further `<lanes>` of one layer is left out, with an `Ignored`
-warning.
-
-- Both layers share the permanent layer's surface. `surface_mesh` and the
-  road's heights are the permanent layer's, and `temporary_mesh` has the
-  temporary lanes to draw over it.
-- A lane's `<link>` may name a lane on each layer, so traffic goes from the
-  permanent layer onto the temporary one and back. A junction `<laneLink>`
-  names its layers with `fromLayer` and `toLayer`.
-- A `<validity layer>` picks the lanes of that layer, and one with no `layer`
-  the permanent layer's.
-- Temporary lanes take precedence for driving. `nearest_lane`,
-  `lane_position`, `route` and `advance` find them where they hold the point.
-  Their `_with` forms take a `LayerPolicy`, and `PermanentOnly` looks at the
-  permanent layer alone. Only driving lanes take precedence in `nearest_lane`.
-
-A link with no `layer` stays on the lane's own layer when that layer has a
-section to go on to, and otherwise goes to the permanent layer. The crate docs
-list where it departs from the spec.
-
 ## Road marks
 
 `RoadNetwork::road_marks` has the `<roadMark>`s on every lane border and the
@@ -253,8 +275,9 @@ are quads lying on the road surface.
 - A kerb, a grass edge and the other types that aren't paint keep their
   meaning and paint nothing.
 
-The crate docs list where it departs from the spec, such as reading a mark
-without a colour. `load_*_with_provenance` gives its road, lane section, lane
+The [crate docs](https://docs.rs/xodr/latest/xodr/#road-marks) list where it
+departs from the spec, such as reading a mark without a colour.
+`load_*_with_provenance` gives its road, lane section, lane
 and stretch, and its `material` and its type's `name`.
 
 ## OpenCRG surfaces
@@ -303,16 +326,32 @@ cargo run --release --example crg_profile -- target/crg/country_road.xodr > prof
 - The spec's offset takes the map's frame to the projected one. Some
   exporters, `netconvert` among them, write the opposite sign.
 
+## Kept for the caller
+
+The crate keeps some attributes it builds nothing from. It does not use them
+to read the map, and it applies none of them. The crate docs have a section
+on where each is. The header is in `RoadNetwork::header`, and a road's `name`
+in `Road::name`. A junction's `name`, a road mark's `material` and its type's
+`name`, a lane's `advisory` and flags, the center lane's attributes, an
+object's outline `fillType` and `laneType`, and a junction `<laneLink>`'s
+`overlapZone` are in the provenance. A road type's `country` is in
+`RoadNetwork::road_countries`.
+
 ## Warnings
 
-`Provenance::warnings` lists what a load dropped from a bad file, or read
-from a file that breaks a rule of the spec. `Warning::road_id` gives the
-road a warning happened on, or an empty string for one about a whole
-junction or junction group.
+`Provenance::warnings` lists what a load dropped from a bad file, read from
+a file that breaks a rule of the spec, or ignored. `Warning::road_id` gives
+the road a warning happened on, or an empty string for one about a whole
+junction or junction group. An `Ignored` warning has a `junction_id` as well,
+and both ids are empty for a feature outside every road and junction.
+
+A map that breaks no rule can still raise `Ignored` warnings, so an empty
+list does not mean a clean map. `Warning::is_ignored` tells them from the
+warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 
 | `Warning` | Raised for |
 | --- | --- |
-| `Ignored` | a feature the crate ignores, once for each road, junction, or the rest of the document, with a count. See [What it ignores](#what-it-ignores) |
+| `Ignored` | a feature the crate ignores, once for each road, junction, or the rest of the document, with a count. See [What it ignores](#what-the-importer-ignores) |
 | `RoadSkipped` | a road with no finite `length`, one over 100 km, no `<planView>`, no geometry the importer can bake, or lanes that land outside the range of an `f32` |
 | `GeometryDropped` | a `<geometry>` missing its pose or `length`, with a `length` that isn't above 0 or is over 100 km, or of a shape the crate doesn't know |
 | `RoadMarkLineDropped` | a road mark line with more dashes than the crate paints (100,000 on the line, or 1,000,000 in the whole file), or whose paint lands out of range |
@@ -352,21 +391,21 @@ junction or junction group.
 | `AccessDropped` | an `<access>` whose `rule` is neither `allow` nor `deny` |
 | `VisibilityDropped` | a `<visibility>` with a distance the crate can't read |
 
-## What it ignores
+## What the importer ignores
 
-The importer skips everything else in the file. Each feature below raises
-an `Ignored` warning, once for each road, junction, or the rest of the
-document, with how many times the file uses it.
+The importer skips what the sections above do not list as read. Each feature
+below raises an `Ignored` warning, once for each road, junction, or the rest
+of the document, with how many times the file uses it.
 
 Elements it skips: `<vmsGroup>`, a header's `<license>` and
-`<defaultRegulations>`, `<dataQuality>` and `<include>`, a junction's
+`<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a junction's
 `<objects>` and `<roadSection>`s, and an object's `<surface>`,
 `<skeleton>` and `<curveLocal>` outlines. It skips `<userData>` anywhere but
 directly on an object, which it reads. It also skips the `<markings>` of an
 outline, and the `<validity>`, `<dependency>` and `<reference>` of a board
 sign.
 
-Attributes it reads but ignores:
+Uses of elements it reads that it ignores:
 
 | Feature | What the crate does |
 | --- | --- |
@@ -375,8 +414,9 @@ Attributes it reads but ignores:
 | a `<repeat>`'s `bT`, `cT` or `dT`, or `detachFromReferenceLine="true"` | copies run straight along the road |
 | a boundary `<segment>`'s `transitionLength` above 0 | no blending |
 
-A `layer` of `permanent`, a flag set to `false` and a `transitionLength` of 0
-raise nothing.
+A first `<lanes>` of either layer, `perpToRoad="false"`,
+`detachFromReferenceLine="false"`, a `bT`, `cT` or `dT` of 0, and a
+`transitionLength` of 0 raise nothing.
 
 The importer reads a lane section's `<center>` for the road marks on the
 center line, and for the lane's `id`, `type`, `level` and `<link>`, which are

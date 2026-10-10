@@ -43,9 +43,9 @@
 
 ### Single-side lane sections
 
-- A `<laneSection singleSide="true">` is read. The sides it leaves out carry
-  on from the sections before, so each section the crate bakes has both
-  sides. Before, such a section read as the whole cross-section, and the
+- Behaviour change: a `<laneSection singleSide="true">` is read. The sides
+  it leaves out carry on from the sections before, so each section the crate
+  bakes has both sides. Before, such a section read as the whole cross-section, and the
   other side stopped at its start.
 - `tests/data/single_side.xodr` has sections that give the left, the right
   and each, with carried widths, heights, marks and links.
@@ -80,21 +80,23 @@
 ### Ignored features
 
 - New `Warning::Ignored` names each feature of a file the crate ignores,
-  such as `<userData>`, a second `<lanes>`, `singleSide="true"` and
+  such as `<userData>`, a further `<lanes>` of one layer and
   `perpToRoad="true"`. It comes once per feature for each road, junction,
   or the rest of the document, with a count. `docs/support.md` lists them.
 - `Warning::is_ignored` tells these from the warnings for faults. A map
   that loads clean can still raise them.
 - `tests/data/ignored.xodr` uses each one.
+- The viewer lists them with the other warnings.
 
 ### Lane types
 
-- A lane of `type="walking"`, the name OpenDRIVE 1.8 gives a sidewalk, is a
-  `LaneType::Sidewalk`. It was `LaneType::Unknown`.
+- Behaviour change: a lane of `type="walking"`, the name OpenDRIVE 1.8 gives
+  a sidewalk, is a `LaneType::Sidewalk`. It was `LaneType::Unknown`.
 - Breaking: new `LaneType::Shared` for `type="shared"`, a lane shared by all
-  traffic participants. It was `LaneType::Unknown`. It counts as drivable, so
-  traffic changes lanes into it and out of it. Match on `LaneType` with a
-  wildcard arm.
+  traffic participants. It was `LaneType::Unknown`. Match on `LaneType` with
+  a wildcard arm.
+- Behaviour change: a `shared` lane counts as drivable, so traffic changes
+  lanes into it and out of it.
 
 ### Metadata
 
@@ -125,10 +127,16 @@ The crate now keeps descriptive attributes it builds nothing from.
   id alone.
 - New `Provenance::lane_link_overlaps` of `LaneLinkOverlap` has each
   junction lane link's `overlapZone`.
-- Breaking: `Object`, `Marking`, `BoardSign`, `Switch`,
-  `LaneProvenance`, `ObjectProvenance`, `RoadMarkProvenance` and
-  `Provenance` have new fields, so a struct literal needs them. Each new
-  field has a serde default, so a network serialized before still loads.
+- The viewer shows all of it on hover. The map list shows the `<header>`.
+  A lane shows its road's and junction's `name`, its road type's `country`,
+  its `advisory` and flags, and each junction lane link's `overlapZone`. A
+  mark on the center line shows the center lane. Objects, road marks and
+  signs show their new attributes, and a switch its partner's `name`.
+- Breaking: `Object`, `Marking`, `BoardSign`, `Switch`, `LaneProvenance`,
+  `ObjectProvenance`, `RoadMarkProvenance` and `Provenance` have new fields,
+  so a struct literal needs them. `LaneProvenance` has `layer` too, from the
+  lane layers below. Each new field has a serde default, so a network
+  serialized before still loads.
 
 ### Signals
 

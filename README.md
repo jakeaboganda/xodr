@@ -36,7 +36,8 @@ mesh.validate()?;
 - Road geometry, elevation, superelevation, lateral shape and cross-section
   surfaces.
 - Lanes of every type, with their widths, borders, offsets, heights and
-  sections.
+  sections, including sections that give one side of the road, and a
+  road's temporary lane layer over its permanent one.
 - Links and junctions, direct junctions included, as a lane graph, in
   right- or left-hand traffic, with reversed and two-way lanes.
 - Junction groups, priorities, boundaries, elevation grids and cross paths,
@@ -52,13 +53,17 @@ mesh.validate()?;
 - Railway switches and stations.
 - OpenCRG surfaces, for the height, normal and friction under a wheel.
 - The geo reference: the PROJ string and offset, kept unapplied.
+- The header, road and junction names, and the other descriptive
+  attributes of a map, kept for the caller.
 
-It keeps each road, so a caller can turn `(road, s, t)` or `(lane, s,
-offset)` into a point on the road surface, and a point back, and move a
-position along the lanes.
+It keeps each road. A caller can turn `(road, s, t)` or `(lane, s, offset)`
+into a point on the road surface, turn a point back into a position, and move
+a position along the lanes.
 
 It loads a file whatever OpenDRIVE version it declares. Where it drops part
-of a bad file, or ignores a feature, it says so in `Provenance::warnings`.
+of a bad file, it says so in `Provenance::warnings`. It also warns about each
+feature it ignores, so a map that breaks no rule can still have warnings.
+`Warning::is_ignored` tells those from faults.
 [docs/support.md](docs/support.md) covers each element, and what it skips.
 
 ## Viewer

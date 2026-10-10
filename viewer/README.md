@@ -117,10 +117,11 @@ Filtering opens every group that matches.
 
 At the top, in amber, are the map's warnings. Most are what `xodr`
 dropped from a bad file, such as a road with no geometry or a lane with no
-`<width>`. The rest come from the baker: a CRG file it could not load, or a
-mesh that is not a valid triangle mesh. Click a warning to light the lanes of the
-road it names and frame them. A skipped road has no lanes, so the readout
-says so instead. A clean map has no warnings group.
+`<width>`, or what it ignored, such as `<userData>`. The rest come from the
+baker: a CRG file it could not load, or a mesh that is not a valid triangle
+mesh. Click a warning to light the lanes of the road it names and frame them.
+A skipped road has no lanes, so the readout says so instead. A map with
+nothing to warn of has no warnings group.
 
 Click an object or a signal to select it. The camera frames it, and the
 readout opens beside it. It stays outlined, with its lanes lit and a
@@ -130,20 +131,7 @@ to clear it.
 Under the map's name, the sidebar shows its `<geoReference>` PROJ string
 and `<offset>` as the file gives them. A map without either shows neither.
 Hover the map list for the `<header>`: its name, OpenDRIVE revision,
-version, date, vendor and bounds. A lane's readout shows its road's `name`
-and its junction's, and the `country` of its road type. A sign on a board lists its own `id`, `name`, `countryRevision`, flags,
-angles, depth and `orientation`, a switch its partner's `name`, and a lane
-its junction lane link's `overlapZone`. A lane shows the overlap zone in
-every lane section, as the link names no section. An object's
-readout shows whether it is invalidated or temporary, its material's
-`roadMarkColor`, a bold marking, and its outline's `fillType` and
-`laneType`. A road mark's
-readout shows its `material` and its type's `name`. A lane of a road's temporary layer is tinted amber and lifted a centimetre
-off the surface it shares with the permanent layer, so both draw and hover.
-Its readout and its sidebar row say it is on the temporary layer. A lane's readout also
-shows its `advisory` and whether its type or direction can change or it is
-under road works, and the readout of a mark on the center line shows the
-center lane's `id`, `type`, `level` and links.
+version, date, vendor and bounds.
 
 ## Lanes
 
@@ -153,9 +141,14 @@ against the heading below. On a lane whose `direction` is `both`, the arrow
 points both ways. On a left-hand-traffic road the left lanes are the
 `forward` ones. The hovered lane's successors are green and its
 predecessors orange. While a lane is selected in the sidebar, its own links
-stay lit as you hover others. The readout shows:
+stay lit as you hover others.
 
-- the road id, the OpenDRIVE lane id and the lane type
+A lane of a road's temporary layer is tinted amber and lifted a centimetre
+off the surface it shares with the permanent layer, so both draw and hover.
+Its readout and its sidebar row say it is on the temporary layer. The
+readout shows:
+
+- the road id and name, the OpenDRIVE lane id and the lane type
 - the surface point `x, y, z`
 - the road `s` and `t` there, in OpenDRIVE's road coordinates
 - the lane position: the offset from the lane's center toward `+t`, and how
@@ -169,9 +162,15 @@ stay lit as you hover others. The readout shows:
 - on a lane raised by its `<height>`s, such as a sidewalk, how far it stands
   off the road at its inner and outer border at that point
 - the speed limit at that point, in km/h and mph, or `none` for no limit,
-  and the road type, where the map gives them
-- the junction the lane's road is part of, and the group it is in, such as
+  and the road type with its `country`, where the map gives them
+- the lane's `advisory`, and whether its type or direction can change or it
+  is under road works
+- the junction the lane's road is part of, with its name, and the group it
+  is in, such as
   a roundabout, where the map groups junctions
+- the overlap zone of each junction lane link that joins the lane, with the
+  lane at the other end. A lane shows it in every lane section, as the link
+  names no section.
 - which roads the lane's road gives way to in its junction, and which give
   way to it, where the map gives junction priorities
 - the cross paths a crossing road's lane carries, from which lane and `s`
@@ -231,12 +230,15 @@ readout shows:
 - its type, subtype and name
 - its road, OpenDRIVE id, `s`, `t`, orientation and valid length
 - the lanes it applies to, by lane section and OpenDRIVE lane id
-- its parking access and restrictions, materials, `<userData>` pairs,
-  markings and border types, if it has them
+- whether it is invalidated or temporary
+- its parking access and restrictions, materials with their
+  `roadMarkColor`, `<userData>` pairs, markings, bold or not, and border
+  types, if it has them
 - for a solid, its position, heading, pitch, roll and size
 - for an outline or a sweep, the point under the cursor and how many corners
   or sections it has, how many holes an outline has, and whether a sweep is
   round
+- for an outline, its `fillType` and `laneType`
 
 ![Hovering a traffic island](objects.png)
 
@@ -282,17 +284,18 @@ file's roads and grid disagree, the ground shows above or below the roads.
 
 ## Virtual junctions
 
-A virtual junction's stretch of its main road is drawn as a cyan tube along
-the road, and each place one of its roads meets another part way along as a
-pink tube from one side to the other. Hover one to read the junction's main
-road, stretch and orientation, and a link's sides and the lanes it joins.
-They show and hide with the `junctions` checkbox.
+The viewer draws a virtual junction's stretch of its main road as a cyan tube
+along the road. It draws each place where one of its roads meets another part
+way along as a pink tube from one side to the other. Hover one to read the
+junction's main road, stretch and orientation, and a link's sides and the
+lanes it joins. They show and hide with the `junctions` checkbox.
 
 ## Railways
 
 Each station platform is drawn as a grey strip beside its track, and each
 railway switch as a red post where it leaves the main track. Hover one to
-read its station and stretch of track, or its tracks, setting and partner.
+read its station and stretch of track, or its tracks, setting, and its
+partner's id and `name`.
 They show and hide with the `objects` checkbox.
 
 ## Signals
@@ -317,7 +320,9 @@ up with the rest, and another dashed line runs to it. The readout shows:
 - what it means, from its `<semantics>`, such as `maximum speed 50 km/h;
   except bus`
 - each board it is: a static board's signs, with what each shows and means,
-  or a message board's display and its display areas
+  and each sign's `id`, `name`, `countryRevision`, flags, `orientation`,
+  `hOffset`, `pitch`, `roll` and depth, or a message board's display and its
+  display areas
 - its country, `type` and `subtype`, as the map spells them
 - its value and unit, and its text
 - its road, OpenDRIVE id, `s`, `t` and orientation
@@ -347,18 +352,20 @@ this map. A colour the page doesn't know is magenta.
 Hover a line to outline its mark and light up the lanes either side of it.
 The readout shows:
 
-- its type and colour
+- its type, its type's `name` and its `material`, and its colour
 - its road, lane section, and the OpenDRIVE lane whose border it runs
   along, or the center lane
+- on a mark on the center line, the center lane's `id`, `type`, `level` and
+  links
 - the stretch of road it covers, as `s` along the reference line
 - its width, weight and height
 - which way traffic may cross it
 - the lanes on its left and right, looking along the road's `+s`, or the
   road edge where there is none
-- each of its lines: continuous, its dash and gap lengths, or its length
-  if it paints once, how far along the mark it starts and how far off the
-  border it sits if not 0, its width and colour, and its rule unless that
-  is `none`
+- each of its lines. A line shows continuous, or its dash and gap lengths,
+  or its length if it paints once. It also shows its width, its colour, and
+  its rule unless that is `none`. It shows how far along the mark it starts,
+  and how far off the border it sits, when either is not 0.
 
 ![Hovering the double center line of the road mark test map](road-marks.png)
 
