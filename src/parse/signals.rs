@@ -5,7 +5,7 @@ use std::f64::consts::PI;
 
 use super::{
     attr_f32, attr_f64, child, orientation, validity, BakedRoad, ControllerProvenance,
-    JunctionControllerProvenance, ObjectProvenance, Orientation, SignalProvenance,
+    JunctionControllerProvenance, ObjectProvenance, Orientation, SignProvenance, SignalProvenance,
     SignalReferenceProvenance,
 };
 use crate::coords::{Point, Vector};
@@ -250,8 +250,44 @@ fn place_signal(
         t,
         orientation,
         references: Vec::new(),
+        signs: signs(node),
     });
     true
+}
+
+/// What each `<sign>` of `node`'s static boards says about itself that the
+/// crate builds nothing from, in file order. `board` counts the baked boards,
+/// which are the `<staticBoard>`s and `<vmsBoard>`s.
+fn signs(node: roxmltree::Node) -> Vec<SignProvenance> {
+    let flag = |n: roxmltree::Node, name| matches!(n.attribute(name), Some("true" | "1"));
+    let turn = |n: roxmltree::Node, name| angle(attr_f64(n, name).unwrap_or(0.0));
+    let boards = node
+        .children()
+        .filter(|b| b.has_tag_name("staticBoard") || b.has_tag_name("vmsBoard"));
+    let mut out = Vec::new();
+    for (board, b) in boards.enumerate() {
+        let signs = b.children().filter(|n| n.has_tag_name("sign"));
+        for (sign, node) in signs.enumerate() {
+            out.push(SignProvenance {
+                board,
+                sign,
+                id: node.attribute("id").unwrap_or_default().to_string(),
+                country_revision: node
+                    .attribute("countryRevision")
+                    .unwrap_or_default()
+                    .to_string(),
+                dynamic: node.attribute("dynamic") == Some("yes"),
+                invalidated: flag(node, "invalidated"),
+                temporary: flag(node, "temporary"),
+                orientation: orientation(node),
+                h_offset: turn(node, "hOffset"),
+                pitch: turn(node, "pitch"),
+                roll: turn(node, "roll"),
+                length: attr_f32(node, "length"),
+            });
+        }
+    }
+    out
 }
 
 /// Give `signal` the `<dependency>`s and `<reference>`s of its `<signal>`,
@@ -412,8 +448,6 @@ fn boards(node: roxmltree::Node, board: &Board) -> Vec<SignalBoard> {
             .filter(|v| v.is_finite())
     };
     let text = |n: roxmltree::Node, name| n.attribute(name).unwrap_or_default().to_string();
-    let flag = |n: roxmltree::Node, name| matches!(n.attribute(name), Some("true" | "1"));
-    let turn = |n: roxmltree::Node, name| angle(attr_f64(n, name).unwrap_or(0.0));
     node.children()
         .filter_map(|b| {
             if b.has_tag_name("staticBoard") {
@@ -421,10 +455,8 @@ fn boards(node: roxmltree::Node, board: &Board) -> Vec<SignalBoard> {
                     .children()
                     .filter(|n| n.has_tag_name("sign"))
                     .map(|sign| BoardSign {
-                        id: text(sign, "id"),
                         name: text(sign, "name"),
                         country: text(sign, "country"),
-                        country_revision: text(sign, "countryRevision"),
                         kind: text(sign, "type"),
                         subtype: text(sign, "subtype"),
                         value: attr_f64(sign, "value"),
@@ -434,14 +466,6 @@ fn boards(node: roxmltree::Node, board: &Board) -> Vec<SignalBoard> {
                         position: at(sign),
                         width: size(sign, "width"),
                         height: size(sign, "height"),
-                        length: size(sign, "length"),
-                        dynamic: sign.attribute("dynamic") == Some("yes"),
-                        invalidated: flag(sign, "invalidated"),
-                        temporary: flag(sign, "temporary"),
-                        orientation: orientation(sign),
-                        h_offset: turn(sign, "hOffset"),
-                        pitch: turn(sign, "pitch"),
-                        roll: turn(sign, "roll"),
                     })
                     .collect();
                 Some(SignalBoard::Static(signs))

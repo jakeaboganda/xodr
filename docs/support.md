@@ -219,11 +219,11 @@ surface.
 - `<parkingSpace>`, `<material>` and `<userData>` are kept on the object as
   data.
 
-Each object has an id to look it up by, a subtype, and whether it moves,
-is invalidated or is temporary. A marking keeps its `weight`, and a material
-its `roadMarkColor`. `load_*_with_provenance` gives its road, OpenDRIVE id,
-`(s, t)`, orientation and valid length, and the `fillType` and `laneType` of
-the outline it baked from.
+Each object has an id to look it up by, a subtype, and whether it moves.
+`load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)`, orientation
+and valid length. It also says whether the object is invalidated or
+temporary, the `weight` of each marking, the `roadMarkColor` of each
+material, and the `fillType` and `laneType` of the outline it baked from.
 
 ## Tunnels and bridges
 
@@ -254,11 +254,11 @@ pose and size of its board.
   signals and objects they name.
 - `Signal::semantics` says what a signal means, from its `<semantics>`, and
   `Signal::boards` holds its `<staticBoard>`s and `<vmsBoard>`s, each sign
-  and display area placed on the board. The crate applies no semantic. A
-  sign also keeps its own `id`, `countryRevision`, `orientation`,
+  and display area placed on the board. The crate applies no semantic. The
+  provenance keeps a sign's own `id`, `countryRevision`, `orientation`,
   `dynamic`, `invalidated`, `temporary`, `hOffset`, `pitch`, `roll` and
-  `length`. The crate stores them and places the sign by none of them. It
-  wraps the three angles into one turn.
+  `length`. The crate places the sign by none of them. It wraps the three
+  angles into one turn.
 
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)` and
 orientation.

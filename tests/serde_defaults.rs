@@ -6,8 +6,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 use xodr::{
-    load_file_with_provenance, BoardSign, Header, LaneAdvisory, LaneProvenance, Marking, Object,
-    ObjectProvenance, Orientation, Partner, RoadMarkProvenance, RoadMarkWeight, SignalBoard,
+    load_file_with_provenance, Header, LaneAdvisory, LaneProvenance, ObjectProvenance, Partner,
+    RoadMarkProvenance,
 };
 
 /// `value` as an older version wrote it, without `removed`, loaded again.
@@ -22,74 +22,6 @@ fn without<T: Serialize + DeserializeOwned>(value: &T, removed: &[&str]) -> T {
 
 fn full() -> (xodr::RoadNetwork, xodr::Provenance) {
     load_file_with_provenance("tests/data/metadata.xodr").unwrap()
-}
-
-#[test]
-fn an_object_without_its_new_flags_is_neither_invalidated_nor_temporary() {
-    let (net, prov) = full();
-    let flagged = net
-        .objects()
-        .iter()
-        .find(|o| o.invalidated && o.temporary)
-        .expect("an object with both");
-    let old: Object = without(flagged, &["invalidated", "temporary"]);
-    assert!(!old.invalidated && !old.temporary);
-    assert_eq!(old.kind, flagged.kind);
-    assert!(!prov.objects.is_empty());
-}
-
-#[test]
-fn a_marking_without_its_weight_reads_as_standard() {
-    let (net, _) = full();
-    let marked = net
-        .objects()
-        .iter()
-        .find(|o| !o.markings.is_empty())
-        .unwrap();
-    let bold: &Marking = marked
-        .markings
-        .iter()
-        .find(|m| m.weight == RoadMarkWeight::Bold)
-        .expect("a bold marking");
-    assert_eq!(without(bold, &["weight"]).weight, RoadMarkWeight::Standard);
-}
-
-#[test]
-fn a_sign_without_its_new_fields_has_the_defaults() {
-    let (net, _) = full();
-    let sign: &BoardSign = net
-        .signals()
-        .iter()
-        .flat_map(|s| &s.boards)
-        .find_map(|b| match b {
-            SignalBoard::Static(signs) => signs.first(),
-            _ => None,
-        })
-        .unwrap();
-    assert!(sign.dynamic && sign.invalidated && sign.temporary);
-    let old: BoardSign = without(
-        sign,
-        &[
-            "id",
-            "country_revision",
-            "dynamic",
-            "invalidated",
-            "temporary",
-            "orientation",
-            "h_offset",
-            "pitch",
-            "roll",
-            "length",
-        ],
-    );
-    assert_eq!(old.id, "");
-    assert_eq!(old.orientation, Orientation::Both);
-    assert!(!old.dynamic && !old.invalidated && !old.temporary);
-    assert_eq!(
-        (old.h_offset, old.pitch, old.roll, old.length),
-        (0.0, 0.0, 0.0, None)
-    );
-    assert_eq!(old.kind, sign.kind);
 }
 
 #[test]
@@ -128,10 +60,18 @@ fn provenance_records_without_their_new_fields_read_as_before() {
             "fill_type",
             "outline_lane_type",
             "material_road_mark_colors",
+            "marking_weights",
+            "invalidated",
+            "temporary",
         ],
     );
-    assert!(old.material_road_mark_colors.is_empty());
+    assert!(old.material_road_mark_colors.is_empty() && old.marking_weights.is_empty());
     assert_eq!((old.fill_type.as_str(), old.outline_lane_type), ("", None));
+    assert!(!old.invalidated && !old.temporary);
+
+    let signal = prov.signals.iter().find(|s| !s.signs.is_empty()).unwrap();
+    let old = without(signal, &["signs"]);
+    assert!(old.signs.is_empty());
 
     let mark: &RoadMarkProvenance = prov
         .road_marks

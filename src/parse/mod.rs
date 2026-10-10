@@ -197,6 +197,19 @@ pub struct ObjectProvenance {
     /// gives none.
     #[cfg_attr(feature = "serde", serde(default))]
     pub material_road_mark_colors: Vec<String>,
+    /// The `weight` of each of the object's [`Object::markings`], in step
+    /// with them. `Standard` where the map gives none, or gives a weight the
+    /// spec does not allow.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub marking_weights: Vec<RoadMarkWeight>,
+    /// Whether the map marks the object as no longer valid, from
+    /// `invalidated`. A removed road sign is one. The crate still bakes it.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub invalidated: bool,
+    /// Whether the object is there for a while only, such as a cone at road
+    /// works, from `temporary`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub temporary: bool,
     /// The `fillType` of the `<outline>` it baked from, such as `grass`. Free
     /// text. Empty for a solid, and where the outline has none. A hole
     /// (`outer="false"`) folds into the outline round it and its own is
@@ -271,6 +284,43 @@ pub struct SignalProvenance {
     /// order. Its points follow the signal's own in
     /// [`Signal::applies_at`](crate::Signal::applies_at).
     pub references: Vec<SignalReferenceProvenance>,
+    /// What each `<sign>` of its static boards says about itself, in file
+    /// order.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub signs: Vec<SignProvenance>,
+}
+
+/// What a `<sign>` on a static board says about itself that the crate builds
+/// nothing from. It turns a sign by none of its angles.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SignProvenance {
+    /// Which of the signal's [`Signal::boards`](crate::Signal::boards) it is
+    /// on.
+    pub board: usize,
+    /// Its position among that board's signs.
+    pub sign: usize,
+    /// Its `id`. Empty if the map gives none.
+    pub id: String,
+    /// Its `countryRevision`. Empty if the map gives none.
+    pub country_revision: String,
+    /// Whether the map says it is `dynamic`.
+    pub dynamic: bool,
+    /// Whether the map marks it `invalidated`.
+    pub invalidated: bool,
+    /// Whether the map marks it `temporary`.
+    pub temporary: bool,
+    /// Which traffic it is for, from its `orientation`.
+    pub orientation: Orientation,
+    /// How far it is turned about the vertical from the board, from its
+    /// `hOffset`, in radians in `(-π, π]`. 0 if the map gives none.
+    pub h_offset: f32,
+    /// Its `pitch`, about its lateral axis, as `h_offset`.
+    pub pitch: f32,
+    /// Its `roll`, about its own forward axis, as `h_offset`.
+    pub roll: f32,
+    /// Metres deep, if the map gives it.
+    pub length: Option<f32>,
 }
 
 /// A `<signalReference>`: a road, and a station on it, where a signal also
@@ -2847,16 +2897,16 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     }
     for part in parts {
         let id = ObjectId(out.baked.len());
+        let (markings, marking_weights): (Vec<Marking>, Vec<RoadMarkWeight>) =
+            part.markings.into_iter().unzip();
         out.baked.push(Object {
             id,
             kind,
             subtype: text("subtype"),
             name: text("name"),
             dynamic: node.attribute("dynamic") == Some("yes"),
-            invalidated: flag("invalidated"),
-            temporary: flag("temporary"),
             lanes: road.lanes(part.stretch, &at.validity),
-            markings: part.markings,
+            markings,
             borders: part.borders,
             parking_space: parking_space.clone(),
             materials: materials.clone(),
@@ -2872,6 +2922,9 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             orientation: at.orientation,
             valid_length: at.valid_length,
             referenced_from: at.referenced_from.map(str::to_string),
+            invalidated: flag("invalidated"),
+            temporary: flag("temporary"),
+            marking_weights,
             material_road_mark_colors: mark_colors.clone(),
             fill_type: part.fill_type,
             outline_lane_type: part.outline_lane_type,
@@ -2954,7 +3007,7 @@ struct Part {
     t: f64,
     /// The stretch of road it spans, which picks its lanes.
     stretch: (f64, f64),
-    markings: Vec<Marking>,
+    markings: Vec<(Marking, RoadMarkWeight)>,
     borders: Vec<Border>,
     /// The `fillType` and `laneType` of the outline it came from.
     fill_type: String,
@@ -3267,7 +3320,7 @@ fn markings(
     outline: roxmltree::Node,
     ring: &Ring,
     too_many: &Cell<bool>,
-) -> Vec<Marking> {
+) -> Vec<(Marking, RoadMarkWeight)> {
     let ids: Vec<Option<&str>> = corner_nodes(outline).map(|c| c.attribute("id")).collect();
     marking_nodes(object)
         .filter_map(|m| paint(m, &corner_path(m, &ids, ring)?, too_many))
@@ -3285,7 +3338,7 @@ fn side_markings(
     frame: &Frame,
     extent: Option<Extent>,
     too_many: &Cell<bool>,
-) -> Vec<Marking> {
+) -> Vec<(Marking, RoadMarkWeight)> {
     let (u, v) = match extent {
         Some(Extent::Box { length, width, .. }) => (length / 2.0, width / 2.0),
         Some(Extent::Cylinder { radius, .. }) => (radius, radius),
@@ -3315,20 +3368,24 @@ fn side_markings(
 /// The paint is raised `zOffset` off the path along its normals, 5 mm if the
 /// map does not say, and starts `startOffset` along the first edge and stops `stopOffset` short
 /// of the end of the last.
-fn paint(m: roxmltree::Node, path: &[(Point, Vector)], too_many: &Cell<bool>) -> Option<Marking> {
+fn paint(
+    m: roxmltree::Node,
+    path: &[(Point, Vector)],
+    too_many: &Cell<bool>,
+) -> Option<(Marking, RoadMarkWeight)> {
     let width = attr_f64(m, "width").filter(|w| *w > 0.0)?;
     let raise = attr_f64(m, "zOffset").unwrap_or(0.005) as f32;
     let path: Vec<(Point, Vector)> = path.iter().map(|&(p, up)| (p + up * raise, up)).collect();
     let line = attr_f64(m, "lineLength").unwrap_or(0.0).max(0.0);
     let space = attr_f64(m, "spaceLength").unwrap_or(0.0).max(0.0);
     let text = |name| m.attribute(name).unwrap_or_default().to_string();
-    Some(Marking {
+    let weight = match m.attribute("weight") {
+        Some("bold") => RoadMarkWeight::Bold,
+        _ => RoadMarkWeight::Standard,
+    };
+    let marking = Marking {
         side: text("side"),
         color: text("color"),
-        weight: match m.attribute("weight") {
-            Some("bold") => RoadMarkWeight::Bold,
-            _ => RoadMarkWeight::Standard,
-        },
         width: width as f32,
         line_length: line as f32,
         space_length: space as f32,
@@ -3343,7 +3400,8 @@ fn paint(m: roxmltree::Node, path: &[(Point, Vector)], too_many: &Cell<bool>) ->
             too_many.set(true);
             Vec::new()
         }),
-    })
+    };
+    Some((marking, weight))
 }
 
 /// The `<border>`s under `object`'s `<borders>` that run along edges of one
