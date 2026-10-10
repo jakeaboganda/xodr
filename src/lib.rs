@@ -557,9 +557,12 @@
 //! The temporary lanes take precedence for driving, as the spec says. So
 //! [`RoadNetwork::nearest_lane`], [`RoadNetwork::lane_position`],
 //! [`RoadNetwork::route`] and [`RoadNetwork::advance`] look at both layers.
-//! A temporary driving lane that holds a point is the lane they find there.
-//! A lane holds a point if the point lies within half its width of its
-//! centerline, and not past either end of it. Each has a `_with` form that
+//! A temporary driving lane that holds a point is the lane they find there. A
+//! lane holds a point if the point lies within half its width of its
+//! centerline, and not past either end of it. A temporary lane traffic may
+//! not use, such as a restricted one or one closed for works, hides the
+//! permanent lane under it from [`RoadNetwork::nearest_lane`], which then
+//! finds the nearest lane that is not hidden. Each has a `_with` form that
 //! takes a [`LayerPolicy`]. [`LayerPolicy::Both`] is the default, and
 //! [`LayerPolicy::PermanentOnly`] looks at the permanent layer alone.
 //!

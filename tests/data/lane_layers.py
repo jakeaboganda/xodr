@@ -28,6 +28,10 @@ surface, for its first 50 m by a `length`. A second temporary <lanes> follows
 it, which the crate leaves out, and the permanent lane's link names the layer
 "bogus", which reads as permanent.
 
+Roads 6 and 7 are 100 m straights. Road 6 has two right lanes, and a
+`restricted` temporary lane of 3.5 m over lane -1 from 20 to 60 m. Road 7 has
+one right lane, and a temporary lane of type `roadWorks` over it likewise.
+
 Roads 4 and 5 are 100 m straights end to end with one right lane. Road 4's
 temporary layer is its last 40 m, and road 5's the 40 m from 40 m, so a
 temporary lane leaving road 4 has no temporary lane to enter at the start of
@@ -65,6 +69,14 @@ for road_id, y in [(1, 0), (2, 60)]:
 road3 = xodr.create_road(xodr.Line(100), 3, 0, 1, lane_width=3.5)
 road3.planview.set_start_point(0, 120, 0)
 odr.add_road(road3)
+
+# Roads 6 and 7: a temporary lane traffic may not use over a driving lane.
+# Road 6 has two driving lanes, and a restricted temporary lane over lane -1
+# from 20 to 60 m. Road 7 has one, and a lane closed for works over it.
+for road_id, y, lanes in [(6, 240, 2), (7, 300, 1)]:
+    road = xodr.create_road(xodr.Line(100), road_id, 0, lanes, lane_width=3.5)
+    road.planview.set_start_point(0, y, 0)
+    odr.add_road(road)
 
 # Roads 4 and 5 join end to end. Road 4's temporary layer reaches its end,
 # and road 5's lies in the middle, away from where the link enters.
@@ -129,7 +141,7 @@ def permanent_sections(road, starts):
     return lanes, sections
 
 
-def temporary_lanes(sections, offset=-1.5):
+def temporary_lanes(sections, offset=-1.5, kind="driving"):
     """A <lanes layer="temporary"> of sections [(s, length or None)]."""
     element = frag(
         '<lanes layer="temporary">'
@@ -148,7 +160,7 @@ def temporary_lanes(sections, offset=-1.5):
         right = ET.SubElement(section, "right")
         for lane_id in (-1, -2):
             right.append(frag(
-                f'<lane id="{lane_id}" type="driving" level="false"><link/>'
+                f'<lane id="{lane_id}" type="{kind}" level="false"><link/>'
                 '<width sOffset="0" a="2.5" b="0" c="0" d="0"/>'
                 '<roadMark sOffset="0" type="solid" weight="standard" color="yellow" width="0.15"/>'
                 "</lane>"
@@ -223,6 +235,15 @@ set_link(roads["4"].find("lanes/laneSection"), -1, ("successor", -1, None))
 set_link(roads["4"].find("lanes[@layer='temporary']/laneSection"), -1,
          ("predecessor", -1, "permanent"), ("successor", -1, "temporary"))
 set_link(roads["5"].find("lanes/laneSection"), -1, ("predecessor", -1, None))
+
+# Roads 6 and 7.
+for road_id, kind in [("6", "restricted"), ("7", "roadWorks")]:
+    lanes = roads[road_id].find("lanes")
+    temporary, (section, *_) = temporary_lanes([(20, 40)], offset=0, kind=kind)
+    right = section.find("right")
+    right.remove(right.find("lane[@id='-2']"))
+    right.find("lane/width").set("a", "3.5")
+    roads[road_id].insert(list(roads[road_id]).index(lanes) + 1, temporary)
 
 # Junction 9: arm 11 and connecting road 1000 get a temporary lane -1.
 for road_id, length in [("11", 30), ("1000", None)]:
