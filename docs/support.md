@@ -218,11 +218,15 @@ surface.
   with a height at every corner. An `outer="false"` outline is a hole cut out
   of the outline round it. Under a `<repeat>` with a `distance`, the outline
   repeats at every step.
+- A closed outline with `fillType="paint"` is an area of paint. It lies
+  flat, 5 mm off the road, with no height. A border round it lies over it.
+  The spec says the border cuts the area back, and the crate does not.
 - An `<objectReference>` places the object it names again, at the
   reference's own station.
 - A `<marking>`, such as a crosswalk's stripes, becomes painted quads along
   the outline edges it names, or along one side of the object's box if it
-  names none. A `<border>`, such as a kerb, becomes a band along outline
+  names none. It is read inside an `<outline>`, as OpenDRIVE 1.9 writes it,
+  and under the object, as earlier versions do. A `<border>`, such as a kerb, becomes a band along outline
   edges.
 - `<validity>` picks the lanes an object applies to.
 - `<parkingSpace>`, `<material>` and `<userData>` are kept on the object as
@@ -415,9 +419,8 @@ Elements it skips: `<vmsGroup>`, a header's `<license>` and
 `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a junction's
 `<objects>` and `<roadSection>`s, and an object's `<surface>`,
 `<skeleton>` and `<curveLocal>` outlines. It skips `<userData>` anywhere but
-directly on an object, which it reads. It also skips the `<markings>` of an
-outline, and the `<validity>`, `<dependency>` and `<reference>` of a board
-sign.
+directly on an object, which it reads. It also skips the `<validity>`,
+`<dependency>` and `<reference>` of a board sign.
 
 Uses of elements it reads that it ignores:
 

@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='utf-8'?>
+<OpenDRIVE>
+    <header name="outline_markings" revMajor="1" revMinor="5" date="2026-01-01T00:00:00" north="0.0" south="0.0" east="0.0" west="0.0" />
+    <road rule="RHT" id="1" junction="-1" length="60">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="60">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile>
+            <superelevation s="0" a="0.1" b="0" c="0" d="0" />
+        </lateralProfile>
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-2" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="1" s="7.5" t="-3" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Bay" type="parkingSpace" orientation="none" hdg="0">
+                <outlines>
+                    <outline closed="true" id="0">
+                        <cornerRoad s="5" t="-1" dz="0" height="0" id="0" />
+                        <cornerRoad s="10" t="-1" dz="0" height="0" id="1" />
+                        <cornerRoad s="10" t="-5" dz="0" height="0" id="2" />
+                        <cornerRoad s="5" t="-5" dz="0" height="0" id="3" />
+                        <markings>
+                            <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1.0" spaceLength="0.0">
+                                <cornerReference id="3" />
+                                <cornerReference id="0" />
+                            </marking>
+                            <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1.0" spaceLength="0.5">
+                                <cornerReference id="1" />
+                                <cornerReference id="2" />
+                            </marking>
+                        </markings>
+                    </outline>
+                </outlines>
+            </object>
+            <object id="2" s="23" t="1.5" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Arrow" type="roadMark" orientation="none" hdg="0">
+                <outlines>
+                    <outline closed="true" id="0" fillType="paint">
+                        <cornerRoad s="20" t="1" dz="0" height="0.2" id="0" />
+                        <cornerRoad s="26" t="1" dz="0" height="0.2" id="1" />
+                        <cornerRoad s="26" t="2" dz="0" height="0.2" id="2" />
+                        <cornerRoad s="20" t="2" dz="0" height="0.2" id="3" />
+                        <markings>
+                            <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1.0" spaceLength="0.0">
+                                <cornerReference id="0" />
+                                <cornerReference id="7" />
+                            </marking>
+                        </markings>
+                    </outline>
+                    <outline closed="true" outer="false" id="1">
+                        <cornerRoad s="22" t="1.25" dz="0" height="0.2" id="0" />
+                        <cornerRoad s="24" t="1.25" dz="0" height="0.2" id="1" />
+                        <cornerRoad s="24" t="1.75" dz="0" height="0.2" id="2" />
+                        <cornerRoad s="22" t="1.75" dz="0" height="0.2" id="3" />
+                    </outline>
+                </outlines>
+            </object>
+            <object id="3" s="30" t="-3" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Island" type="trafficIsland" orientation="none" hdg="0">
+                <outlines>
+                    <outline closed="true" fillType="grass" id="0">
+                        <cornerLocal u="0" v="0" z="0" height="0.15" id="0" />
+                        <cornerLocal u="4" v="0" z="0" height="0.15" id="1" />
+                        <cornerLocal u="4" v="2" z="0" height="0.15" id="2" />
+                        <cornerLocal u="0" v="2" z="0" height="0.15" id="3" />
+                        <markings>
+                            <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1.0" spaceLength="0.0">
+                                <cornerReference id="0" />
+                                <cornerReference id="1" />
+                            </marking>
+                        </markings>
+                    </outline>
+                </outlines>
+            </object>
+            <object id="4" s="42" t="-1.5" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Patch" type="roadMark" orientation="none" hdg="0">
+                <outlines>
+                    <outline closed="true" id="0" fillType="paint">
+                        <cornerRoad s="40" t="-1" dz="0" height="0" id="0" />
+                        <cornerRoad s="44" t="-1" dz="0" height="0" id="1" />
+                        <cornerRoad s="44" t="-2" dz="0" height="0" id="2" />
+                        <cornerRoad s="40" t="-2" dz="0" height="0" id="3" />
+                    </outline>
+                </outlines>
+                <borders>
+                    <border width="0.2" type="paint" outlineId="0" useCompleteOutline="true" />
+                </borders>
+            </object>
+            <object id="5" s="52.5" t="2.5" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Stripe" type="roadMark" orientation="none" hdg="0">
+                <outlines>
+                    <outline closed="false" id="0" fillType="paint">
+                        <cornerRoad s="50" t="2.5" dz="0" height="0.1" id="0" />
+                        <cornerRoad s="55" t="2.5" dz="0" height="0.1" id="1" />
+                    </outline>
+                </outlines>
+            </object>
+            <object id="6" s="52.5" t="-3.5" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Kerb" type="barrier" orientation="none" hdg="0">
+                <outlines>
+                    <outline closed="true" id="0">
+                        <cornerRoad s="50" t="-3" dz="0" height="0.1" id="0" />
+                        <cornerRoad s="55" t="-3" dz="0" height="0.1" id="1" />
+                        <cornerRoad s="55" t="-4" dz="0" height="0.1" id="2" />
+                        <cornerRoad s="50" t="-4" dz="0" height="0.1" id="3" />
+                        <markings>
+                            <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1.0" spaceLength="0.0">
+                                <cornerReference id="3" />
+                                <cornerReference id="0" />
+                            </marking>
+                        </markings>
+                    </outline>
+                </outlines>
+                <markings>
+                    <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1.0" spaceLength="0.0">
+                        <cornerReference id="1" />
+                        <cornerReference id="2" />
+                    </marking>
+                </markings>
+            </object>
+        </objects>
+    </road>
+</OpenDRIVE>
