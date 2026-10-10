@@ -127,7 +127,7 @@
 //! | `<boundary><segment>` | `type`, `roadId`, `boundaryLane`, `sStart`, `sEnd`, `contactPoint`, `jointLaneStart`, `jointLaneEnd` |
 //! | `<junction><elevationGrid>` | `sStart`, `gridSpacing` |
 //! | `<elevationGrid><elevation>` | `left`, `center`, `right` |
-//! | `<objects><object>` | `id`, `type`, `subtype`, `name`, `dynamic`, `invalidated`, `temporary`, `orientation`, `validLength`, `s`, `t`, `zOffset`, `hdg`, `pitch`, `roll`, `length`, `width`, `height`, `radius` |
+//! | `<objects><object>` | `id`, `type`, `subtype`, `name`, `dynamic`, `invalidated`, `temporary`, `orientation`, `validLength`, `s`, `t`, `zOffset`, `hdg`, `pitch`, `roll`, `perpToRoad`, `length`, `width`, `height`, `radius` |
 //! | `<objects><objectReference>` | `id`, `s`, `t`, `zOffset`, `orientation`, `validLength` |
 //! | `<objects><tunnel>` | `id`, `name`, `type`, `s`, `length`, `lighting`, `daylight` |
 //! | `<objects><bridge>` | `id`, `name`, `type`, `s`, `length` |
@@ -287,15 +287,32 @@
 //! (`OpenDriveMap.cpp:830`).
 //!
 //! Each `<object>` bakes to one or more [`Object`]s in world coordinates,
-//! sitting on the road surface. As in libOpenDRIVE, an object's own frame
-//! follows the road under it: `hdg`, `pitch` and `roll` turn it against the
-//! road's grade and bank, and `zOffset` raises it square to the surface. So an
-//! object on a banked road leans with the bank. `<repeat>` sweeps and
-//! `<cornerRoad>` corners are given in road coordinates, not the object's
-//! frame, and still rise straight up. libOpenDRIVE raises a `<cornerRoad>`
-//! along the road's normal instead, which differs on a banked road. `<object
-//! type>` chooses an object's [`ObjectType`], and an unrecognised name bakes as
-//! [`ObjectType::Unknown`]. The [`Shape`] follows libOpenDRIVE:
+//! sitting on the road surface. An object stands upright. `hdg` turns it from
+//! the road's heading in plan, `pitch` and `roll` turn it from the
+//! horizontal, and `zOffset` raises it straight up. So an object on a graded
+//! or banked road stands level. With `perpToRoad="true"` its frame follows
+//! the road instead: the road's axes at its origin, up the grade and across
+//! the bank, turned by `hdg`, and raised `zOffset` along the surface normal.
+//! Its `pitch` and `roll` are ignored. libOpenDRIVE places every object that
+//! way.
+//!
+//! The crate departs from the OpenDRIVE 1.9 spec here:
+//!
+//! - The spec contradicts itself on `pitch` and `roll`. The schema gives
+//!   them against the x/y-plane. Figure 20 places an object's frame in the
+//!   road's reference line frame, which tilts with superelevation. The
+//!   crate follows the schema.
+//! - The spec says an object with `perpToRoad="true"` is perpendicular to
+//!   the road surface at all points. The crate turns the whole object by the
+//!   road's axes at its origin, so a large outline does not bend where the
+//!   grade or bank changes under it.
+//!
+//! `<repeat>` sweeps and `<cornerRoad>` corners are given in road
+//! coordinates, not the object's frame, and rise straight up. libOpenDRIVE
+//! raises a `<cornerRoad>` along the road's normal instead, which differs on
+//! a banked road. `<object type>` chooses an object's [`ObjectType`], and an
+//! unrecognised name bakes as [`ObjectType::Unknown`]. The [`Shape`] follows
+//! libOpenDRIVE:
 //!
 //! - A plain object is a [`Shape::Solid`] at its `(s, t)`. A `radius` makes
 //!   its [`Extent`] a cylinder. Any of `length`, `width` and `height` makes it
@@ -343,8 +360,10 @@
 //!
 //! Both lie in the surface under the edges: the road's for `<cornerRoad>`
 //! corners, and the plane of the object's frame for `<cornerLocal>` corners
-//! and a solid's box. So on a banked road a band tilts with the bank rather
-//! than lying level, and paint is raised off the road along its normal.
+//! and a solid's box. That plane is level unless the object follows the road.
+//! So on a banked road a band along `<cornerRoad>` corners tilts with the
+//! bank rather than lying level, and paint is raised off the road along its
+//! normal.
 //!
 //! An object's `<parkingSpace>` becomes its [`ParkingSpace`], and each
 //! `<material>` one of its [`Material`]s. Each `<userData>` is a
@@ -759,9 +778,8 @@
 //! Objects and signals stand on the lane at their point, and a road mark on
 //! its own lane. So a pole on a sidewalk stands on the sidewalk, a
 //! sidewalk's outer mark rises with it, and the mark along the kerb, which
-//! belongs to the lane below it, stays on the road. An object still leans
-//! with the road, not with the slope of the lane under it, as in
-//! libOpenDRIVE.
+//! belongs to the lane below it, stays on the road. An object that follows the road with `perpToRoad` leans with the road, not
+//! with the slope of the lane under it, as in libOpenDRIVE.
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:
 //!
@@ -1029,7 +1047,6 @@
 //!
 //! - a second `lanes` of one [`Layer`] on a road, which the crate leaves out.
 //!   It keeps the first;
-//! - `perpToRoad="true"` on an object;
 //! - a repeat's `bT`, `cT` or `dT` other than 0, and
 //!   `detachFromReferenceLine="true"`;
 //! - a boundary segment's `transitionLength` above 0.

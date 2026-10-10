@@ -5,7 +5,7 @@ counts that tell the uses apart, and the near misses that look like them.
 
 Road 1 holds a <lanes layer="temporary">, which the crate reads, then a
 second permanent <lanes>, which it ignores, and a lane
-section with singleSide="true", which the crate reads. Road 2 holds the objects: three that follow the road,
+section with singleSide="true", which the crate reads. Road 2 holds the objects: three with perpToRoad, which the crate reads,
 repeats with a cubic term or detached from the reference line, and an
 object with a <surface>, a <skeleton>, a <curveLocal> outline and two
 outline <markings>. Road 3 holds a static board whose two signs each carry

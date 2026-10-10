@@ -168,8 +168,8 @@ road.add_tunnel(xodr.Tunnel(s=75, length=25, id="20", name="Hill",
 straight = xodr.create_road(xodr.Line(60), id=1, left_lanes=1, right_lanes=1)
 straight.planview.set_start_point(0, -40, 0)
 
-# A straight banked at 0.15 rad from (0, -80) heading +X, with a kiosk on it
-# that leans with the bank.
+# A straight banked at 0.15 rad from (0, -80) heading +X, with a kiosk
+# standing on it.
 banked = xodr.create_road(xodr.Line(40), id=2, left_lanes=1, right_lanes=1)
 banked.planview.set_start_point(0, -80, 0)
 banked.add_superelevation(0, 0.15, 0, 0, 0)

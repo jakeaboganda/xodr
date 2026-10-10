@@ -56,11 +56,6 @@ const FEATURES: &[Feature] = &[
         when: repeats_a_layer,
     },
     Feature {
-        name: "<object perpToRoad=\"true\">",
-        path: "objects/object",
-        when: follows_the_road,
-    },
-    Feature {
         name: "<repeat bT, cT or dT>",
         path: "objects/object/repeat",
         when: has_cubic_terms,
@@ -146,10 +141,6 @@ fn repeats_a_layer(node: roxmltree::Node) -> bool {
 
 fn flag(node: roxmltree::Node, name: &str) -> bool {
     matches!(node.attribute(name), Some("true" | "1"))
-}
-
-fn follows_the_road(node: roxmltree::Node) -> bool {
-    flag(node, "perpToRoad")
 }
 
 fn detached(node: roxmltree::Node) -> bool {

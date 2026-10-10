@@ -158,9 +158,13 @@ pub struct Section {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Shape {
-    /// A solid placed at a pose. The orientation is three angles in
-    /// radians, in the network's axes, applied as yaw, then pitch, then roll.
-    /// They take in the grade and bank of the road under the object.
+    /// A solid placed at a pose. The orientation is three angles in radians,
+    /// in the network's axes, applied as yaw, then pitch, then roll. The
+    /// object's `pitch` and `roll` are against the horizontal, as the schema
+    /// says, so the grade and bank of the road play no part. The spec's
+    /// figure 20 places an object in the road's own frame, which tilts with
+    /// them. With `perpToRoad="true"` the angles are the road's at the
+    /// object's origin, turned by its `hdg`.
     Solid {
         /// The object's origin, the base of its extent.
         position: Point,

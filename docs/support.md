@@ -200,7 +200,12 @@ departs from the spec.
 surface.
 
 - A plain object is a box or a cylinder with a heading, pitch and roll. It
-  leans with the grade and bank of the road under it, as in libOpenDRIVE.
+  stands upright: its pitch and roll are against the horizontal, as the
+  schema says, so it stands level on a grade or a bank. With
+  `perpToRoad="true"` it follows the road surface under its origin and
+  ignores its pitch and roll, as libOpenDRIVE places every object. Figure 20
+  of the spec places objects in the road's tilted frame instead, and the
+  crate follows the schema.
 - A `<repeat>` with a `distance` becomes one object per step, so a row of
   posts arrives as posts. A `<repeat>` with a `distance` of 0, such as a guard
   rail, becomes one shape swept along the road. With a radius it is a round
@@ -414,13 +419,11 @@ Uses of elements it reads that it ignores:
 | Feature | What the crate does |
 | --- | --- |
 | a second `<lanes>` of one layer | leaves it out |
-| `<object perpToRoad="true">` | places the object by its `hdg`, as if `perpToRoad` were `false` |
 | a `<repeat>`'s `bT`, `cT` or `dT`, or `detachFromReferenceLine="true"` | copies run straight along the road |
 | a boundary `<segment>`'s `transitionLength` above 0 | no blending |
 
-A first `<lanes>` of either layer, `perpToRoad="false"`,
-`detachFromReferenceLine="false"`, a `bT`, `cT` or `dT` of 0, and a
-`transitionLength` of 0 raise nothing.
+A first `<lanes>` of either layer, `detachFromReferenceLine="false"`, a `bT`,
+`cT` or `dT` of 0, and a `transitionLength` of 0 raise nothing.
 
 The importer reads a lane section's `<center>` for the road marks on the
 center line, and for the lane's `id`, `type`, `level` and `<link>`, which are
