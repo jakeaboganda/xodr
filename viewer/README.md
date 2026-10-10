@@ -228,7 +228,8 @@ Hover an object to outline it and light up the lanes it applies to. The
 readout shows:
 
 - its type, subtype and name
-- its road, OpenDRIVE id, `s`, `t`, orientation and valid length
+- its road, or the junction for a junction's object, OpenDRIVE id, `s`,
+  `t`, orientation and valid length
 - the lanes it applies to, by lane section and OpenDRIVE lane id
 - whether it is invalidated or temporary
 - its parking access and restrictions, materials with their
@@ -241,6 +242,9 @@ readout shows:
 - for an outline, its `fillType` and `laneType`
 
 ![Hovering a traffic island](objects.png)
+
+A junction's objects stand along its reference line, and the sidebar lists
+them under the junction.
 
 An object placed by an `<objectReference>` draws the same as the original.
 Its readout adds the road and id of the original.

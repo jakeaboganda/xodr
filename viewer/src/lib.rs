@@ -711,6 +711,7 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
             .map(|b| json!({ "type": b.kind, "width": b.width, "pieces": pieces(&b.pieces) }))
             .collect::<Vec<_>>(),
         "roadId": prov.map(|p| p.road_id.as_str()),
+        "junctionId": prov.map(|p| p.junction_id.as_str()),
         "odId": prov.map(|p| p.od_id.as_str()),
         "s": prov.map(|p| p.s),
         "t": prov.map(|p| p.t),
