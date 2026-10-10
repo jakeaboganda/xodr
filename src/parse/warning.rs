@@ -14,7 +14,7 @@ use std::fmt;
 pub enum Warning {
     /// A feature of the file the crate ignores: an element it skips, such as
     /// `<userData>`, or an attribute that changes a road or a junction and
-    /// means nothing to it yet, such as `perpToRoad="true"`. The warning
+    /// means nothing to it yet, such as `transitionLength`. The warning
     /// comes once per feature for each road, junction, or the rest of the
     /// document, with the number of uses, so a map with 2,000 of them
     /// raises one.
@@ -30,7 +30,7 @@ pub enum Warning {
         /// without one. Empty for a feature of a road or of the document
         /// outside both.
         junction_id: String,
-        /// The feature, such as `<userData>` or `<object perpToRoad="true">`.
+        /// The feature, such as `<userData>` or `<vmsGroup>`.
         feature: String,
         /// How many times the file uses it there.
         count: usize,

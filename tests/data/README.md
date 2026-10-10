@@ -263,6 +263,12 @@ temporary lanes. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/lane_layers.py
 
+`object_poses.xodr` comes from `object_poses.py`. It has a box and an
+outlined shelter on a graded, banked road, each standing upright and each
+following the road with `perpToRoad`. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/object_poses.py
+
 `single_side.xodr` comes from `single_side.py`. It has lane sections that give
 only the left or only the right side, with widths, heights, marks and links
 the other side carries on. Regenerate with

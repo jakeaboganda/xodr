@@ -67,26 +67,17 @@ fn turned((yaw, pitch, roll): (f64, f64, f64), [u, v, z]: [f32; 3]) -> Vector {
     Vector::new(u as f32, v as f32, z as f32)
 }
 
-/// Road 0's own axes at `s`: along it up its 2 % grade, level across it, and
-/// square to both.
-fn road_axes(s: f64) -> [Vector; 3] {
-    let (sin, cos) = (CURVATURE * s).sin_cos();
-    let along = Vector::new(cos as f32, sin as f32, 0.02).normalize_or_zero();
-    let across = Vector::new(-sin as f32, cos as f32, 0.0);
-    [along, across, along.cross(across)]
-}
-
 /// Where `local` lands in the frame of an object on road 0 at `(s, t)`,
-/// raised `z_offset` square to the road and turned `(hdg, pitch, roll)`
-/// against its axes.
+/// raised `z_offset` straight up and turned `(hdg, pitch, roll)`: `hdg` from
+/// the road's heading in plan, `pitch` and `roll` from the horizontal. The
+/// road's 2 % grade tilts nothing.
 fn placed(s: f64, t: f64, z_offset: f64, turn: (f64, f64, f64), local: [f32; 3]) -> Point {
-    let [along, across, up] = road_axes(s);
-    let d = turned(turn, local);
-    raised(s, t, 0.0) + up * z_offset as f32 + along * d.x + across * d.y + up * d.z
+    let (hdg, pitch, roll) = turn;
+    raised(s, t, z_offset) + turned((CURVATURE * s + hdg, pitch, roll), local)
 }
 
 /// The solid's extent, after checking it sits at `(s, t)` raised by
-/// `z_offset`, turned `turn` against the road, which tilts it with the grade.
+/// `z_offset`, turned `turn`, standing upright on the grade.
 fn assert_solid(
     object: &Object,
     s: f64,
@@ -951,10 +942,10 @@ fn a_border_runs_round_the_whole_outline_or_along_the_edges_it_references() {
 }
 
 #[test]
-fn an_object_leans_with_a_banked_road() {
+fn an_object_stands_upright_on_a_banked_road() {
     // Road 2 banks 0.15 rad about its reference line, so the kiosk at t = -5
     // is 5 cos 0.15 right of it and 5 sin 0.15 down. Its zOffset raises it
-    // square to the bank, and it rolls with it.
+    // straight up, and it stands level across the bank.
     let kiosk = &on("2")[0];
     let Shape::Solid {
         position,
@@ -967,19 +958,18 @@ fn an_object_leans_with_a_banked_road() {
         panic!("a solid: {:?}", kiosk.shape);
     };
     let (sin, cos) = 0.15_f32.sin_cos();
-    let want = Point::new(20.0, -80.0 - 5.0 * cos - 0.2 * sin, -5.0 * sin + 0.2 * cos);
+    let want = Point::new(20.0, -80.0 - 5.0 * cos, -5.0 * sin + 0.2);
     assert_near(position, want, "kiosk");
     assert!(
-        heading.abs() < 1e-6 && pitch.abs() < 1e-6,
-        "{heading}, {pitch}"
+        heading.abs() < 1e-6 && pitch.abs() < 1e-6 && roll.abs() < 1e-6,
+        "{heading}, {pitch}, {roll}"
     );
-    assert!((roll - 0.15).abs() < 1e-6, "roll {roll}");
 }
 
 #[test]
 fn a_repeat_moves_the_outlines_to_each_step() {
-    // Road 2 banks 0.15 rad, so each planter's frame is the bank's: u along
-    // +X, v up the bank, and its height square to it.
+    // Road 2 banks 0.15 rad, but each planter stands level: its frame is the
+    // network's axes at the bank's surface at t = 5, its height straight up.
     let planters: Vec<Object> = on("2")
         .into_iter()
         .filter(|o| o.name == "Planter")
@@ -993,12 +983,9 @@ fn a_repeat_moves_the_outlines_to_each_step() {
             .iter()
             .zip([(0.0, 0.0), (1.5, 0.0), (1.5, 1.0), (0.0, 1.0)])
         {
-            let t = 5.0 + v;
-            let base = Point::new(s + u, -80.0 + t * cos, t * sin);
+            let base = Point::new(s + u, -80.0 + 5.0 * cos + v, 5.0 * sin);
             let what = format!("planter at s={s} ({u}, {v})");
-            assert_near(corner.base, base, &format!("{what} base"));
-            let top = base + Vector::new(0.0, -sin, cos) * 0.6;
-            assert_near(corner.top, top, &format!("{what} top"));
+            assert_corner(corner, base, 0.6, &what);
         }
     }
 }

@@ -41,6 +41,21 @@
 - `tests/data/gantries.xodr` is a demo of gantry scenes: lane control,
   a sign bridge, a message board and traffic lights.
 
+### Object poses
+
+- Breaking, behaviour change: an object stands upright. Its `pitch` and
+  `roll` are against the horizontal, as the schema says, and `zOffset`
+  raises it straight up. Before, it leaned with the grade and bank of the
+  road, as in libOpenDRIVE. This is a departure from figure 20 of the spec,
+  which places objects in the road's tilted frame. The spec contradicts
+  itself there, and the crate follows the schema.
+- `perpToRoad="true"` is read. Such an object follows the road surface at
+  its origin and ignores its `pitch` and `roll`. The spec says it is
+  perpendicular to the road at all points. The crate turns the whole object
+  by the road at its origin, so a large outline does not bend with the road.
+- `tests/data/object_poses.xodr` has the same box and outline on a graded,
+  banked road, upright and following the road.
+
 ### Single-side lane sections
 
 - Behaviour change: a `<laneSection singleSide="true">` is read. The sides

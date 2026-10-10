@@ -2515,8 +2515,32 @@ struct Frame {
 }
 
 impl Frame {
+    /// The frame of an object at `st` on `road`, turned `(hdg, pitch, roll)`.
+    ///
+    /// Upright, `hdg` turns it from the road's heading in plan, and `pitch`
+    /// and `roll` from the horizontal, and `zOffset` raises it straight up.
+    /// `perp_to_road` makes it follow the surface instead: the road's axes
+    /// there, from [`Road::axes`], turned by `hdg`, raised along the normal,
+    /// with `pitch` and `roll` ignored.
+    fn at(
+        road: &Road,
+        st: &Station,
+        perp_to_road: bool,
+        (hdg, pitch, roll): (f64, f64, f64),
+    ) -> Self {
+        let (ground, heading) = road.surface(st.s, st.t);
+        if perp_to_road {
+            let axes = road.axes(st.s);
+            let raise = axes[2].map(|c| (c * st.z_offset) as f32);
+            return Self::on_road(ground + Vector::from_array(raise), axes, (hdg, 0.0, 0.0));
+        }
+        let level = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let origin = ground + Vector::Z * st.z_offset as f32;
+        Self::on_road(origin, level, (heading + hdg, pitch, roll))
+    }
+
     /// The frame of an object turned `hdg`, `pitch` and `roll` against the
-    /// road's `axes`, as [`orient`] turns them, with its origin at `origin`.
+    /// `road` axes, as [`orient`] turns them, with its origin at `origin`.
     fn on_road(origin: Point, road: [[f64; 3]; 3], (hdg, pitch, roll): (f64, f64, f64)) -> Self {
         let turned = |local: [f64; 3]| {
             let [u, v, z] = orient(hdg, pitch, roll, local);
@@ -2765,10 +2789,9 @@ fn place_objects(
 /// Bake one `<object>` into `out`, placed on `road` as `at` says.
 ///
 /// Each object sits on the road surface, so it rides the elevation and
-/// superelevation profiles like a lane does. Its own frame is the road's
-/// axes there, from [`road_axes`], turned by its `hdg`, `pitch` and `roll`
-/// and raised `zOffset` along the surface normal. One `<object>` can bake to
-/// several [`Object`]s, following libOpenDRIVE:
+/// superelevation profiles like a lane does. Its own frame is a [`Frame::at`]
+/// there, upright or following the road. One `<object>` can bake to several
+/// [`Object`]s, following libOpenDRIVE:
 ///
 /// - with neither `<repeat>`s nor outlines, one [`Shape::Solid`];
 /// - one [`Shape::Sweep`] per `<repeat>` with a `distance` of 0;
@@ -2799,13 +2822,8 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     let hdg = attr_f64(node, "hdg").unwrap_or(0.0);
     let pitch = attr_f64(node, "pitch").unwrap_or(0.0);
     let roll = attr_f64(node, "roll").unwrap_or(0.0);
-    let frame = |st: &Station| {
-        let (on_surface, _) = road.surface(st.s, st.t);
-        let axes = road.axes(st.s);
-        let raise = axes[2].map(|c| (c * st.z_offset) as f32);
-        let origin = on_surface + Vector::from_array(raise);
-        Frame::on_road(origin, axes, (hdg, pitch, roll))
-    };
+    let perp_to_road = matches!(node.attribute("perpToRoad"), Some("true" | "1"));
+    let frame = |st: &Station| Frame::at(road, st, perp_to_road, (hdg, pitch, roll));
     let point = |st: &Station| {
         let f = frame(st);
         let (yaw, pitch, roll) = f.angles();
@@ -4977,7 +4995,8 @@ mod tests {
     #[test]
     fn a_band_lies_in_a_banked_road_rather_than_level() {
         // The road banks 0.1 rad about +X, so its surface is z = y tan 0.1.
-        // A border lies in it, and paint 5 mm off it along its normal.
+        // A border lies in it, and paint 5 mm off it along its normal. Objects
+        // b and c follow the road, so their own frames lie in it too.
         let xml = banked_road_with(
             r#"<object id="a" s="5" t="-1">
                  <outlines><outline id="0">
@@ -4986,12 +5005,12 @@ mod tests {
                  <markings><marking width="0.4"><cornerReference id="1"/><cornerReference id="2"/></marking></markings>
                  <borders><border width="1" useCompleteOutline="true"/></borders>
                </object>
-               <object id="b" s="12" t="-2" hdg="0.5">
+               <object id="b" s="12" t="-2" hdg="0.5" perpToRoad="true">
                  <outlines><outline><cornerLocal u="0" v="0"/><cornerLocal u="3" v="0"/>
                    <cornerLocal u="3" v="2"/></outline></outlines>
                  <borders><border width="1" useCompleteOutline="true"/></borders>
                </object>
-               <object id="c" s="16" t="-2" length="2" width="1" height="1">
+               <object id="c" s="16" t="-2" length="2" width="1" height="1" perpToRoad="true">
                  <markings><marking side="left" width="0.4"/></markings>
                </object>"#,
         );
@@ -5214,12 +5233,28 @@ mod tests {
     }
 
     #[test]
-    fn an_object_rides_the_banked_surface_like_a_lane() {
+    fn an_object_stands_upright_on_a_banked_road() {
         // Same pivot as a lane at t = 3: up by 3 sin 0.1, in to 3 cos 0.1.
-        // Then zOffset raises it square to the banked surface, and it leans
-        // with the bank, as libOpenDRIVE has it.
+        // Then zOffset raises it straight up, and its roll is against the
+        // horizontal, not the bank.
         let objects = objects_of(&banked_road_with(
             r#"<object id="1" s="10" t="3" zOffset="0.5" roll="0.05"/>"#,
+        ));
+        let (p, pitch, roll, _) = solid(&objects[0]);
+        let (sin, cos) = 0.1_f32.sin_cos();
+        assert!((p.x - 10.0).abs() < 1e-5, "x {}", p.x);
+        assert!((p.y - 3.0 * cos).abs() < 1e-5, "y {}", p.y);
+        assert!((p.z - (3.0 * sin + 0.5)).abs() < 1e-5, "z {}", p.z);
+        assert!(pitch.abs() < 1e-6, "pitch {pitch}");
+        assert!((roll - 0.05).abs() < 1e-6, "roll {roll}");
+    }
+
+    #[test]
+    fn an_object_perpendicular_to_the_road_leans_with_the_bank_and_ignores_pitch_and_roll() {
+        // zOffset raises it square to the banked surface, and it rolls with
+        // the bank alone, as libOpenDRIVE places every object.
+        let objects = objects_of(&banked_road_with(
+            r#"<object id="1" s="10" t="3" zOffset="0.5" pitch="0.2" roll="0.05" perpToRoad="true"/>"#,
         ));
         let (p, pitch, roll, _) = solid(&objects[0]);
         let (sin, cos) = 0.1_f32.sin_cos();
@@ -5227,7 +5262,7 @@ mod tests {
         assert!((p.y - (3.0 * cos - 0.5 * sin)).abs() < 1e-5, "y {}", p.y);
         assert!((p.z - (3.0 * sin + 0.5 * cos)).abs() < 1e-5, "z {}", p.z);
         assert!(pitch.abs() < 1e-6, "pitch {pitch}");
-        assert!((roll - 0.15).abs() < 1e-6, "roll {roll}");
+        assert!((roll - 0.1).abs() < 1e-6, "roll {roll}");
     }
 
     #[test]
