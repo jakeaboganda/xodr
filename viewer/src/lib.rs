@@ -171,8 +171,13 @@ fn build_scene(
                     .iter()
                     .find(|c| c.road_id == p.road_id && c.section == p.section)
             });
-            entry["centerLane"] =
-                json!(center.map(|c| json!({ "type": c.kind.as_str(), "level": c.level })));
+            entry["centerLane"] = json!(center.map(|c| json!({
+                "id": c.od_id,
+                "type": c.kind.as_str(),
+                "level": c.level,
+                "predecessor": c.predecessor,
+                "successor": c.successor,
+            })));
             entry
         })
         .collect();
@@ -243,8 +248,8 @@ fn build_scene(
                     "id": sw.od_id,
                     "name": sw.name,
                     "position": position,
-                    "partner": sw.partner,
-                    "partnerName": sw.partner_name,
+                    "partner": sw.partner.as_ref().map(|p| p.id.as_str()),
+                    "partnerName": sw.partner.as_ref().map(|p| p.name.as_str()),
                     "main": { "road": od(&sw.main), "s": sw.main.s, "point": at(&sw.main) },
                     "side": { "road": od(&sw.side), "s": sw.side.s, "point": at(&sw.side) },
                 })
@@ -644,11 +649,12 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
         "materials": object
             .materials
             .iter()
-            .map(|m| json!({
+            .enumerate()
+            .map(|(i, m)| json!({
                 "surface": m.surface,
                 "friction": m.friction,
                 "roughness": m.roughness,
-                "roadMarkColor": m.road_mark_color,
+                "roadMarkColor": prov.and_then(|p| p.material_road_mark_colors.get(i)),
             }))
             .collect::<Vec<_>>(),
         "userData": object

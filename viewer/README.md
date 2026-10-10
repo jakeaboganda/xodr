@@ -141,7 +141,7 @@ readout shows whether it is invalidated or temporary, its material's
 readout shows its `material` and its type's `name`. A lane's readout also
 shows its `advisory` and whether its type or direction can change or it is
 under road works, and the readout of a mark on the center line shows the
-center lane's `type` and `level`.
+center lane's `id`, `type`, `level` and links.
 
 ## Lanes
 
