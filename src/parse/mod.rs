@@ -20,11 +20,11 @@ use crate::road::{
     ShapeProfile, Strip, TrafficRule, Validity,
 };
 use crate::{
-    Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgPose, CrgPurpose, CrgSurface,
-    Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneAdvisory, LaneId, LaneType,
-    Layer, Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Polyline, Priority,
-    RoadMarkId, RoadMarkWeight, RoadNeighbor, RoadNetwork, Section, Shape, Side, SignalId,
-    Structure, StructureId, StructureKind, UserData,
+    Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgObject, CrgPose, CrgPurpose,
+    CrgSurface, Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneAdvisory, LaneId,
+    LaneType, Layer, Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Polyline,
+    Priority, RoadMarkId, RoadMarkWeight, RoadNeighbor, RoadNetwork, Section, Shape, Side,
+    SignalId, Structure, StructureId, StructureKind, UserData,
 };
 
 mod curve_local;
@@ -631,6 +631,9 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
         }
     }
     surfaces.extend(junction_crgs(root, &topo));
+    let placed = std::mem::take(&mut objects.surfaces);
+    let object_surfaces = object_crgs(root, &topo, &surfaces, placed, &mut warnings);
+    surfaces.extend(object_surfaces);
     let signals = signals::place(root, &roads, &lanes, &objects.provenance);
     let mut road_marks = road_marks::place(&mut roads);
     warnings.append(&mut road_marks.warnings);
@@ -835,18 +838,7 @@ fn road_neighbors(roads: &[(roxmltree::Node, BakedRoad)]) -> (Vec<RoadNeighbor>,
 fn junction_crgs(root: roxmltree::Node, topo: &Topology) -> Vec<CrgSurface> {
     let mut surfaces = Vec::new();
     for junction in root.children().filter(|n| n.has_tag_name("junction")) {
-        let id = junction.attribute("id").unwrap_or_default();
-        let roads: Vec<&str> = root
-            .children()
-            .filter(|n| n.has_tag_name("road") && n.attribute("junction") == Some(id))
-            .filter_map(|n| n.attribute("id"))
-            .collect();
-        let lanes: Vec<LaneId> = topo
-            .metas
-            .iter()
-            .filter(|m| roads.contains(&m.road.as_str()))
-            .map(|m| m.id)
-            .collect();
+        let lanes = junction_lanes(root, topo, junction.attribute("id").unwrap_or_default());
         for node in child(junction, "surface")
             .into_iter()
             .flat_map(|n| n.children())
@@ -856,6 +848,66 @@ fn junction_crgs(root: roxmltree::Node, topo: &Topology) -> Vec<CrgSurface> {
         }
     }
     surfaces
+}
+
+/// The lanes of every road in the junction `id`.
+fn junction_lanes(root: roxmltree::Node, topo: &Topology, id: &str) -> Vec<LaneId> {
+    let roads: Vec<&str> = root
+        .children()
+        .filter(|n| n.has_tag_name("road") && n.attribute("junction") == Some(id))
+        .filter_map(|n| n.attribute("id"))
+        .collect();
+    topo.metas
+        .iter()
+        .filter(|m| roads.contains(&m.road.as_str()))
+        .map(|m| m.id)
+        .collect()
+}
+
+/// The object `<surface>` CRGs, after the road and junction ones in
+/// `surfaces`. A junction's object's covers the lanes of the junction's
+/// roads. One that hides the road's CRGs over one that replaces the road's
+/// height raises [`Warning::CrgHideIgnored`].
+fn object_crgs(
+    root: roxmltree::Node,
+    topo: &Topology,
+    surfaces: &[CrgSurface],
+    objects: Vec<ObjectCrg>,
+    warnings: &mut Vec<Warning>,
+) -> Vec<CrgSurface> {
+    let replaces = |road: &CrgSurface, object: &ObjectCrg| {
+        let (from, to) = object.stretch;
+        let along = road.road.as_ref().is_none_or(|r| {
+            let (first, last) = (r.stations.first(), r.stations.last());
+            first
+                .zip(last)
+                .is_some_and(|(a, b)| a.s <= to && from <= b.s)
+        });
+        road.purpose == CrgPurpose::Elevation
+            && matches!(
+                road.mode,
+                CrgMode::Attached0(_) | CrgMode::Genuine { .. } | CrgMode::Global { .. }
+            )
+            && along
+            && road.lanes.iter().any(|l| object.surface.lanes.contains(l))
+    };
+    objects
+        .into_iter()
+        .map(|mut object| {
+            if !object.junction_id.is_empty() {
+                object.surface.lanes = junction_lanes(root, topo, &object.junction_id);
+            }
+            let hides = matches!(object.surface.mode, CrgMode::Object(o) if o.hide_road);
+            if hides && surfaces.iter().any(|road| replaces(road, &object)) {
+                warnings.push(Warning::CrgHideIgnored {
+                    road_id: object.road_id,
+                    junction_id: object.junction_id,
+                    object_id: object.object_id,
+                });
+            }
+            object.surface
+        })
+        .collect()
 }
 
 /// Make a real-world document parseable: strip a UTF-8 BOM and remove the
@@ -2516,6 +2568,20 @@ struct Objects {
     baked: Vec<Object>,
     provenance: Vec<ObjectProvenance>,
     warnings: Vec<Warning>,
+    /// The `<surface>` CRG of each object that has one, for each solid it
+    /// bakes to.
+    surfaces: Vec<ObjectCrg>,
+}
+
+/// One object's `<surface>` CRG, with what its warnings name.
+struct ObjectCrg {
+    surface: CrgSurface,
+    road_id: String,
+    /// For an object of a junction, the junction's id. Empty otherwise.
+    junction_id: String,
+    object_id: String,
+    /// Where it applies, along its road.
+    stretch: (f64, f64),
 }
 
 /// Where an object sits along its road, and how big it is there. An
@@ -2959,6 +3025,33 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
 
     let kind = object_type(node.attribute("type"));
     let text = |name| node.attribute(name).unwrap_or_default().to_string();
+    let junction_id = road
+        .junction
+        .clone()
+        .filter(|_| road.od_id.is_empty())
+        .unwrap_or_default();
+    if let Some(crg) = child(node, "surface").and_then(|s| child(s, "CRG")) {
+        let surfaces: Vec<ObjectCrg> = parts
+            .iter()
+            .filter_map(|part| {
+                let (surface, stretch) = object_crg(crg, part, road)?;
+                Some(ObjectCrg {
+                    surface,
+                    road_id: road.od_id.clone(),
+                    junction_id: junction_id.clone(),
+                    object_id: text("id"),
+                    stretch,
+                })
+            })
+            .collect();
+        if surfaces.is_empty() {
+            out.warnings.push(Warning::ObjectSurfaceDropped {
+                road_id: road.od_id.clone(),
+                object_id: text("id"),
+            });
+        }
+        out.surfaces.extend(surfaces);
+    }
     let flag = |name| matches!(node.attribute(name), Some("true" | "1"));
     let parking_space = child(node, "parkingSpace").map(|p| {
         let text = |name| p.attribute(name).unwrap_or_default().to_string();
@@ -3022,11 +3115,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         out.provenance.push(ObjectProvenance {
             object: id,
             road_id: road.od_id.clone(),
-            junction_id: road
-                .junction
-                .clone()
-                .filter(|_| road.od_id.is_empty())
-                .unwrap_or_default(),
+            junction_id: junction_id.clone(),
             od_id: text("id"),
             s: part.s,
             t: part.t,
@@ -3041,6 +3130,46 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             outline_lane_type: part.outline_lane_type,
         });
     }
+}
+
+/// An object's `<surface>` `<CRG>`, for one solid `part` of it on `road`,
+/// and the stretch of road it covers. `None` unless the part is a box with a
+/// length and a width, the one shape the spec allows a surface.
+///
+/// The CRG covers the lanes of `road` within the box's half diagonal of the
+/// part's station. An object's `zOffset` and `height` play no part, as the
+/// spec says.
+fn object_crg(crg: roxmltree::Node, part: &Part, road: &Road) -> Option<(CrgSurface, (f64, f64))> {
+    let Shape::Solid {
+        position,
+        heading,
+        extent: Some(Extent::Box { length, width, .. }),
+        ..
+    } = part.shape
+    else {
+        return None;
+    };
+    if length <= 0.0 || width <= 0.0 {
+        return None;
+    }
+    let (half_length, half_width) = (f64::from(length) / 2.0, f64::from(width) / 2.0);
+    let reach = half_length.hypot(half_width);
+    let stretch = (part.s - reach, part.s + reach);
+    let mode = CrgMode::Object(CrgObject {
+        origin: CrgPose {
+            x: f64::from(position.x),
+            y: f64::from(position.y),
+            heading: f64::from(heading),
+        },
+        half_length,
+        half_width,
+        hide_road: crg.attribute("hideRoadSurfaceCRG") != Some("false"),
+    });
+    let mut surface = crg_surface(crg, mode, road.lanes(stretch, &[]), None);
+    surface.purpose = CrgPurpose::Elevation;
+    surface.z_offset = 0.0;
+    surface.z_scale = attr_f64(crg, "zScale").unwrap_or(1.0);
+    Some((surface, stretch))
 }
 
 /// An object's `outlines` placed at `st`, one [`Part`] per outer outline,

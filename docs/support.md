@@ -304,11 +304,16 @@ and stretch, and its `material` and its type's `name`.
 ## OpenCRG surfaces
 
 The importer keeps `<surface><CRG>` records on roads and junctions, in all
-four modes, for elevation and friction. `RoadSurface` loads the OpenCRG files
+four modes, and on objects, for elevation and friction. `RoadSurface` loads the OpenCRG files
 they name and gives a vehicle model the height, normal and friction under a
 point in `f64`. Off the CRG it answers from the surface mesh, which the CRG
 does not change. Where several records of one purpose cover a point, the
 last in the file wins. A junction's records win over its roads'.
+
+An object's `<surface>` CRG adds to the height under it, inside the object's
+box and in its own frame, turned by its heading. Unless it says
+`hideRoadSurfaceCRG="false"`, it hides an `attached` road CRG there. The spec
+turns the file with the object's pitch and roll too, and the crate does not.
 
 The crate parses CRG files with [`opencrg`](https://crates.io/crates/opencrg)
 and re-exports it, so `xodr::opencrg` also reads a `.crg` file on its
@@ -378,6 +383,8 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `RoadMarkLineDropped` | a road mark line with more dashes than the crate paints (100,000 on the line, or 1,000,000 in the whole file), or whose paint lands out of range |
 | `TooManyCopies` | an `<object>` whose `<repeat>` or dashed `<marking>` would make over 100,000 copies or dashes |
 | `JunctionObjectsDropped` | a junction's `<objects>` with no `<planView>` geometry to stand along |
+| `ObjectSurfaceDropped` | an object's `<surface>` on an object with no box, such as a cylinder |
+| `CrgHideIgnored` | an object's `<surface>` with `hideRoadSurfaceCRG` over a road CRG that replaces the road's height, which the spec forbids. The road CRG stays |
 | `OutlineGap` | an `<outline>` whose `<curveLocal>`s leave a gap over 1 cm. The crate joins it with a straight edge |
 | `RepeatEndMismatch` | a `<repeat>` whose cubic `t` ends more than a millimetre from its `tEnd`. The crate follows the cubic |
 | `LaneIdUnreadable` | a `<lane>` under `<left>` or `<right>` whose `id` isn't a whole number, or is 0 |
@@ -423,9 +430,9 @@ of the document, with how many times the file uses it.
 
 Elements it skips: `<vmsGroup>`, a header's `<license>` and
 `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a junction's
-`<roadSection>`s, and an object's `<surface>` and `<skeleton>`. It skips
-`<userData>` anywhere but directly on an object, which it reads. It also skips
-the `<validity>`, `<dependency>` and `<reference>` of a board sign.
+`<roadSection>`s, and an object's `<skeleton>`. It skips `<userData>` anywhere
+but directly on an object, which it reads. It also skips the `<validity>`,
+`<dependency>` and `<reference>` of a board sign.
 
 Uses of elements it reads that it ignores:
 

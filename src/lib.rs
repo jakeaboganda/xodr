@@ -166,6 +166,7 @@
 //! | `<cornerReference>` | `id` |
 //! | `<road><surface><CRG>` | `file`, `mode`, `purpose`, `orientation`, `sStart`, `sEnd`, `sOffset`, `tOffset`, `hOffset`, `xOffset`, `yOffset`, `zOffset`, `zScale` |
 //! | `<junction><surface><CRG>` | `file`, `mode`, `purpose`, `xOffset`, `yOffset`, `hOffset`, `zOffset`, `zScale` |
+//! | `<object><surface><CRG>` | `file`, `hideRoadSurfaceCRG`, `zScale` |
 //!
 //! Eight attribute values steer the import:
 //!
@@ -1077,6 +1078,27 @@
 //! shifts the heights of a file without a `$ROAD_CRG_MODS` block so its
 //! reference line starts at 0. Friction skips that shift.
 //!
+//! An object's `<surface>` CRG is a [`CrgMode::Object`] record, one for each
+//! box the object bakes to, a discrete repeat's copies too. Its `(u, v)` are
+//! the object's own, from its origin along its heading, and the file's
+//! reference line plays no part. Inside the object's box, where the file has
+//! a value, `crgEvaluv2z` times `zScale` adds to the height the road's CRGs
+//! and mesh give there, and tilts the normal by its slope. Elsewhere it
+//! plays no part. With `hideRoadSurfaceCRG`, which is true unless the file
+//! says otherwise, an `attached` road CRG under it plays no part either. The
+//! object's `zOffset` and `height` play no part, as the spec says. A
+//! junction's object's CRG covers the lanes of the junction's roads.
+//!
+//! The crate departs from the spec here:
+//!
+//! - The spec turns the file with the object. The crate turns it by the
+//!   object's heading alone, so a pitched or rolled object's file lies flat.
+//! - The spec forbids `hideRoadSurfaceCRG` over a road CRG of another mode.
+//!   The crate keeps that road CRG, adds the object's, and raises
+//!   [`Warning::CrgHideIgnored`].
+//! - The spec allows a surface on a box only. One on any other object, such
+//!   as a cylinder, raises [`Warning::ObjectSurfaceDropped`].
+//!
 //! # What the importer ignores
 //!
 //! The crate skips what the sections above do not list as read. It raises one
@@ -1087,7 +1109,7 @@
 //!
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
 //! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a
-//! junction's `<roadSection>`s, and an object's `<surface>` and `<skeleton>`.
+//! junction's `<roadSection>`s, and an object's `<skeleton>`.
 //! It skips `<userData>` anywhere but directly on an object, which it reads. It
 //! skips the `validity`, `dependency` and `reference` of a board sign.
 //!
@@ -1362,6 +1384,9 @@
 //!   join.
 //! - [`Warning::JunctionObjectsDropped`] for a junction's `<objects>` with no
 //!   reference line to stand along.
+//! - [`Warning::ObjectSurfaceDropped`] for an object's `<surface>` with no
+//!   box to lay it in, and [`Warning::CrgHideIgnored`] for one that hides a
+//!   road CRG it may not.
 //! - [`Warning::LaneIdUnreadable`] for a lane whose `id` isn't a whole
 //!   number, or is 0 outside `<center>`.
 //! - [`Warning::LaneDropped`] for a lane with no `<width>` or `<border>` it
@@ -1475,7 +1500,8 @@ pub use advance::Advance;
 pub use along::{Access, Along, RoadType, SpeedLimit, Visibility};
 pub use coords::{Point, Vector};
 pub use crg::{
-    CrgAlong, CrgMode, CrgPose, CrgPurpose, CrgSurface, RoadSurface, SurfaceHint, SurfaceSample,
+    CrgAlong, CrgMode, CrgObject, CrgPose, CrgPurpose, CrgSurface, RoadSurface, SurfaceHint,
+    SurfaceSample,
 };
 pub use geo::{GeoOffset, GeoReference};
 pub use geometry::TooFewPoints;

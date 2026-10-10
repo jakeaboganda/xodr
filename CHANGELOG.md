@@ -88,6 +88,16 @@
   junction's object has an empty `road_id`.
 - `tests/data/junction_objects.xodr` has a tee whose reference line carries a
   box, an outline, a repeat and a reference to a road's object.
+- An object's `<surface>` CRG is read. `RoadSurface::sample` adds it to the
+  road height inside the object's box, and it hides an `attached` road CRG
+  under it unless `hideRoadSurfaceCRG="false"`. Breaking: new
+  `CrgMode::Object` and `CrgObject`. Match on `CrgMode` with an arm for it.
+- The file turns with the object's heading only, not its pitch and roll,
+  which the spec also turns it by. New `Warning::ObjectSurfaceDropped` for a
+  surface on an object with no box, and `Warning::CrgHideIgnored` for one
+  that hides a road CRG of a mode the spec does not let it hide.
+- `tests/data/object_surface.xodr` has object CRGs on bare roads, over
+  `attached` and `attached0` road CRGs, on repeats and in a junction.
 
 ### Single-side lane sections
 
