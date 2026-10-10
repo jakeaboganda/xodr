@@ -76,18 +76,20 @@ The crate now keeps descriptive attributes it builds nothing from.
   `dynamic_lane_direction` and `road_works`. New `LaneAdvisory` names the
   `advisory`.
 - New `Provenance::center_lanes` of `CenterLaneProvenance` has the center
-  lane's `type` and `level` for each lane section.
+  lane's `id`, `type`, `level` and `<link>` for each lane section. The lane
+  graph does not follow the link, since lane 0 is no `Lane`.
 - `Object` has `invalidated` and `temporary`, `Marking` has `weight`, and
-  `Material` has `road_mark_color`. `ObjectProvenance` has the `fill_type`
-  and `outline_lane_type` of the outline an object baked from.
+  `ObjectProvenance` has the `material_road_mark_colors` of its materials,
+  and the `fill_type` and `outline_lane_type` of the outline it baked from.
 - `RoadMarkProvenance` has the mark's `material` and its `<type>`'s `name`.
 - `BoardSign` has a sign's `id`, `country_revision`, `dynamic`,
   `invalidated`, `temporary`, `orientation`, `h_offset`, `pitch`, `roll` and
-  `length`. The crate turns the sign by none of them. `Switch` has its
-  `partner_name`.
+  `length`. The crate turns the sign by none of them. `Switch::partner` is
+  a new `Partner` with the partner's `id` and `name`. Breaking: it was the
+  id alone.
 - New `Provenance::lane_link_overlaps` of `LaneLinkOverlap` has each
   junction lane link's `overlapZone`.
-- Breaking: `Object`, `Marking`, `Material`, `BoardSign`, `Switch`,
+- Breaking: `Object`, `Marking`, `BoardSign`, `Switch`,
   `LaneProvenance`, `ObjectProvenance`, `RoadMarkProvenance` and
   `Provenance` have new fields, so a struct literal needs them. Each new
   field has a serde default, so a network serialized before still loads.

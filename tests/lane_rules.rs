@@ -43,7 +43,6 @@ fn material(surface: &str, friction: f32, roughness: Option<f32>) -> Material {
         surface: surface.into(),
         friction: Some(friction),
         roughness,
-        road_mark_color: String::new(),
     }
 }
 

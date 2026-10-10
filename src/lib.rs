@@ -86,7 +86,7 @@
 //! | `<laneSection>` | `s` |
 //! | `<left>`, `<center>`, `<right>` | none |
 //! | `<lane>` | `id`, `type`, `level`, `direction`, `advisory`, `dynamicLaneType`, `dynamicLaneDirection`, `roadWorks` |
-//! | `<center><lane>` | `type`, `level` |
+//! | `<center><lane>` | `id`, `type`, `level` |
 //! | `<lane><width>` | `sOffset`, `a`, `b`, `c`, `d` |
 //! | `<lane><border>` | `sOffset`, `a`, `b`, `c`, `d` |
 //! | `<lane><height>` | `sOffset`, `inner`, `outer` |
@@ -956,8 +956,9 @@
 //!
 //! One omission changes the road you get back, rather than only dropping
 //! detail around it: the center lane, lane 0, never becomes a [`Lane`].
-//! Only its road marks are read, and its `type` and `level`, which are in
-//! [`Provenance::center_lanes`].
+//! Its road marks are read, and its `id`, `type`, `level` and `link`,
+//! which are in [`Provenance::center_lanes`]. The lane graph does not follow
+//! its link.
 //!
 //! # Coordinate frame
 //!
@@ -1322,7 +1323,9 @@ pub use parse::{
     PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance, RoadSkipReason, SignalProvenance,
     SignalReferenceProvenance, StructureProvenance, Warning, MAX_LENGTH,
 };
-pub use railway::{Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint};
+pub use railway::{
+    Partner, Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint,
+};
 pub use road::{LanePosition, Priority, Road, RoadId, RoadLane, RoadNeighbor, RoadPosition, Side};
 pub use road_mark::{
     LaneChange, LinePattern, LineRule, RoadMark, RoadMarkId, RoadMarkLine, RoadMarkType,

@@ -188,8 +188,15 @@ pub struct ObjectProvenance {
     /// are then the reference's, and the shape is the `<object>`'s, moved to
     /// the reference's station.
     pub referenced_from: Option<String>,
+    /// The `roadMarkColor` of each of the object's [`Object::materials`], in
+    /// step with them, such as `white`. Free text, and empty where the map
+    /// gives none.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub material_road_mark_colors: Vec<String>,
     /// The `fillType` of the `<outline>` it baked from, such as `grass`. Free
-    /// text. Empty for a solid, and where the outline has none.
+    /// text. Empty for a solid, and where the outline has none. A hole
+    /// (`outer="false"`) folds into the outline round it and its own is
+    /// dropped.
     #[cfg_attr(feature = "serde", serde(default))]
     pub fill_type: String,
     /// The `laneType` of the `<outline>` it baked from, which the spec says
@@ -398,11 +405,23 @@ pub struct CenterLaneProvenance {
     /// The zero-based lane-section index within that road, as in
     /// [`LaneProvenance::section`].
     pub section: usize,
+    /// Its `id`, which the spec says is 0. `None` if the file gives none or
+    /// one that is not a whole number.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub od_id: Option<i32>,
     /// Its `type`, which the spec says is `none`. A missing or unrecognised
     /// one is [`LaneType::Unknown`].
     pub kind: LaneType,
     /// Its `level`, which the crate reads for no lane but the center one.
     pub level: bool,
+    /// The `id` of the lane its `<link><predecessor>` names, in the road's
+    /// previous lane section or the road before. The lane graph does not
+    /// follow it, since the center lane is no [`Lane`].
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub predecessor: Option<i32>,
+    /// The `id` its `<link><successor>` names, as `predecessor`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub successor: Option<i32>,
 }
 
 /// A junction `<laneLink>`'s `overlapZone`: how far the traffic of two
@@ -571,12 +590,15 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             .iter()
             .flat_map(|(_, road)| {
                 road.sections().filter_map(|(section, def)| {
-                    let (kind, level) = def.center_lane?;
+                    let center = def.center_lane?;
                     Some(CenterLaneProvenance {
                         road_id: road.road.od_id.clone(),
                         section: section.index,
-                        kind,
-                        level,
+                        od_id: center.od_id,
+                        kind: center.kind,
+                        level: center.level,
+                        predecessor: center.predecessor,
+                        successor: center.successor,
                     })
                 })
             })
@@ -998,6 +1020,16 @@ fn parse_heights(lane: roxmltree::Node) -> Vec<HeightDef> {
     heights
 }
 
+/// A `<center>` lane as the file gives it.
+#[derive(Clone, Copy)]
+struct CenterDef {
+    od_id: Option<i32>,
+    kind: LaneType,
+    level: bool,
+    predecessor: Option<i32>,
+    successor: Option<i32>,
+}
+
 /// A `<laneSection>`'s lanes as the file gives them. Only lanes with a
 /// width or a border are here, since a lane with neither has nothing to
 /// sample. The ids of those are in `dropped`.
@@ -1012,7 +1044,7 @@ struct SectionDef {
     /// The road marks of the center lane, on the line between the sides.
     center: Vec<MarkDef>,
     /// The center lane's `type` and `level`, if the section has one.
-    center_lane: Option<(LaneType, bool)>,
+    center_lane: Option<CenterDef>,
     /// The `<lane id>`s it skipped for having neither a width nor a border,
     /// in file order.
     dropped: Vec<i32>,
@@ -1102,10 +1134,14 @@ impl SectionDef {
             .find(|n| n.has_tag_name("lane"));
         let center = center_node.map(road_marks::parse).unwrap_or_default();
         let center_lane = center_node.map(|n| {
-            (
-                lane_type(n.attribute("type")),
-                matches!(n.attribute("level"), Some("true" | "1")),
-            )
+            let (predecessor, successor) = links::lane_link(n);
+            CenterDef {
+                od_id: n.attribute("id").and_then(|v| v.trim().parse().ok()),
+                kind: lane_type(n.attribute("type")),
+                level: matches!(n.attribute("level"), Some("true" | "1")),
+                predecessor,
+                successor,
+            }
         });
         Self {
             left,
@@ -1209,10 +1245,6 @@ fn material(node: roxmltree::Node) -> Material {
         surface: node.attribute("surface").unwrap_or_default().to_string(),
         friction: attr_f64(node, "friction").map(|v| v as f32),
         roughness: attr_f64(node, "roughness").map(|v| v as f32),
-        road_mark_color: node
-            .attribute("roadMarkColor")
-            .unwrap_or_default()
-            .to_string(),
     }
 }
 
@@ -2707,6 +2739,11 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         .filter(|n| n.has_tag_name("material"))
         .map(material)
         .collect();
+    let mark_colors: Vec<String> = node
+        .children()
+        .filter(|n| n.has_tag_name("material"))
+        .map(|m| m.attribute("roadMarkColor").unwrap_or_default().to_string())
+        .collect();
     let user_data: Vec<UserData> = node
         .children()
         .filter(|n| n.has_tag_name("userData"))
@@ -2751,6 +2788,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             orientation: at.orientation,
             valid_length: at.valid_length,
             referenced_from: at.referenced_from.map(str::to_string),
+            material_road_mark_colors: mark_colors.clone(),
             fill_type: part.fill_type,
             outline_lane_type: part.outline_lane_type,
         });

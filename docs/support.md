@@ -347,5 +347,6 @@ A `layer` of `permanent`, a flag set to `false` and a `transitionLength` of 0
 raise nothing.
 
 The importer reads a lane section's `<center>` for the road marks on the
-center line, and for the lane's `type` and `level`, which are in
-`Provenance::center_lanes`. Lane 0 never becomes a `Lane`.
+center line, and for the lane's `id`, `type`, `level` and `<link>`, which are
+in `Provenance::center_lanes`. Lane 0 never becomes a `Lane`, so the lane
+graph does not follow its link.

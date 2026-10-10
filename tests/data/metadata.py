@@ -24,7 +24,8 @@ sections, from 0 and from 40 m. In the first the lanes carry `advisory`
 "1"), `dynamicLaneDirection` (3) and `roadWorks` (-1, and 2 as "True", which is
 not a boolean), and its center lane
 has `level="true"`. The second has the same lanes without -1's `roadWorks`,
-and a center lane of `type="driving"`. Lane -3 says each as "false".
+and a center lane of `type="driving"` with a <link> to lane 0 before and
+lane 1 after. The bare file gives road 1's center lane the `id` "zero". Lane -3 says each as "false".
 
 The header's name has an accent, an ampersand, angle brackets and quotes,
 and the junction's has spaces round it, to show they come through as
@@ -137,6 +138,9 @@ for id in (1, 2, 3, -1, -2, -3):
             lane(two, id).set(name, lane(one, id).get(name))
 lane(two, -1).attrib.pop("roadWorks")
 two.find("center/lane").set("type", "driving")
+link = ET.SubElement(two.find("center/lane"), "link")
+ET.SubElement(link, "predecessor", {"id": "0"})
+ET.SubElement(link, "successor", {"id": "1"})
 BOX_AT = {"a1": 5, "a2": 10, "a3": 15, "m1": 20, "w": 25}
 
 
@@ -246,4 +250,5 @@ header.attrib.update({
 for road in root.findall("road"):
     road.attrib.pop("name", None)
 root.find("junction[@id='100']").attrib.pop("name", None)
+root.find("road[@id='1']/lanes/laneSection/center/lane").set("id", "zero")
 finish(path, tree)

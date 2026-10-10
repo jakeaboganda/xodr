@@ -20,7 +20,7 @@
                     </lane>
                 </left>
                 <center>
-                    <lane id="0" type="none" level="false">
+                    <lane id="zero" type="none" level="false">
                         <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
                     </lane>
                 </center>

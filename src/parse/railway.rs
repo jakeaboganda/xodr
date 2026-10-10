@@ -1,7 +1,9 @@
 //! Railway switches and stations, read once every road is baked.
 
 use super::{attr_f64, child, BakedRoad, Warning};
-use crate::railway::{Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint};
+use crate::railway::{
+    Partner, Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint,
+};
 use crate::road::{Road, Side};
 
 /// Every road's `<railroad><switch>`es, road by road in file order, and a
@@ -51,13 +53,12 @@ pub(super) fn switches(roads: &[(roxmltree::Node, BakedRoad)]) -> (Vec<Switch>, 
                     position,
                     main,
                     side,
-                    partner: child(switch, "partner")
-                        .and_then(|p| p.attribute("id"))
-                        .map(String::from),
-                    partner_name: child(switch, "partner")
-                        .and_then(|p| p.attribute("name"))
-                        .unwrap_or_default()
-                        .to_string(),
+                    partner: child(switch, "partner").and_then(|p| {
+                        Some(Partner {
+                            id: p.attribute("id")?.to_string(),
+                            name: p.attribute("name").unwrap_or_default().to_string(),
+                        })
+                    }),
                 }),
                 _ => warnings.push(Warning::RailwayDropped {
                     element: "switch".into(),
