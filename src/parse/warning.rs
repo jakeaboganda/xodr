@@ -109,6 +109,28 @@ pub enum Warning {
         /// Its `<junction id>`.
         junction_id: String,
     },
+    /// An object's `<surface>` the crate cannot place: on an object with no
+    /// box, such as a cylinder, an outline or a continuous repeat. The spec
+    /// allows a surface on a box only. The crate drops it.
+    ObjectSurfaceDropped {
+        /// The `<road id>` it is on. Empty for an object of a junction.
+        road_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+    },
+    /// An object's `<surface>` CRG with `hideRoadSurfaceCRG` over a road or
+    /// junction CRG that replaces the road's height (`attached0`, `genuine`
+    /// or `global`). The spec forbids it. The crate keeps the road's CRG and
+    /// adds the object's to it, as if `hideRoadSurfaceCRG` were false.
+    CrgHideIgnored {
+        /// The `<road id>` the object is on. Empty for an object of a
+        /// junction.
+        road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+    },
     /// A `<lane>` under `<left>` or `<right>` whose `id` isn't a whole
     /// number, or is 0, the center lane's. The crate can't tell which lane
     /// it is, so it drops it.
@@ -544,6 +566,8 @@ impl Warning {
             | Self::TooManyCopies { road_id, .. }
             | Self::RepeatEndMismatch { road_id, .. }
             | Self::OutlineGap { road_id, .. }
+            | Self::ObjectSurfaceDropped { road_id, .. }
+            | Self::CrgHideIgnored { road_id, .. }
             | Self::RoadMarkLineDropped { road_id, .. }
             | Self::LaneDropped { road_id, .. }
             | Self::WidthAndBorder { road_id, .. }
@@ -715,6 +739,23 @@ impl fmt::Display for Warning {
             Self::JunctionObjectsDropped { junction_id } => write!(
                 f,
                 "junction {junction_id:?}: its objects have no reference line to stand along, so they were left out"
+            ),
+            Self::ObjectSurfaceDropped { road_id, object_id } => write!(
+                f,
+                "road {road_id:?}: object {object_id:?} has a <surface> but no box to lay it in, so it was left out"
+            ),
+            Self::CrgHideIgnored {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
+                f,
+                "{}: object {object_id:?} hides a road CRG that replaces the road's height, which the spec forbids, so the road CRG stays",
+                if junction_id.is_empty() {
+                    format!("road {road_id:?}")
+                } else {
+                    format!("junction {junction_id:?}")
+                }
             ),
             Self::LaneIdUnreadable {
                 road_id,

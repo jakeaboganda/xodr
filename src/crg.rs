@@ -69,6 +69,29 @@ pub enum CrgMode {
         /// Where the file's origin lands.
         origin: CrgPose,
     },
+    /// An object's `<surface>`: the file in the object's own frame, added
+    /// to the height of the road under it.
+    Object(CrgObject),
+}
+
+/// Where an object's `<surface>` CRG lies, from the object.
+///
+/// The file's `(u, v)` are the object's own, from its origin along its
+/// heading and to its left. Its reference line plays no part. The file
+/// counts only inside the object's box.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CrgObject {
+    /// The object's origin and heading in plan. Its pitch and roll play no
+    /// part.
+    pub origin: CrgPose,
+    /// Half the object's `length`, along `u`, in metres.
+    pub half_length: f64,
+    /// Half the object's `width`, along `v`, in metres.
+    pub half_width: f64,
+    /// `hideRoadSurfaceCRG`: whether the file hides an `attached` road CRG
+    /// under it, where the file has a value.
+    pub hide_road: bool,
 }
 
 /// One `<CRG>` under a `<road>` or `<junction>` `<surface>`.
@@ -390,7 +413,7 @@ impl<'a> RoadSurface<'a> {
                     to: [0.0, 0.0],
                     angle: origin.heading,
                 }),
-                CrgMode::Attached(_) | CrgMode::Attached0(_) => None,
+                CrgMode::Attached(_) | CrgMode::Attached0(_) | CrgMode::Object(_) => None,
             };
             patches.push(Some(Patch { grid: index, rigid }));
             for &lane in &record.lanes {
@@ -416,6 +439,11 @@ impl<'a> RoadSurface<'a> {
     /// junction's records after its roads', so they win. `None` off the
     /// road, where the mesh has no triangle.
     ///
+    /// An object's CRG, the last that has a value at the point, adds to
+    /// that height, and to [`SurfaceSample::crg_height`]. Where it hides the
+    /// road's CRGs, the `attached` ones play no part. It cannot hide the
+    /// other modes, which replace the road's height.
+    ///
     /// Where surfaces stack, as on a bridge, the lane is the one the mesh
     /// finds highest.
     pub fn sample(&self, x: f64, y: f64, hint: &mut SurfaceHint) -> Option<SurfaceSample> {
@@ -431,17 +459,29 @@ impl<'a> RoadSurface<'a> {
             crg_height: None,
             friction: None,
         };
-        for &i in covering.into_iter().flatten() {
-            let Some(patch) = &self.patches[i] else {
-                continue;
-            };
+        let loaded = covering.into_iter().flatten().filter_map(|&i| {
+            let patch = self.patches[i].as_ref()?;
             let at = At {
                 record: &records[i],
                 grid: &self.grids[patch.grid],
                 rigid: patch.rigid,
             };
+            Some((i, at))
+        });
+        let (objects, roads): (Vec<_>, Vec<_>) =
+            loaded.partition(|(_, at)| matches!(at.record.mode, CrgMode::Object(_)));
+        let object = objects.iter().find_map(|(_, at)| {
+            let CrgMode::Object(placed) = at.record.mode else {
+                return None;
+            };
+            Some((at.object(placed, x, y)?, placed.hide_road))
+        });
+        let hides = object.is_some_and(|(_, hide)| hide);
+        for (i, at) in roads {
             let hint = &mut hint.patches[i];
             match at.record.purpose {
+                CrgPurpose::Elevation
+                    if hides && matches!(at.record.mode, CrgMode::Attached(_)) => {}
                 CrgPurpose::Elevation if sample.crg_height.is_none() => {
                     if let Some((z, normal, bump)) = at.elevation(x, y, hint) {
                         sample.z = z;
@@ -454,6 +494,12 @@ impl<'a> RoadSurface<'a> {
                 }
                 _ => {}
             }
+        }
+        if let Some(((z, [dz_dx, dz_dy]), _)) = object {
+            let [nx, ny, nz] = sample.normal;
+            sample.z += z;
+            sample.normal = unit([nx / nz - dz_dx, ny / nz - dz_dy, 1.0]);
+            sample.crg_height = Some(sample.crg_height.unwrap_or(0.0) + z);
         }
         Some(sample)
     }
@@ -528,6 +574,31 @@ impl At<'_> {
             }
         };
         Some((z + self.record.z_offset, normal, k * bump))
+    }
+
+    /// The height an object's file adds at `(x, y)`, `crgEvaluv2z` times
+    /// `zScale`, and its slope in `x` and `y`. `None` outside the object's
+    /// box, and where the file has no value.
+    fn object(&self, placed: CrgObject, x: f64, y: f64) -> Option<(f64, [f64; 2])> {
+        let CrgPose {
+            x: ox,
+            y: oy,
+            heading,
+        } = placed.origin;
+        let (sin, cos) = heading.sin_cos();
+        let (dx, dy) = (x - ox, y - oy);
+        let uv = Uv {
+            u: cos * dx + sin * dy,
+            v: -sin * dx + cos * dy,
+        };
+        if uv.u.abs() > placed.half_length || uv.v.abs() > placed.half_width {
+            return None;
+        }
+        let z = self.grid.elevation_at_uv(uv)?;
+        let (dz_du, dz_dv) = slopes(self.grid, uv, z);
+        let k = self.record.z_scale;
+        let slope = [cos * dz_du - sin * dz_dv, sin * dz_du + cos * dz_dv];
+        Some((k * z, slope.map(|d| k * d)))
     }
 
     /// The friction coefficient at `(x, y)`, the grid value exactly as the

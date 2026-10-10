@@ -1279,6 +1279,7 @@ fn crg_entry(c: &CrgSurface, loaded: bool) -> Value {
         CrgMode::Attached0(_) => "attached0",
         CrgMode::Genuine { .. } => "genuine",
         CrgMode::Global { .. } => "global",
+        CrgMode::Object(_) => "object",
     };
     json!({
         "file": c.file,

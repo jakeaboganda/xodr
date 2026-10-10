@@ -282,6 +282,13 @@ have no line to stand along. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/junction_objects.py
 
+`object_surface.xodr` comes from `object_surface.py`. It has objects with a
+`<surface>` CRG on roads with no road CRG, an `attached` one and an
+`attached0` one, on a repeat and in a junction. The tests make the CRG files.
+Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/object_surface.py
+
 `outline_markings.xodr` comes from `outline_markings.py`. It has markings
 inside outlines, beside one under its object, and closed and open areas of
 paint, one with a hole and one with a border, on a banked road. Regenerate

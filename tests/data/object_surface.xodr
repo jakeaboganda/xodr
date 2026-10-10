@@ -1,0 +1,415 @@
+<?xml version='1.0' encoding='utf-8'?>
+<OpenDRIVE>
+    <header name="object_surface" revMajor="1" revMinor="5" date="2026-01-01T00:00:00" north="0.0" south="0.0" east="0.0" west="0.0" />
+    <road rule="RHT" id="1" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="plate" name="Plate" type="roadSurface" s="20" t="-1.75" zOffset="0.3" length="2" width="2" height="0.05" hdg="0.5">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="true" zScale="2" />
+                </surface>
+            </object>
+            <object id="cover" name="Cover" type="roadSurface" s="30" t="1.75" zOffset="0" length="2" width="2" height="0.05">
+                <surface>
+                    <CRG file="small.crg" hideRoadSurfaceCRG="true" zScale="1" />
+                </surface>
+            </object>
+            <object id="hole" name="Hole" type="roadSurface" s="50" t="-1.75" zOffset="0" length="1" width="1" height="0.05">
+                <repeat s="50" length="20" distance="10" tStart="-1.75" tEnd="-1.75" zOffsetStart="0" zOffsetEnd="0" />
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="true" zScale="1" />
+                </surface>
+            </object>
+            <object id="disc" name="Disc" type="roadSurface" s="80" t="-1.75" zOffset="0" radius="1" height="0.05">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="true" zScale="1" />
+                </surface>
+            </object>
+            <object id="tilted" name="Tilted" type="roadSurface" s="90" t="-1.75" zOffset="0" length="2" width="2" height="0.05" hdg="0.4" pitch="0.3" roll="0.2">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="true" zScale="1" />
+                </surface>
+            </object>
+        </objects>
+    </road>
+    <road rule="RHT" id="2" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="40" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="hider" name="Hider" type="roadSurface" s="20" t="-1.75" zOffset="0" length="2" width="2" height="0.05">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="true" zScale="1" />
+                </surface>
+            </object>
+            <object id="stacker" name="Stacker" type="roadSurface" s="60" t="-1.75" zOffset="0" length="2" width="2" height="0.05">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="false" zScale="1" />
+                </surface>
+            </object>
+        </objects>
+        <surface>
+            <CRG file="road.crg" sStart="0" sEnd="100" orientation="same" mode="attached" sOffset="0" tOffset="0" />
+        </surface>
+    </road>
+    <road rule="RHT" id="3" junction="-1" length="100">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="80" hdg="0" length="100">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="clash" name="Clash" type="roadSurface" s="20" t="-1.75" zOffset="0" length="2" width="2" height="0.05">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="true" zScale="1" />
+                </surface>
+            </object>
+            <object id="sum" name="Sum" type="roadSurface" s="60" t="-1.75" zOffset="0" length="2" width="2" height="0.05">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="false" zScale="1" />
+                </surface>
+            </object>
+        </objects>
+        <surface>
+            <CRG file="road.crg" sStart="0" sEnd="100" orientation="same" mode="attached0" sOffset="0" tOffset="0" />
+        </surface>
+    </road>
+    <road rule="RHT" id="11" junction="-1" length="30">
+        <link>
+            <successor elementType="junction" elementId="9" />
+        </link>
+        <planView>
+            <geometry s="0" x="1042.0" y="0.0" hdg="3.141592653589793" length="30">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="12" junction="-1" length="30">
+        <link>
+            <successor elementType="junction" elementId="9" />
+        </link>
+        <planView>
+            <geometry s="0" x="1000.0" y="42.0" hdg="4.71238898038469" length="30">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="13" junction="-1" length="30">
+        <link>
+            <successor elementType="junction" elementId="9" />
+        </link>
+        <planView>
+            <geometry s="0" x="958.0" y="5.143516556418883e-15" hdg="6.283185307179586" length="30">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="14" junction="-1" length="30">
+        <link>
+            <successor elementType="junction" elementId="9" />
+        </link>
+        <planView>
+            <geometry s="0" x="1000.0" y="-42.0" hdg="7.853981633974483" length="30">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="1000" junction="9" length="24">
+        <link>
+            <predecessor elementType="road" elementId="11" contactPoint="end" />
+            <successor elementType="road" elementId="13" contactPoint="end" />
+        </link>
+        <planView>
+            <geometry s="0" x="1012.0" y="3.67394039744206e-15" hdg="3.141592653589793" length="24">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link>
+                            <predecessor id="1" />
+                            <successor id="-1" />
+                        </link>
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link>
+                            <predecessor id="-1" />
+                            <successor id="1" />
+                        </link>
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <road rule="RHT" id="1001" junction="9" length="24">
+        <link>
+            <predecessor elementType="road" elementId="12" contactPoint="end" />
+            <successor elementType="road" elementId="14" contactPoint="end" />
+        </link>
+        <planView>
+            <geometry s="0" x="1000.0" y="12.0" hdg="4.71238898038469" length="24">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link>
+                            <predecessor id="1" />
+                            <successor id="-1" />
+                        </link>
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link>
+                            <predecessor id="-1" />
+                            <successor id="1" />
+                        </link>
+                        <width a="3.5" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+    </road>
+    <junction name="cross" id="9" type="default">
+        <planView>
+            <geometry s="0" x="980" y="0" hdg="0" length="40">
+                <line />
+            </geometry>
+        </planView>
+        <connection incomingRoad="13" id="0" contactPoint="end" connectingRoad="1000">
+            <laneLink from="1" to="-1" />
+            <laneLink from="-1" to="1" />
+        </connection>
+        <connection incomingRoad="11" id="1" contactPoint="start" connectingRoad="1000">
+            <laneLink from="1" to="1" />
+            <laneLink from="-1" to="-1" />
+        </connection>
+        <connection incomingRoad="14" id="2" contactPoint="end" connectingRoad="1001">
+            <laneLink from="1" to="-1" />
+            <laneLink from="-1" to="1" />
+        </connection>
+        <connection incomingRoad="12" id="3" contactPoint="start" connectingRoad="1001">
+            <laneLink from="1" to="1" />
+            <laneLink from="-1" to="-1" />
+        </connection>
+        <objects>
+            <object id="grate" name="Grate" type="roadSurface" s="20" t="1" zOffset="0" length="2" width="2" height="0.05">
+                <surface>
+                    <CRG file="plate.crg" hideRoadSurfaceCRG="true" zScale="1" />
+                </surface>
+            </object>
+        </objects>
+    </junction>
+</OpenDRIVE>
