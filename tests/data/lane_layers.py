@@ -22,6 +22,17 @@ first in the file. Road 1 carries four signals at 70 m, where both layers
 have lanes: one with no <validity>, one for lanes -1 to -2 of no layer, one
 for the same lanes of the temporary layer, and one for both.
 
+Road 3 is a 100 m straight with one right lane. Its temporary layer is a lane
+of 3 m on a <laneOffset> of -2.5, so it reaches 1.5 m past the permanent
+surface, for its first 50 m by a `length`. A second temporary <lanes> follows
+it, which the crate leaves out, and the permanent lane's link names the layer
+"bogus", which reads as permanent.
+
+Roads 4 and 5 are 100 m straights end to end with one right lane. Road 4's
+temporary layer is its last 40 m, and road 5's the 40 m from 40 m, so a
+temporary lane leaving road 4 has no temporary lane to enter at the start of
+road 5.
+
 Junction 9 is a tee of roads 11, 12 and 13, with connecting roads from 1000.
 Arm 11 and connecting road 1000 each have a temporary layer with a lane -1.
 The connection from 11 to 1000 links the permanent lanes, and a second link
@@ -48,6 +59,22 @@ for road_id, y in [(1, 0), (2, 60)]:
     road = xodr.create_road(xodr.Line(200), road_id, 1, 2, lane_width=3.5)
     road.planview.set_start_point(0, y, 0)
     odr.add_road(road)
+
+# Road 3: a temporary lane partly outside the permanent surface, from 0 to
+# 50 m of 100, and a second temporary <lanes>, which is left out.
+road3 = xodr.create_road(xodr.Line(100), 3, 0, 1, lane_width=3.5)
+road3.planview.set_start_point(0, 120, 0)
+odr.add_road(road3)
+
+# Roads 4 and 5 join end to end. Road 4's temporary layer reaches its end,
+# and road 5's lies in the middle, away from where the link enters.
+chain = {}
+for road_id, x in [(4, 0), (5, 100)]:
+    chain[road_id] = xodr.create_road(xodr.Line(100), road_id, 0, 1, lane_width=3.5)
+    chain[road_id].planview.set_start_point(x, 180, 0)
+    odr.add_road(chain[road_id])
+chain[4].add_successor(xodr.ElementType.road, 5, xodr.ContactPoint.start)
+chain[5].add_predecessor(xodr.ElementType.road, 4, xodr.ContactPoint.end)
 
 creator = xodr.CommonJunctionCreator(9, "tee", startnum=1000)
 for k, angle in enumerate([0, math.pi / 2, math.pi]):
@@ -153,9 +180,9 @@ layered_road(roads["1"], place_temporary_first=False)
 layered_road(roads["2"], place_temporary_first=True)
 
 
-def signal(id, *validities):
+def signal(id, *validities, s=70):
     element = ET.Element("signal", {
-        "id": id, "s": "70", "t": "-9", "orientation": "none", "dynamic": "no",
+        "id": id, "s": str(s), "t": "-9", "orientation": "none", "dynamic": "no",
         "zOffset": "2", "country": "DE", "type": "274", "subtype": "50", "name": id,
     })
     for lane_from, lane_to, layer in validities:
@@ -171,6 +198,31 @@ signals.append(signal("any"))
 signals.append(signal("permanent", (-2, -1, None)))
 signals.append(signal("temporary", (-2, -1, "temporary")))
 signals.append(signal("both", (-1, -1, None), (-1, -1, "temporary")))
+signals.append(signal("where the temporary layer ends", s=160))
+
+# Road 3.
+lanes3 = roads["3"].find("lanes")
+lanes3.find("laneSection/right/lane[@id='-1']/link").append(
+    ET.Element("successor", {"id": "-1", "layer": "bogus"})
+)
+first, _ = temporary_lanes([(0, 50)], offset=-2.5)
+first.find("laneSection/right").remove(first.find("laneSection/right/lane[@id='-2']"))
+first.find("laneSection/right/lane/width").set("a", "3")
+second, _ = temporary_lanes([(10, None)], offset=-6)
+roads["3"].insert(list(roads["3"]).index(lanes3) + 1, first)
+roads["3"].insert(list(roads["3"]).index(lanes3) + 2, second)
+
+# Roads 4 and 5.
+for road_id, sections in [("4", [(60, None)]), ("5", [(40, 40)])]:
+    lanes = roads[road_id].find("lanes")
+    temporary, (section, *_) = temporary_lanes(sections, offset=0)
+    right = section.find("right")
+    right.remove(right.find("lane[@id='-2']"))
+    roads[road_id].insert(list(roads[road_id]).index(lanes) + 1, temporary)
+set_link(roads["4"].find("lanes/laneSection"), -1, ("successor", -1, None))
+set_link(roads["4"].find("lanes[@layer='temporary']/laneSection"), -1,
+         ("predecessor", -1, "permanent"), ("successor", -1, "temporary"))
+set_link(roads["5"].find("lanes/laneSection"), -1, ("predecessor", -1, None))
 
 # Junction 9: arm 11 and connecting road 1000 get a temporary lane -1.
 for road_id, length in [("11", 30), ("1000", None)]:

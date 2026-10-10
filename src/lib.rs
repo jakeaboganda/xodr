@@ -502,16 +502,18 @@
 //! A road has a permanent lane layer along its whole length, and may have a
 //! temporary one over parts of it, as for road works. Each is a `<lanes>`,
 //! with its own lane sections and its own `<laneOffset>`. A [`Lane`] says
-//! which it is on in [`Lane::layer`], and a lane section's index counts the
-//! permanent layer's sections first, then the temporary layer's, as
-//! [`LaneProvenance::layer`] and `section` have it. A temporary section may
-//! give a `length`, and then ends there or at the next section of its layer.
+//! which it is on in [`Lane::layer`]. A lane section's index counts the
+//! permanent sections first, and the temporary ones follow, as
+//! [`LaneProvenance::section`] has it. A temporary section may give a
+//! `length`. It then ends there, or at the next section of its layer.
+//! A further `<lanes>` of a layer is left out, with a [`Warning::Ignored`].
 //!
 //! Both layers share one surface, which only the permanent layer defines.
 //! [`RoadNetwork::surface_mesh`], [`RoadNetwork::road_point`] and heights
-//! follow the permanent lanes, and [`RoadNetwork::temporary_mesh`] has the
-//! temporary lanes for drawing over them. The temporary layer's road marks
-//! are baked like any, on its lanes.
+//! follow the permanent lanes. [`RoadNetwork::temporary_mesh`] has the
+//! temporary lanes, to draw over them at the same height. The crate does not
+//! clip a temporary lane that reaches past the permanent surface. The
+//! temporary layer's road marks are baked like any, on its lanes.
 //!
 //! A lane's `<link>` may name several lanes before and after it, each with
 //! a `layer`. That is how traffic goes from a permanent lane onto a
@@ -525,16 +527,19 @@
 //! The temporary lanes take precedence for driving, as the spec says. So
 //! [`RoadNetwork::nearest_lane`], [`RoadNetwork::lane_position`],
 //! [`RoadNetwork::route`] and [`RoadNetwork::advance`] look at both layers,
-//! and a temporary lane that holds a point is the one they find there.
+//! and a temporary driving lane that holds a point is the one they find
+//! there. A lane holds a point if the point lies within half its width of
+//! its centerline, and not past either end of it.
 //! Their `_with` forms take a [`LayerPolicy`], and
 //! [`LayerPolicy::PermanentOnly`] looks at the permanent layer alone.
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:
 //!
-//! - A link with no `layer` reads as the permanent layer, the spec says. The
-//!   crate reads it so only where the lane's own layer has no section there
-//!   to go on to. A lane of the temporary layer that links to the next
-//!   section of its layer, with no `layer`, goes there.
+//! - The spec says a link with no `layer` means the permanent layer. The
+//!   crate keeps such a link on the lane's own layer when that layer has a
+//!   section to go on to there, and otherwise sends it to the permanent
+//!   layer. For a lane of the permanent layer the two rules are the same.
+//!   Without this, a temporary layer's own sections would not join.
 //! - A road with no permanent `<lanes>`, only a temporary one, bakes the
 //!   first as the permanent layer, as it did before layers were read.
 //! - A permanent `<laneSection>`'s `length`, which the spec forbids, is

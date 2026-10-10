@@ -132,10 +132,11 @@ impl Topology {
     /// The index of `road`'s first (at its start) or last (at its end) lane
     /// section on `layer`, if it has one.
     fn end_section(&self, road: &str, layer: Layer, contact: Contact) -> Option<usize> {
+        let length = self.roads.get(road)?.length;
         let mut on = self.sections(road).iter().filter(|s| s.layer == layer);
         match contact {
-            Contact::Start => on.next(),
-            Contact::End => on.next_back(),
+            Contact::Start => on.next().filter(|s| s.start <= REACH),
+            Contact::End => on.next_back().filter(|s| s.end >= length - REACH),
         }
         .map(|s| s.index)
     }
@@ -147,10 +148,18 @@ impl Topology {
     /// backward.
     fn reach(&self, road: &str, layer: Layer, at: f64, forward: bool) -> Option<usize> {
         let mut on = self.sections(road).iter().filter(|s| s.layer == layer);
+        // The permanent layer runs under everything, so a link may land
+        // part way along one of its sections. A temporary section is
+        // entered where it starts, and left where it ends.
+        let covers = layer == Layer::Permanent;
         if forward {
-            on.find(|s| s.end > at + 1e-6 && s.start <= at + REACH)
+            on.find(|s| {
+                s.end > at + 1e-6 && s.start <= at + REACH && (covers || s.start >= at - REACH)
+            })
         } else {
-            on.rfind(|s| s.start < at - 1e-6 && s.end >= at - REACH)
+            on.rfind(|s| {
+                s.start < at - 1e-6 && s.end >= at - REACH && (covers || s.end <= at + REACH)
+            })
         }
         .map(|s| s.index)
     }
@@ -283,9 +292,9 @@ fn exits(meta: &LaneMeta, topo: &Topology, direction: Direction) -> Vec<(LaneId,
     let place = if forward { info.end } else { info.start };
     let at_road_end = road.is_some_and(|r| {
         if forward {
-            place >= r.length - 1e-3
+            place >= r.length - REACH
         } else {
-            place <= 1e-3
+            place <= REACH
         }
     });
     let target = || {
@@ -304,10 +313,10 @@ fn exits(meta: &LaneMeta, topo: &Topology, direction: Direction) -> Vec<(LaneId,
         }
         return out;
     }
+    let own = topo
+        .reach(&meta.road, meta.layer, place, forward)
+        .map(|_| meta.layer);
     for link in links {
-        let own = topo
-            .reach(&meta.road, meta.layer, place, forward)
-            .map(|_| meta.layer);
         let layer = link.layer.or(own).unwrap_or(Layer::Permanent);
         match topo.reach(&meta.road, layer, place, forward) {
             Some(next) => out.extend(at(contact, lookup(topo, &meta.road, next, Some(link.id)))),
@@ -315,6 +324,10 @@ fn exits(meta: &LaneMeta, topo: &Topology, direction: Direction) -> Vec<(LaneId,
             None => {}
         }
     }
+    // Several links may lead through one junction, which they would each
+    // cross whole.
+    let mut seen = std::collections::HashSet::new();
+    out.retain(|&(id, _)| seen.insert(id));
     out
 }
 
@@ -370,8 +383,11 @@ fn cross(
                     .iter()
                     .filter(|l| l.from == meta.od_id && l.from_layer == meta.layer)
                 {
-                    let Some(section) =
-                        topo.end_section(&c.connecting_road, link.to_layer, c.contact)
+                    let Some(section) = topo
+                        .end_section(&c.connecting_road, link.to_layer, c.contact)
+                        .or_else(|| {
+                            topo.end_section(&c.connecting_road, Layer::Permanent, c.contact)
+                        })
                     else {
                         continue;
                     };
@@ -440,10 +456,7 @@ pub(crate) fn lane_refs(lane: roxmltree::Node) -> (Vec<LaneRef>, Vec<LaneRef>) {
             .filter_map(|n| {
                 Some(LaneRef {
                     id: n.attribute("id")?.parse().ok()?,
-                    layer: n.attribute("layer").map(|l| match l {
-                        "temporary" => Layer::Temporary,
-                        _ => Layer::Permanent,
-                    }),
+                    layer: n.attribute("layer").map(|l| Layer::from_attr(Some(l))),
                 })
             })
             .collect()
@@ -529,10 +542,7 @@ pub(crate) fn junctions(
             let mut lane_links = Vec::new();
             for l in c.children().filter(|n| n.has_tag_name("laneLink")) {
                 let id = |name| l.attribute(name).and_then(|v| v.parse::<i32>().ok());
-                let layer = |name| match l.attribute(name) {
-                    Some("temporary") => Layer::Temporary,
-                    _ => Layer::Permanent,
-                };
+                let layer = |name| Layer::from_attr(l.attribute(name));
                 match (id("from"), id("to")) {
                     (Some(from), Some(to)) => lane_links.push(JunctionLaneLink {
                         from,

@@ -150,3 +150,20 @@ fn a_header_written_before_it_gained_a_field_still_loads() {
     let empty: Header = serde_json::from_value(Value::Object(Default::default())).unwrap();
     assert_eq!(empty, Header::default());
 }
+
+#[test]
+fn a_lane_without_a_layer_is_on_the_permanent_one() {
+    let (net, prov) = load_file_with_provenance("tests/data/lane_layers.xodr").unwrap();
+    let temporary = net
+        .lanes()
+        .iter()
+        .find(|l| l.layer == xodr::Layer::Temporary)
+        .unwrap();
+    assert_eq!(without(temporary, &["layer"]).layer, xodr::Layer::Permanent);
+    let record = prov
+        .lanes
+        .iter()
+        .find(|p| p.layer == xodr::Layer::Temporary)
+        .unwrap();
+    assert_eq!(without(record, &["layer"]).layer, xodr::Layer::Permanent);
+}

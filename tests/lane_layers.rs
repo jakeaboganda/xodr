@@ -211,12 +211,10 @@ fn a_temporary_lane_wins_where_it_holds_the_point_unless_the_policy_says_not() {
         (net.lane(id).unwrap().layer, name(&prov, id))
     };
     let over = Point::new(70.0, -2.75, 0.0);
-    assert_eq!(layer(over, LayerPolicy::Temporary).0, Layer::Temporary);
+    assert_eq!(layer(over, LayerPolicy::Both).0, Layer::Temporary);
     assert_eq!(
         net.nearest_lane(over).unwrap().0,
-        net.nearest_lane_with(over, LayerPolicy::Temporary)
-            .unwrap()
-            .0
+        net.nearest_lane_with(over, LayerPolicy::Both).unwrap().0
     );
     assert_eq!(
         layer(over, LayerPolicy::PermanentOnly),
@@ -224,11 +222,7 @@ fn a_temporary_lane_wins_where_it_holds_the_point_unless_the_policy_says_not() {
     );
     // Beside the temporary lane, and where there is none, the permanent one.
     for at in [Point::new(70.0, -0.5, 0.0), Point::new(20.0, -2.75, 0.0)] {
-        assert_eq!(
-            layer(at, LayerPolicy::Temporary).0,
-            Layer::Permanent,
-            "{at:?}"
-        );
+        assert_eq!(layer(at, LayerPolicy::Both).0, Layer::Permanent, "{at:?}");
     }
 }
 
@@ -241,10 +235,10 @@ fn lane_position_finds_the_temporary_lane_by_its_borders() {
             .unwrap();
         name(&prov, position.lane)
     };
-    assert_eq!(at(-2.75, LayerPolicy::Temporary), "T3:-1");
+    assert_eq!(at(-2.75, LayerPolicy::Both), "T3:-1");
     assert_eq!(at(-2.75, LayerPolicy::PermanentOnly), "P1:-1");
     assert_eq!(
-        at(-0.5, LayerPolicy::Temporary),
+        at(-0.5, LayerPolicy::Both),
         "P1:-1",
         "inside no temporary lane"
     );
@@ -269,7 +263,7 @@ fn a_route_and_an_advance_may_leave_the_permanent_layer_only_under_the_default_p
         layers.sort();
         layers
     };
-    assert_eq!(kinds(LayerPolicy::Temporary), ["P1:-1", "T3:-1"]);
+    assert_eq!(kinds(LayerPolicy::Both), ["P1:-1", "T3:-1"]);
     assert_eq!(kinds(LayerPolicy::PermanentOnly), ["P1:-1"]);
     let (from, to) = (Point::new(5.0, -1.75, 0.0), Point::new(195.0, -1.75, 0.0));
     let permanent = net
@@ -305,6 +299,23 @@ fn a_validity_picks_the_lanes_of_its_layer() {
 }
 
 #[test]
+fn a_signal_where_the_temporary_layer_ends_is_not_on_its_lanes() {
+    let (net, prov) = fixture();
+    let placed = prov
+        .signals
+        .iter()
+        .find(|p| p.od_id == "where the temporary layer ends")
+        .unwrap();
+    let mut names: Vec<_> = net.signals()[placed.signal.0]
+        .lanes
+        .iter()
+        .map(|l| name(&prov, *l))
+        .collect();
+    names.sort();
+    assert_eq!(names, ["P2:-1", "P2:-2", "P2:1"]);
+}
+
+#[test]
 fn a_junction_lane_link_joins_the_layers_it_names() {
     let (net, prov) = fixture();
     let arm_permanent = lane(&prov, "11", 0, -1);
@@ -337,4 +348,128 @@ fn the_marks_of_a_temporary_lane_lie_on_it() {
         .road_marks
         .iter()
         .any(|m| m.road_id == "1" && m.section >= 3));
+}
+
+#[test]
+fn a_temporary_lane_reaching_past_the_permanent_surface_is_found_only_where_it_is() {
+    let (net, prov) = fixture();
+    let found = |x: f32, y: f32, policy| {
+        let (id, _) = net
+            .nearest_lane_with(Point::new(x, y, 0.0), policy)
+            .unwrap();
+        let p = prov.lanes.iter().find(|p| p.lane == id).unwrap();
+        (p.road_id.clone(), p.layer)
+    };
+    let road3 = |layer| ("3".to_string(), layer);
+    // The temporary lane is 3 m wide, centred at -4.0. At -5.2 it holds the
+    // point and the permanent lane, 3.5 m wide, does not.
+    assert_eq!(
+        found(20.0, 120.0 - 5.2, LayerPolicy::Both),
+        road3(Layer::Temporary)
+    );
+    assert_eq!(
+        found(20.0, 120.0 - 5.2, LayerPolicy::PermanentOnly),
+        road3(Layer::Permanent)
+    );
+    // Past its 50 m `length`, and beyond the second <lanes>, there is none.
+    assert_eq!(
+        found(55.0, 120.0 - 4.0, LayerPolicy::Both),
+        road3(Layer::Permanent)
+    );
+}
+
+#[test]
+fn a_second_lanes_of_one_layer_is_left_out_and_an_unknown_layer_reads_as_permanent() {
+    let (net, prov) = fixture();
+    let temporary: Vec<_> = prov
+        .lanes
+        .iter()
+        .filter(|p| p.road_id == "3" && p.layer == Layer::Temporary)
+        .collect();
+    assert_eq!(temporary.len(), 1, "the first temporary <lanes>");
+    assert!((net.lane(temporary[0].lane).unwrap().center.length() - 50.0).abs() < 0.1);
+    let permanent = lane(&prov, "3", 0, -1);
+    assert!(net.lane(permanent).unwrap().successors.is_empty());
+}
+
+#[test]
+fn a_link_into_a_road_whose_temporary_layer_does_not_touch_the_end_goes_to_the_permanent_lane() {
+    let (net, prov) = fixture();
+    let temporary = prov
+        .lanes
+        .iter()
+        .find(|p| p.road_id == "4" && p.layer == Layer::Temporary)
+        .unwrap();
+    // Road 5's temporary layer is 40 to 80 m, so the link enters its
+    // permanent lane at the start, and not a section 40 m in.
+    assert_eq!(successors(&net, &prov, temporary.lane), ["P0:-1"]);
+    assert_eq!(
+        prov.lanes
+            .iter()
+            .find(|p| p.lane == net.lane(temporary.lane).unwrap().successors[0])
+            .unwrap()
+            .road_id,
+        "5"
+    );
+}
+
+const ONE_ROAD: &str = r#"<OpenDRIVE>
+  <road length="40" id="1" junction="-1">
+    <planView><geometry s="0" x="0" y="0" hdg="0" length="40"><line/></geometry></planView>
+    {lanes}
+  </road>
+</OpenDRIVE>"#;
+
+fn only(lanes: &str) -> RoadNetwork {
+    xodr::load_str(&ONE_ROAD.replace("{lanes}", lanes)).unwrap()
+}
+
+#[test]
+fn a_road_with_only_a_temporary_lanes_bakes_it_as_the_permanent_layer() {
+    let net = only(
+        r#"<lanes layer="temporary"><laneSection s="0"><right>
+             <lane id="-1" type="driving"><width sOffset="0" a="3"/></lane>
+           </right></laneSection></lanes>"#,
+    );
+    assert_eq!(net.lanes().len(), 1);
+    assert_eq!(net.lanes()[0].layer, Layer::Permanent);
+}
+
+#[test]
+fn a_temporary_layer_with_no_sections_bakes_nothing() {
+    let net = only(
+        r#"<lanes><laneSection s="0"><right>
+             <lane id="-1" type="driving"><width sOffset="0" a="3"/></lane>
+           </right></laneSection></lanes>
+           <lanes layer="temporary"><laneOffset s="0" a="-1" b="0" c="0" d="0"/></lanes>"#,
+    );
+    assert_eq!(net.lanes().len(), 1);
+    assert_eq!(net.temporary_mesh().lanes.len(), 0);
+}
+
+#[test]
+fn several_links_into_one_junction_cross_it_once() {
+    let xml = r#"<OpenDRIVE>
+      <road length="20" id="1" junction="-1">
+        <link><successor elementType="junction" elementId="9"/></link>
+        <planView><geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right>
+          <lane id="-1" type="driving"><link>
+            <successor id="-1"/><successor id="-1" layer="temporary"/>
+          </link><width sOffset="0" a="3"/></lane>
+        </right></laneSection></lanes>
+      </road>
+      <road length="10" id="2" junction="9">
+        <link><predecessor elementType="road" elementId="1" contactPoint="end"/></link>
+        <planView><geometry s="0" x="20" y="0" hdg="0" length="10"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right>
+          <lane id="-1" type="driving"><width sOffset="0" a="3"/></lane>
+        </right></laneSection></lanes>
+      </road>
+      <junction id="9"><connection id="0" incomingRoad="1" connectingRoad="2" contactPoint="start">
+        <laneLink from="-1" to="-1"/></connection></junction>
+    </OpenDRIVE>"#;
+    let net = xodr::load_str(xml).unwrap();
+    let first = &net.lanes()[0];
+    assert_eq!(first.successors.len(), 1, "{:?}", first.successors);
 }

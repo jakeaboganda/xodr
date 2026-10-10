@@ -57,10 +57,10 @@
   `lane_position`, `route` and `advance` find them where they hold the
   point. New `LayerPolicy`, and `nearest_lane_with`, `lane_position_with`,
   `route_with` and `advance_with` take it.
-- Breaking: `Lane` has a new `layer` field, serialized with a default of
-  permanent. Behaviour change on a map with a temporary layer: its lanes and
-  lane sections are baked, so the lane count, `Lane::successors` and a
-  section's index change.
+- Breaking: `Lane` has a new `layer` field. An older serialized network
+  without it loads as permanent. Behaviour change on a map with a temporary
+  layer: its lanes are now in the network, so the lane count and
+  `Lane::successors` change, and so does a lane section's index.
 - The viewer tints temporary lanes amber, lifts them a centimetre off the
   shared surface so both draw and hover, and names the layer in the readout
   and the sidebar.
