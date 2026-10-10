@@ -21,6 +21,10 @@ two right lanes, 3 m wide. So `(s, t)` is `(x, y)`. Its objects:
   short of the second, and the second 4 m short of the third.
 - 5, "Unsized" at s = 20, t = 5: a paramPoly3 of pRange arcLength with no
   length, which cannot be drawn.
+- 7, "Smooth" at s = 10, t = 6: the island's stadium, 4 m long, with no
+  hdg after the first curve, so each curve goes on from the last.
+- 6, "Swarm" at s = 0, t = 8: a 300 m arc, a thousand corners, repeated
+  every 2.5 cm over 50 m, which would bake two million corners.
 
 scenariogeneration writes no <curveLocal>, so the outlines are spliced into
 its XML. The header date is fixed, so the file is the same each run.
@@ -40,6 +44,8 @@ road.add_object([
     xodr.Object(s=45, t=-6, Type=xodr.ObjectType.barrier, id="3", name="Wave", hdg=0.5),
     xodr.Object(s=50, t=4, Type=xodr.ObjectType.obstacle, id="4", name="Broken"),
     xodr.Object(s=20, t=5, Type=xodr.ObjectType.obstacle, id="5", name="Unsized"),
+    xodr.Object(s=0, t=8, Type=xodr.ObjectType.obstacle, id="6", name="Swarm"),
+    xodr.Object(s=10, t=6, Type=xodr.ObjectType.trafficIsland, id="7", name="Smooth"),
 ])
 
 odr = xodr.OpenDrive("curve_local")
@@ -116,6 +122,18 @@ outline(
     curve(0, 3, 1, line(), hdg=-math.pi / 2, length=3),
 )
 outline("5", "true", curve(0, 0, 1, poly3("arcLength", [0, 1, 0, 0], [0, 0, 0.1, 0]), hdg=0))
+outline("6", "false", curve(0, 0, 1, arc(0.01), hdg=0, length=300))
+outline(
+    "7", "true",
+    curve(0, 0, 0.3, line(), hdg=0, length=4),
+    curve(4, 0, 0.3, arc(0.5), length=half),
+    curve(4, 4, 0.3, line()),
+    curve(0, 4, 0.3, arc(0.5), length=half),
+)
+ET.SubElement(objects["6"], "repeat", {
+    "s": "0", "length": "50", "distance": "0.025", "tStart": "8", "tEnd": "8",
+    "zOffsetStart": "0", "zOffsetEnd": "0",
+})
 
 ET.indent(tree, space="    ")
 tree.write(path, encoding="utf-8", xml_declaration=True)

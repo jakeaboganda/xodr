@@ -75,15 +75,19 @@
                         <markings>
                             <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1.0" spaceLength="0.0">
                                 <cornerReference id="0" />
-                                <cornerReference id="7" />
+                                <cornerReference id="5" />
+                            </marking>
+                            <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1.0" spaceLength="0.0">
+                                <cornerReference id="0" />
+                                <cornerReference id="1" />
                             </marking>
                         </markings>
                     </outline>
                     <outline closed="true" outer="false" id="1">
-                        <cornerRoad s="22" t="1.25" dz="0" height="0.2" id="0" />
-                        <cornerRoad s="24" t="1.25" dz="0" height="0.2" id="1" />
-                        <cornerRoad s="24" t="1.75" dz="0" height="0.2" id="2" />
-                        <cornerRoad s="22" t="1.75" dz="0" height="0.2" id="3" />
+                        <cornerRoad s="22" t="1.25" dz="0" height="0.2" id="4" />
+                        <cornerRoad s="24" t="1.25" dz="0" height="0.2" id="5" />
+                        <cornerRoad s="24" t="1.75" dz="0" height="0.2" id="6" />
+                        <cornerRoad s="22" t="1.75" dz="0" height="0.2" id="7" />
                     </outline>
                 </outlines>
             </object>

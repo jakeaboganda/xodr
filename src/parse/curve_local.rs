@@ -27,21 +27,30 @@ pub(super) struct Curve {
     /// How far its end is from the next corner's start, where that is more
     /// than [`GAP`]. 0 otherwise.
     pub gap: f64,
+    /// Its heading at its end, for a next curve with no `hdg` to go on from.
+    pub end_heading: f64,
 }
 
 /// Sample the `<curveLocal>` `node`. `next` is the corner after it, in the
 /// object's frame too, if there is one: the first for the last of a closed
-/// outline.
+/// outline. `previous` is the heading the curve before it ends at, if it
+/// follows one.
 ///
 /// The curve starts at `(u, v)` heading `hdg` and runs `length`. Without a
 /// `length` it runs to `next`: a line straight there, an arc round to it.
-/// A line without a `hdg` heads for `next`. Any other missing `hdg` is 0.
-/// `z` and `height` go straight from the curve's to `next`'s along it.
+/// Without a `next` it is only its start. A line without a `hdg` heads for
+/// `next`. Any other curve without one goes on at `previous`, so the
+/// outline stays smooth, or else heads along `u`. `z` and `height` go
+/// straight from the curve's to `next`'s along it.
 ///
 /// `None` for a curve missing its `u` or `v`, one that is not a line, an arc
 /// or a paramPoly3, and a paramPoly3 of `pRange="arcLength"` with no
 /// `length`.
-pub(super) fn sample(node: roxmltree::Node, next: Option<roxmltree::Node>) -> Option<Curve> {
+pub(super) fn sample(
+    node: roxmltree::Node,
+    next: Option<roxmltree::Node>,
+    previous: Option<f64>,
+) -> Option<Curve> {
     let corner = |n: roxmltree::Node| -> Option<[f64; 4]> {
         let z = attr_f64(n, "z").unwrap_or(0.0);
         let height = attr_f64(n, "height").unwrap_or(0.0);
@@ -55,6 +64,7 @@ pub(super) fn sample(node: roxmltree::Node, next: Option<roxmltree::Node>) -> Op
     let (path, edges) = if child(node, "line").is_some() {
         let hdg = hdg
             .or_else(|| end.map(|[eu, ev, ..]| (ev - v).atan2(eu - u)))
+            .or(previous)
             .unwrap_or(0.0);
         let length = given
             .or_else(|| end.map(|[eu, ev, ..]| (eu - u).hypot(ev - v)))
@@ -63,7 +73,7 @@ pub(super) fn sample(node: roxmltree::Node, next: Option<roxmltree::Node>) -> Op
         (Path::Geom(line), 1.0)
     } else if let Some(arc) = child(node, "arc") {
         let curvature = attr_f64(arc, "curvature")?;
-        let hdg = hdg.unwrap_or(0.0);
+        let hdg = hdg.or(previous).unwrap_or(0.0);
         let length = given
             .or_else(|| end.map(|[eu, ev, ..]| round_to(u, v, hdg, curvature, eu, ev)))
             .unwrap_or(0.0);
@@ -79,7 +89,7 @@ pub(super) fn sample(node: roxmltree::Node, next: Option<roxmltree::Node>) -> Op
         };
         let poly = Path::Poly {
             origin: (u, v),
-            hdg: hdg.unwrap_or(0.0),
+            hdg: hdg.or(previous).unwrap_or(0.0),
             u: [coeff("aU"), coeff("bU"), coeff("cU"), coeff("dU")],
             v: [coeff("aV"), coeff("bV"), coeff("cV"), coeff("dV")],
             p_max,
@@ -111,6 +121,7 @@ pub(super) fn sample(node: roxmltree::Node, next: Option<roxmltree::Node>) -> Op
     Some(Curve {
         points,
         gap: if gap > GAP { gap } else { 0.0 },
+        end_heading: path.heading_at_end(),
     })
 }
 
@@ -129,6 +140,19 @@ enum Path {
 }
 
 impl Path {
+    /// The curve's heading at its end.
+    fn heading_at_end(&self) -> f64 {
+        match self {
+            Self::Geom(geom) => geom.pose(geom.length).2,
+            Self::Poly {
+                hdg, u, v, p_max, ..
+            } => {
+                let slope = |c: &[f64; 4]| c[1] + p_max * (2.0 * c[2] + 3.0 * c[3] * p_max);
+                hdg + slope(v).atan2(slope(u))
+            }
+        }
+    }
+
     /// Where the curve is a fraction `f` of the way along it.
     fn at(&self, f: f64) -> (f64, f64) {
         match self {

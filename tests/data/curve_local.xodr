@@ -118,6 +118,34 @@
                     </outline>
                 </outlines>
             </object>
+            <object id="6" s="0" t="8" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Swarm" type="obstacle" orientation="none" hdg="0">
+                <outlines>
+                    <outline id="0" closed="false">
+                        <curveLocal u="0" v="0" z="0" height="1" hdg="0" length="300">
+                            <arc curvature="0.01" />
+                        </curveLocal>
+                    </outline>
+                </outlines>
+                <repeat s="0" length="50" distance="0.025" tStart="8" tEnd="8" zOffsetStart="0" zOffsetEnd="0" />
+            </object>
+            <object id="7" s="10" t="6" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Smooth" type="trafficIsland" orientation="none" hdg="0">
+                <outlines>
+                    <outline id="0" closed="true">
+                        <curveLocal u="0" v="0" z="0" height="0.3" hdg="0" length="4">
+                            <line />
+                        </curveLocal>
+                        <curveLocal u="4" v="0" z="0" height="0.3" length="6.283185307179586">
+                            <arc curvature="0.5" />
+                        </curveLocal>
+                        <curveLocal u="4" v="4" z="0" height="0.3">
+                            <line />
+                        </curveLocal>
+                        <curveLocal u="0" v="4" z="0" height="0.3" length="6.283185307179586">
+                            <arc curvature="0.5" />
+                        </curveLocal>
+                    </outline>
+                </outlines>
+            </object>
         </objects>
     </road>
 </OpenDRIVE>

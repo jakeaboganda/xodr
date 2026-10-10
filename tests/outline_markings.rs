@@ -122,9 +122,14 @@ fn a_paint_area_lies_flat_just_off_the_road() {
 }
 
 #[test]
-fn a_marking_inside_an_outline_naming_a_corner_it_lacks_is_skipped() {
+fn a_marking_inside_an_outline_naming_a_corner_of_another_is_skipped() {
     let (net, _) = load();
-    assert!(named(&net, "Arrow").markings.is_empty());
+    let arrow = named(&net, "Arrow");
+    let [edge] = &arrow.markings[..] else {
+        panic!("one marking: {:?}", arrow.markings);
+    };
+    let at = |s, t| surface(s, t) + up() * 0.01;
+    assert_ends(ends(edge), &[(at(20.0, 1.0), at(26.0, 1.0))], "edge");
 }
 
 #[test]

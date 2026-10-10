@@ -216,13 +216,13 @@ surface.
   it runs on the straight line between its two ends instead of along the
   road.
 - An `<outline>`, in road or local coordinates, becomes a footprint polygon
-  with a height at every corner. Its `<curveLocal>` lines, arcs and
-  paramPoly3 curves are cut into corners at most 25 cm apart. An `outer="false"` outline is a hole cut out
-  of the outline round it. Under a `<repeat>` with a `distance`, the outline
-  repeats at every step.
-- A closed outline with `fillType="paint"` is an area of paint. It lies
-  flat, 5 mm off the road, with no height. A border round it lies over it.
-  The spec says the border cuts the area back, and the crate does not.
+  with a height at every corner. Its `<curveLocal>` arcs and paramPoly3 curves
+  are cut into edges of about 25 cm. An `outer="false"` outline is a hole cut
+  out of the outline round it. Under a `<repeat>` with a `distance`, the
+  outline repeats at every step.
+- A closed outline with `fillType="paint"` is an area of paint. It lies flat,
+  5 mm above its corners, with no height. The spec says a border round it cuts
+  the area back, and the crate does not.
 - An `<objectReference>` places the object it names again, at the
   reference's own station.
 - A junction's `<objects>` stand along its `<planView>` reference line, at

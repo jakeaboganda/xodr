@@ -34,12 +34,12 @@ fn local(s: f32, t: f32, hdg: f32, p: Point) -> (f32, f32) {
     (dx * cos + dy * sin, -dx * sin + dy * cos)
 }
 
-/// How far `(u, v)` is from the island's stadium: the lines `v = 0` and
-/// `v = 4` for `u` in `[0, 10]`, and the half circles of radius 2 round
-/// `(10, 2)` and `(0, 2)` beyond them.
-fn off_stadium((u, v): (f32, f32)) -> f32 {
-    let end = if u > 10.0 {
-        Some(10.0)
+/// How far `(u, v)` is from a stadium `long` metres long: the lines `v = 0`
+/// and `v = 4` for `u` in `[0, long]`, and the half circles of radius 2
+/// round `(long, 2)` and `(0, 2)` beyond them.
+fn off_stadium(long: f32, (u, v): (f32, f32)) -> f32 {
+    let end = if u > long {
+        Some(long)
     } else if u < 0.0 {
         Some(0.0)
     } else {
@@ -71,7 +71,7 @@ fn lines_and_arcs_trace_a_smooth_outline() {
     let corners = corners(island);
     assert!(corners.len() > 40, "{} corners", corners.len());
     for c in corners {
-        let off = off_stadium(local(10.0, -5.0, 0.0, c.base));
+        let off = off_stadium(10.0, local(10.0, -5.0, 0.0, c.base));
         assert!(off < 1e-3, "{:?} is {off} m off the stadium", c.base);
         assert!((c.top.z - c.base.z - 0.3).abs() < 1e-5, "{c:?}");
     }
@@ -193,4 +193,27 @@ fn curves_that_do_not_join_are_joined_straight_with_a_warning() {
 fn an_arc_length_param_poly3_with_no_length_drops_its_outline() {
     let (net, _) = load();
     assert!(named(&net, "Unsized").is_none());
+}
+
+#[test]
+fn a_repeat_of_curves_too_many_corners_is_left_out_with_a_warning() {
+    let (net, provenance) = load();
+    assert!(named(&net, "Swarm").is_none());
+    let too_many = provenance
+        .warnings
+        .iter()
+        .any(|w| matches!(w, Warning::TooManyCopies { object_id, .. } if object_id == "6"));
+    assert!(too_many, "{:?}", provenance.warnings);
+}
+
+#[test]
+fn a_curve_with_no_heading_goes_on_from_the_curve_before() {
+    let (net, _) = load();
+    let smooth = named(&net, "Smooth").expect("the smooth island");
+    let corners = corners(smooth);
+    assert!(corners.len() > 40, "{} corners", corners.len());
+    for c in corners {
+        let off = off_stadium(4.0, local(10.0, 6.0, 0.0, c.base));
+        assert!(off < 1e-3, "{:?} is {off} m off the stadium", c.base);
+    }
 }

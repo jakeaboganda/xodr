@@ -12,8 +12,9 @@ objects:
   one along its t = -5 edge, both inside the outline.
 - 2, "Arrow": a closed paint area in road coordinates, s = 20 to 26 and
   t = 1 to 2, 0.2 m tall, with an inner outline from s = 22 to 24 and
-  t = 1.25 to 1.75, and a marking inside the outline that names a corner
-  it lacks.
+  t = 1.25 to 1.75 with corners 4 to 7. Inside the outer outline, a marking
+  along its first edge, and one that names corner 5, which only the inner
+  outline has.
 - 3, "Island": a grass outline in its own frame at s = 30, t = -3, 4 by 2 m
   and 0.15 m tall, with a marking along its first edge inside the outline.
 - 4, "Patch": a paint area in road coordinates, s = 40 to 44 and t = -1 to
@@ -39,9 +40,9 @@ road.planview.set_start_point(0, 0, 0)
 road.add_superelevation(0, 0.1, 0, 0, 0)
 
 
-def road_outline(corners, height, closed=True, fill=None, outer=None, id=0):
+def road_outline(corners, height, closed=True, fill=None, outer=None, id=0, first=0):
     outline = xodr.Outline(closed=closed, fill_type=fill, outer=outer, id=id)
-    for corner, (s, t) in enumerate(corners):
+    for corner, (s, t) in enumerate(corners, first):
         outline.add_corner(xodr.CornerRoad(s, t, 0, height, id=corner))
     return outline
 
@@ -54,7 +55,8 @@ bay = xodr.Object(s=7.5, t=-3, Type=xodr.ObjectType.parkingSpace, id="1", name="
 bay.add_outline(road_outline(rectangle(5, 10, -1, -5), 0))
 arrow = xodr.Object(s=23, t=1.5, Type=xodr.ObjectType.roadMark, id="2", name="Arrow")
 arrow.add_outline(road_outline(rectangle(20, 26, 1, 2), 0.2))
-arrow.add_outline(road_outline(rectangle(22, 24, 1.25, 1.75), 0.2, outer=False, id=1))
+arrow.add_outline(road_outline(rectangle(22, 24, 1.25, 1.75), 0.2, outer=False, id=1,
+                               first=4))
 island = xodr.Object(s=30, t=-3, Type=xodr.ObjectType.trafficIsland, id="3", name="Island")
 grass = xodr.Outline(closed=True, fill_type=xodr.FillType.grass, id=0)
 for corner, (u, v) in enumerate([(0, 0), (4, 0), (4, 2), (0, 2)]):
@@ -100,7 +102,8 @@ for id in ["2", "4", "5"]:
     outline(id).set("fillType", "paint")
 marking(outline("1"), [3, 0])
 marking(outline("1"), [1, 2], line=1.0, space=0.5)
-marking(outline("2"), [0, 7])
+marking(outline("2"), [0, 5])
+marking(outline("2"), [0, 1])
 marking(outline("3"), [0, 1])
 ET.SubElement(objects["4"], "borders").append(ET.Element("border", {
     "width": "0.2", "type": "paint", "outlineId": "0", "useCompleteOutline": "true",
