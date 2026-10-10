@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<OpenDRIVE>
+    <header name="repeats" revMajor="1" revMinor="5" date="2026-01-01T00:00:00" north="0.0" south="0.0" east="0.0" west="0.0" />
+    <road rule="RHT" id="1" junction="-1" length="80.0">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="80.0">
+                <arc curvature="0.01" />
+            </geometry>
+        </planView>
+        <elevationProfile>
+            <elevation s="0" a="0" b="0" c="0.002" d="0" />
+        </elevationProfile>
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-2" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="1" s="0" t="0" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="0.5" height="0.5" name="Drift" type="barrier" orientation="none" hdg="0" length="0.5">
+                <repeat length="20" distance="5" s="10" tStart="-4" tEnd="-1.4" heightStart="0.5" heightEnd="0.5" zOffsetStart="0" zOffsetEnd="0" bT="0.05" cT="0.002" dT="0.0001" />
+            </object>
+            <object id="2" s="0" t="0" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Kink" type="barrier" orientation="none" hdg="0">
+                <repeat length="20" distance="0" s="40" tStart="2" tEnd="4.8" heightStart="1" heightEnd="1" zOffsetStart="0" zOffsetEnd="0" widthStart="0.4" widthEnd="0.4" bT="0.1" dT="0.0001" />
+            </object>
+            <object id="3" s="0" t="0" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" height="1" name="Chord" type="barrier" orientation="none" hdg="0" radius="0.2">
+                <repeat length="40" distance="10" s="0" tStart="-5" tEnd="-7" heightStart="1" heightEnd="1" zOffsetStart="0" zOffsetEnd="0" detachFromReferenceLine="true" />
+            </object>
+            <object id="4" s="0" t="0" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Wall" type="barrier" orientation="none" hdg="0">
+                <repeat length="40" distance="0" s="40" tStart="-6" tEnd="-6" heightStart="1.5" heightEnd="1.5" zOffsetStart="0" zOffsetEnd="0" widthStart="0.3" widthEnd="0.3" detachFromReferenceLine="true" />
+            </object>
+            <object id="5" s="0" t="0" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="0.5" height="0.5" name="Stray" type="barrier" orientation="none" hdg="0" length="0.5">
+                <repeat length="10" distance="5" s="60" tStart="1" tEnd="1" heightStart="0.5" heightEnd="0.5" zOffsetStart="0" zOffsetEnd="0" bT="0.1" />
+            </object>
+            <object id="6" s="0" t="0" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="0.5" height="0.5" name="Flat" type="barrier" orientation="none" hdg="0" length="0.5">
+                <repeat length="10" distance="5" s="0" tStart="2" tEnd="3" heightStart="0.5" heightEnd="0.5" zOffsetStart="0" zOffsetEnd="0" bT="0" cT="0" dT="0" detachFromReferenceLine="false" />
+            </object>
+            <object id="7" s="0" t="0" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="0.5" height="0.5" name="Right" type="barrier" orientation="none" hdg="0" length="0.5">
+                <repeat length="10" distance="5" s="20" tStart="4" tEnd="4" heightStart="0.5" heightEnd="0.5" zOffsetStart="0" zOffsetEnd="0" bT="-0.1" />
+            </object>
+        </objects>
+    </road>
+</OpenDRIVE>

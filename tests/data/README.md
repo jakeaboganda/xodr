@@ -269,6 +269,12 @@ following the road with `perpToRoad`. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/object_poses.py
 
+`repeats.xodr` comes from `repeats.py`. It has repeats whose `t` is a
+cubic, one whose cubic misses its `tEnd`, and repeats detached from the
+reference line, on an arc. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/repeats.py
+
 `single_side.xodr` comes from `single_side.py`. It has lane sections that give
 only the left or only the right side, with widths, heights, marks and links
 the other side carries on. Regenerate with

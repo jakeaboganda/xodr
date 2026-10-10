@@ -210,6 +210,10 @@ surface.
   posts arrives as posts. A `<repeat>` with a `distance` of 0, such as a guard
   rail, becomes one shape swept along the road. With a radius it is a round
   pipe.
+- A `<repeat>`'s `t` runs straight from `tStart` to `tEnd`, or follows the
+  cubic its `bT`, `cT` and `dT` give. With `detachFromReferenceLine="true"`
+  it runs on the straight line between its two ends instead of along the
+  road.
 - An `<outline>`, in road or local coordinates, becomes a footprint polygon
   with a height at every corner. An `outer="false"` outline is a hole cut out
   of the outline round it. Under a `<repeat>` with a `distance`, the outline
@@ -365,6 +369,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `GeometryDropped` | a `<geometry>` missing its pose or `length`, with a `length` that isn't above 0 or is over 100 km, or of a shape the crate doesn't know |
 | `RoadMarkLineDropped` | a road mark line with more dashes than the crate paints (100,000 on the line, or 1,000,000 in the whole file), or whose paint lands out of range |
 | `TooManyCopies` | an `<object>` whose `<repeat>` or dashed `<marking>` would make over 100,000 copies or dashes |
+| `RepeatEndMismatch` | a `<repeat>` whose cubic `t` ends more than a millimetre from its `tEnd`. The crate follows the cubic |
 | `LaneIdUnreadable` | a `<lane>` under `<left>` or `<right>` whose `id` isn't a whole number, or is 0 |
 | `LaneDropped` | a lane with no `<width>` or `<border>` the crate can read |
 | `WidthAndBorder` | a lane with `<border>`s in a lane section that also has `<width>`s |
@@ -419,11 +424,10 @@ Uses of elements it reads that it ignores:
 | Feature | What the crate does |
 | --- | --- |
 | a second `<lanes>` of one layer | leaves it out |
-| a `<repeat>`'s `bT`, `cT` or `dT`, or `detachFromReferenceLine="true"` | copies run straight along the road |
 | a boundary `<segment>`'s `transitionLength` above 0 | no blending |
 
-A first `<lanes>` of either layer, `detachFromReferenceLine="false"`, a `bT`,
-`cT` or `dT` of 0, and a `transitionLength` of 0 raise nothing.
+A first `<lanes>` of either layer and a `transitionLength` of 0 raise
+nothing.
 
 The importer reads a lane section's `<center>` for the road marks on the
 center line, and for the lane's `id`, `type`, `level` and `<link>`, which are

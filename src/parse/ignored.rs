@@ -56,16 +56,6 @@ const FEATURES: &[Feature] = &[
         when: repeats_a_layer,
     },
     Feature {
-        name: "<repeat bT, cT or dT>",
-        path: "objects/object/repeat",
-        when: has_cubic_terms,
-    },
-    Feature {
-        name: "<repeat detachFromReferenceLine=\"true\">",
-        path: "objects/object/repeat",
-        when: detached,
-    },
-    Feature {
         name: "<object> <surface>",
         path: "objects/object/surface",
         when: always,
@@ -137,22 +127,6 @@ fn repeats_a_layer(node: roxmltree::Node) -> bool {
     node.prev_siblings()
         .skip(1)
         .any(|n| n.has_tag_name("lanes") && temporary(&n) == temporary(&node))
-}
-
-fn flag(node: roxmltree::Node, name: &str) -> bool {
-    matches!(node.attribute(name), Some("true" | "1"))
-}
-
-fn detached(node: roxmltree::Node) -> bool {
-    flag(node, "detachFromReferenceLine")
-}
-
-fn has_cubic_terms(node: roxmltree::Node) -> bool {
-    ["bT", "cT", "dT"].iter().any(|name| {
-        node.attribute(*name)
-            .and_then(|v| v.trim().parse::<f64>().ok())
-            .is_some_and(|v| v != 0.0)
-    })
 }
 
 fn blends(node: roxmltree::Node) -> bool {

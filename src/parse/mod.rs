@@ -2500,6 +2500,9 @@ struct Objects {
 struct Station {
     s: f64,
     t: f64,
+    /// Where the object stands, if not on the road at `(s, t)`: on the line
+    /// of a repeat detached from the reference line.
+    ground: Option<Point>,
     z_offset: f64,
     length: Option<f64>,
     width: Option<f64>,
@@ -2528,7 +2531,8 @@ impl Frame {
         perp_to_road: bool,
         (hdg, pitch, roll): (f64, f64, f64),
     ) -> Self {
-        let (ground, heading) = road.surface(st.s, st.t);
+        let (on_road, heading) = road.surface(st.s, st.t);
+        let ground = st.ground.unwrap_or(on_road);
         if perp_to_road {
             let axes = road.axes(st.s);
             let raise = axes[2].map(|c| (c * st.z_offset) as f32);
@@ -2813,6 +2817,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     let base = Station {
         s: at.s,
         t: at.t,
+        ground: None,
         z_offset: at.z_offset,
         length: attr_f64(node, "length"),
         width: attr_f64(node, "width"),
@@ -2843,8 +2848,16 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     let repeats: Vec<Repeat> = node
         .children()
         .filter(|n| n.has_tag_name("repeat"))
-        .filter_map(|n| Repeat::parse(n, at.shift))
+        .filter_map(|n| Repeat::parse(n, at.shift, &base, road))
         .collect();
+    for (t_end, reached) in repeats.iter().filter_map(|r| r.missed_end(&base)) {
+        out.warnings.push(Warning::RepeatEndMismatch {
+            road_id: road.od_id.clone(),
+            object_id: node.attribute("id").unwrap_or_default().to_string(),
+            t_end,
+            reached,
+        });
+    }
     let outlines = outline_nodes(node);
     let outlined = |st: &Station| {
         let origin = road.on_road(st.s).then(|| frame(st));
@@ -3056,41 +3069,99 @@ struct Repeat<'a> {
     distance: f64,
     /// Added to the `t` values the repeat gives, from its [`Placement`].
     shift_t: f64,
+    /// `bT`, `cT` and `dT`, if it gives any of them. Then `t` is a cubic in
+    /// the distance from `start`, and `tEnd` plays no part. A negative one,
+    /// which the schema forbids, is read as written.
+    cubic: Option<[f64; 3]>,
+    /// For `detachFromReferenceLine="true"`, the ground at its start and its
+    /// end. Its copies stand on the straight line between them.
+    line: Option<[Point; 2]>,
 }
 
 impl<'a> Repeat<'a> {
-    /// The repeat moved by a [`Placement`]'s `shift`, or `None` for one
-    /// missing its `s`, `length` or `distance`, or carrying a negative one of
-    /// the last two.
-    fn parse(node: roxmltree::Node<'a, 'a>, (shift_s, shift_t): (f64, f64)) -> Option<Self> {
-        let repeat = Self {
+    /// The repeat moved by a [`Placement`]'s `shift`, for an object at
+    /// `base` on `road`, or `None` for one missing its `s`, `length` or
+    /// `distance`, or carrying a negative one of the last two.
+    fn parse(
+        node: roxmltree::Node<'a, 'a>,
+        (shift_s, shift_t): (f64, f64),
+        base: &Station,
+        road: &Road,
+    ) -> Option<Self> {
+        let terms = ["bT", "cT", "dT"].map(|name| attr_f64(node, name));
+        let mut repeat = Self {
             node,
             start: attr_f64(node, "s")? + shift_s,
             length: attr_f64(node, "length")?,
             distance: attr_f64(node, "distance")?,
             shift_t,
+            cubic: terms
+                .iter()
+                .any(Option::is_some)
+                .then(|| terms.map(|c| c.unwrap_or(0.0))),
+            line: None,
         };
-        (repeat.length >= 0.0 && repeat.distance >= 0.0).then_some(repeat)
+        if repeat.length < 0.0 || repeat.distance < 0.0 {
+            return None;
+        }
+        if matches!(
+            node.attribute("detachFromReferenceLine"),
+            Some("true" | "1")
+        ) {
+            let end = |f: f64| {
+                road.surface(repeat.start + repeat.length * f, repeat.t(base, f))
+                    .0
+            };
+            repeat.line = Some([end(0.0), end(1.0)]);
+        }
+        Some(repeat)
+    }
+
+    /// The `t` a fraction `f` of the way along: the cubic from `tStart`, if
+    /// the repeat has one, or else straight from `tStart` to `tEnd`. A `t`
+    /// the repeat does not give is the object's own.
+    fn t(&self, base: &Station, f: f64) -> f64 {
+        let given = |name| attr_f64(self.node, name).map(|v| v + self.shift_t);
+        let start = given("tStart").unwrap_or(base.t);
+        match self.cubic {
+            Some([b, c, d]) => {
+                let ds = self.length * f;
+                start + ds * (b + ds * (c + ds * d))
+            }
+            None => start + (given("tEnd").unwrap_or(start) - start) * f,
+        }
+    }
+
+    /// Where a cubic `t` ends, if the repeat has one and its `tEnd` is more
+    /// than a millimetre away. The spec says the two agree.
+    fn missed_end(&self, base: &Station) -> Option<(f64, f64)> {
+        self.cubic?;
+        let t_end = attr_f64(self.node, "tEnd")? + self.shift_t;
+        let reached = self.t(base, 1.0);
+        ((reached - t_end).abs() > 1e-3).then_some((t_end, reached))
     }
 
     /// The object's station a fraction `f` of the way along the repeat, with
-    /// `t`, `zOffset` and each dimension interpolated from its start value to
-    /// its end value. A value the repeat does not give is the object's own.
+    /// `t` from [`Self::t`], and `zOffset` and each dimension interpolated
+    /// from its start value to its end value. A value the repeat does not
+    /// give is the object's own. On a detached repeat, the station's ground
+    /// is on its line.
     fn at(&self, base: &Station, f: f64) -> Station {
-        let lerp = |name: &str, fallback: Option<f64>, shift: f64| {
-            let given = |end| attr_f64(self.node, &format!("{name}{end}")).map(|v| v + shift);
+        let lerp = |name: &str, fallback: Option<f64>| {
+            let given = |end| attr_f64(self.node, &format!("{name}{end}"));
             let start = given("Start").or(fallback)?;
             let end = given("End").unwrap_or(start);
             Some(start + (end - start) * f)
         };
         Station {
             s: self.start + self.length * f,
-            t: lerp("t", Some(base.t), self.shift_t).unwrap_or(base.t),
-            z_offset: lerp("zOffset", Some(base.z_offset), 0.0).unwrap_or(base.z_offset),
-            length: lerp("length", base.length, 0.0),
-            width: lerp("width", base.width, 0.0),
-            height: lerp("height", base.height, 0.0),
-            radius: lerp("radius", base.radius, 0.0),
+            t: self.t(base, f),
+            ground: self.line.map(|[a, b]| a.lerp(b, f as f32)),
+            z_offset: lerp("zOffset", Some(base.z_offset)).unwrap_or(base.z_offset),
+            length: lerp("length", base.length),
+            width: lerp("width", base.width),
+            height: lerp("height", base.height),
+            radius: lerp("radius", base.radius),
         }
     }
 
@@ -3140,8 +3211,14 @@ fn sweep(repeat: &Repeat, base: &Station, road: &Road) -> Option<(Shape, Station
                 st.height.unwrap_or(0.0) as f32,
             ),
         };
-        let corner = |t| {
-            let (mut base, _) = road.surface(s, t);
+        let corner = |side: f64| {
+            let mut base = match (st.ground, repeat.line) {
+                (Some(ground), Some([a, b])) => {
+                    let left = Vector::new(a.y - b.y, b.x - a.x, 0.0).normalize_or_zero();
+                    ground + left * (side * half) as f32
+                }
+                _ => road.surface(s, st.t + side * half).0,
+            };
             base.z += st.z_offset as f32;
             Corner {
                 base,
@@ -3149,8 +3226,8 @@ fn sweep(repeat: &Repeat, base: &Station, road: &Road) -> Option<(Shape, Station
             }
         };
         Section {
-            left: corner(st.t + half),
-            right: corner(st.t - half),
+            left: corner(1.0),
+            right: corner(-1.0),
         }
     };
     let sections = sweep_stations(start, end, |a, b, f| {

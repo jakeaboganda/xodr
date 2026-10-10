@@ -155,7 +155,7 @@
 //! | `<object><parkingSpace>` | `access`, `restrictions` |
 //! | `<object><material>` | `surface`, `friction`, `roughness`, `roadMarkColor` |
 //! | `<object><userData>` | `code`, `value` |
-//! | `<object><repeat>` | `s`, `length`, `distance`, and the `Start`/`End` pair of `t`, `zOffset`, `length`, `width`, `height`, `radius` |
+//! | `<object><repeat>` | `s`, `length`, `distance`, `bT`, `cT`, `dT`, `detachFromReferenceLine`, and the `Start`/`End` pair of `t`, `zOffset`, `length`, `width`, `height`, `radius` |
 //! | `<outlines><outline>` | `id`, `closed`, `outer`, `fillType`, `laneType` |
 //! | `<cornerRoad>` | `id`, `s`, `t`, `dz`, `height` |
 //! | `<cornerLocal>` | `id`, `u`, `v`, `z`, `height` |
@@ -322,6 +322,20 @@
 //!   cross-section swept continuously along the road, such as a guard rail.
 //!   A `radius` makes the sweep round, a pipe resting on its `zOffset`, and
 //!   its `width` and `height` play no part.
+//! - A repeat's `t` runs straight from `tStart` to `tEnd`. With any of `bT`,
+//!   `cT` and `dT`, it is the cubic `tStart + bT ds + cT ds² + dT ds³` in the
+//!   distance `ds` from the repeat's `s`, and `tEnd` plays no part. So
+//!   coefficients of 0 hold `t` at `tStart`. The spec says the cubic ends at
+//!   `tEnd`. Where it ends more than a millimetre away, the crate raises
+//!   [`Warning::RepeatEndMismatch`]. The schema allows no negative coefficient.
+//!   The crate departs from it and reads one as written, so a cubic may drift
+//!   right.
+//! - With `detachFromReferenceLine="true"`, a repeat runs on the straight
+//!   line between the ground at its two ends, `(s, tStart)` and
+//!   `(s + length, tEnd)`. Each copy stands on the line, and a sweep's
+//!   cross-sections lie level and square to it. A copy's `hdg` still turns
+//!   it from the road's heading at its `s`, since the spec detaches only
+//!   positions. A `<cornerRoad>` under it moves as if it were not detached.
 //! - Each `<outline>` is a [`Shape::Outline`], and an object with outlines
 //!   has no solid of its own. `<outline>` is read under `<outlines>`, and
 //!   straight under `<object>` as OpenDRIVE 1.4 writes it.
@@ -775,11 +789,12 @@
 //! The step between a raised lane and the lane beside it stays open. The
 //! spec defines no kerb face, and libOpenDRIVE and esmini draw none.
 //!
-//! Objects and signals stand on the lane at their point, and a road mark on
-//! its own lane. So a pole on a sidewalk stands on the sidewalk, a
-//! sidewalk's outer mark rises with it, and the mark along the kerb, which
-//! belongs to the lane below it, stays on the road. An object that follows the road with `perpToRoad` leans with the road, not
-//! with the slope of the lane under it, as in libOpenDRIVE.
+//! Objects and signals stand on the lane at their point, and a road mark on its
+//! own lane. So a pole on a sidewalk stands on the sidewalk, a sidewalk's outer
+//! mark rises with it, and the mark along the kerb, which belongs to the lane
+//! below it, stays on the road. An object that follows the road with
+//! `perpToRoad` leans with the road, not with the slope of the lane under it,
+//! as in libOpenDRIVE.
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:
 //!
@@ -1047,8 +1062,6 @@
 //!
 //! - a second `lanes` of one [`Layer`] on a road, which the crate leaves out.
 //!   It keeps the first;
-//! - a repeat's `bT`, `cT` or `dT` other than 0, and
-//!   `detachFromReferenceLine="true"`;
 //! - a boundary segment's `transitionLength` above 0.
 //!
 //! One omission changes the road you get back, rather than only dropping
@@ -1309,6 +1322,8 @@
 //!   so wide or so far off its border that its paint lands out of range.
 //! - [`Warning::TooManyCopies`] for an object whose `<repeat>` or dashed
 //!   `<marking>` would make over 100,000 copies or dashes.
+//! - [`Warning::RepeatEndMismatch`] for a repeat whose cubic `t` does not
+//!   end at its `tEnd`.
 //! - [`Warning::LaneIdUnreadable`] for a lane whose `id` isn't a whole
 //!   number, or is 0 outside `<center>`.
 //! - [`Warning::LaneDropped`] for a lane with no `<width>` or `<border>` it

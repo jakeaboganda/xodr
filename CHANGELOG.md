@@ -55,6 +55,15 @@
   by the road at its origin, so a large outline does not bend with the road.
 - `tests/data/object_poses.xodr` has the same box and outline on a graded,
   banked road, upright and following the road.
+- Behaviour change: a `<repeat>`'s `bT`, `cT` and `dT` are read. With any
+  of them, `t` is a cubic from `tStart` and `tEnd` plays no part, so
+  coefficients of 0 hold `t` at `tStart`. New
+  `Warning::RepeatEndMismatch` where the cubic misses `tEnd`. A negative
+  coefficient, which the schema forbids, is read as written.
+- Behaviour change: `detachFromReferenceLine="true"` is read. The repeat
+  runs on the straight line between its two ends.
+- `tests/data/repeats.xodr` has cubic, detached and mismatched repeats on
+  an arc.
 
 ### Single-side lane sections
 
