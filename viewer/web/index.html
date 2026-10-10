@@ -1427,21 +1427,22 @@ function buildLegend() {
   document.getElementById('legend').replaceChildren(frag);
 }
 
-// Every road's lanes, objects and signals that match the filter `q`, by road
-// id, in the order the map lists its lanes.
+// Every road's lanes, objects and signals that match the filter `q`, keyed
+// `road <id>` in the order the map lists its lanes, and a junction's objects
+// keyed `junction <id>`.
 function sidebarRoads(q) {
   const has = (...fields) => !q || fields.some(f => f != null && String(f).toLowerCase().includes(q));
   const roads = new Map();
   const add = (list, kind, match) => {
     for (const x of list) {
       if (!match(x)) continue;
-      const road = String(x.roadId ?? '(none)');
-      if (!roads.has(road)) roads.set(road, { lanes: [], objects: [], signals: [] });
-      roads.get(road)[kind].push(x);
+      const key = x.junctionId ? `junction ${x.junctionId}` : `road ${x.roadId ?? '(none)'}`;
+      if (!roads.has(key)) roads.set(key, { lanes: [], objects: [], signals: [] });
+      roads.get(key)[kind].push(x);
     }
   };
   add(lanes, 'lanes', l => has(l.roadId, l.odLaneId, l.laneId, l.laneType));
-  add(objects, 'objects', o => has(o.roadId, o.odId, o.objectType, o.subtype, o.name));
+  add(objects, 'objects', o => has(o.roadId, o.junctionId, o.odId, o.objectType, o.subtype, o.name));
   add(signals, 'signals', sg => has(sg.roadId, sg.odId, sg.name, sg.country, sg.type, sg.subtype));
   return roads;
 }
@@ -1450,10 +1451,10 @@ function sidebarRoads(q) {
 // them, and each road's objects or signals where there are few.
 function buildSidebar() {
   const roads = sidebarRoads('');
-  if (roads.size <= OPEN_BELOW) roads.forEach((_, road) => openGroups.add(`road ${road}`));
-  for (const [road, { objects, signals }] of roads) {
-    if (objects.length <= OPEN_BELOW) openGroups.add(`road ${road} objects`);
-    if (signals.length <= OPEN_BELOW) openGroups.add(`road ${road} signals`);
+  if (roads.size <= OPEN_BELOW) roads.forEach((_, key) => openGroups.add(key));
+  for (const [key, { objects, signals }] of roads) {
+    if (objects.length <= OPEN_BELOW) openGroups.add(`${key} objects`);
+    if (signals.length <= OPEN_BELOW) openGroups.add(`${key} signals`);
   }
   if (structures.length <= OPEN_BELOW) openGroups.add('structures');
   if (warnings.length <= OPEN_BELOW) openGroups.add('warnings');
@@ -1524,16 +1525,16 @@ function renderSidebar() {
       });
     }
   }
-  for (const [road, r] of roads) {
+  for (const [key, r] of roads) {
     const counts = ['lanes', 'objects', 'signals'].filter(k => r[k].length).map(k => `${r[k].length} ${k}`);
-    const g = group(frag, `road ${road}`, 'road', `road ${escapeHtml(road)} <span class="tag">${counts.join(' · ')}</span>`);
+    const g = group(frag, key, 'road', `${escapeHtml(key)} <span class="tag">${counts.join(' · ')}</span>`);
     r.lanes.sort((a, b) => a.section - b.section || b.odLaneId - a.odLaneId);
     for (const l of r.lanes) {
       item(g, l, `<span>lane ${l.odLaneId} <span class="tag">§${l.section} ${l.laneType}${l.layer === 'temporary' ? ' · temporary' : ''}</span></span>` +
         `<span class="tag">${l.length.toFixed(0)} m</span>`, () => { select('lane', l); frameOnLane(l); });
     }
     if (r.objects.length) {
-      const objectGroup = group(g, `road ${road} objects`, 'group', `objects <span class="tag">${r.objects.length}</span>`);
+      const objectGroup = group(g, `${key} objects`, 'group', `objects <span class="tag">${r.objects.length}</span>`);
       for (const o of r.objects.sort((a, b) => a.s - b.s)) {
         const name = o.name ? ` <span class="tag">${escapeHtml(o.name)}</span>` : '';
         item(objectGroup, o, `<span>${escapeHtml(o.objectType)}${name}</span>${at(o)}`, () => {
@@ -1545,7 +1546,7 @@ function renderSidebar() {
       }
     }
     if (r.signals.length) {
-      const signalGroup = group(g, `road ${road} signals`, 'group', `signals <span class="tag">${r.signals.length}</span>`);
+      const signalGroup = group(g, `${key} signals`, 'group', `signals <span class="tag">${r.signals.length}</span>`);
       for (const s of r.signals.sort((a, b) => a.s - b.s)) {
         const code = [s.country, s.type, s.subtype].filter(c => c && c !== '-1').map(escapeHtml).join(' ');
         item(signalGroup, s, `<span>${escapeHtml(s.name || 'signal')} <span class="tag">${code}</span></span>${at(s)}`, () => {
@@ -1685,7 +1686,8 @@ function objectRows(o, p, border) {
   const rows = [`<b>${o.objectType}</b>${sub}${o.name ? '  ' + escapeHtml(o.name) : ''}` +
     (o.dynamic ? '  dynamic' : '') + (o.invalidated ? '  invalidated' : '') + (o.temporary ? '  temporary' : '')];
   if (o.roadId != null) {
-    rows.push(`road ${escapeHtml(o.roadId)}  object ${escapeHtml(o.odId)}  ` +
+    const on = o.junctionId ? `junction ${escapeHtml(o.junctionId)}` : `road ${escapeHtml(o.roadId)}`;
+    rows.push(`${on}  object ${escapeHtml(o.odId)}  ` +
       `s ${o.s.toFixed(2)} m   t ${o.t.toFixed(2)} m`);
     const valid = o.validLength != null ? `   valid ${o.validLength.toFixed(2)} m` : '';
     rows.push(`orientation ${o.orientation}${valid}   objectId ${o.objectId}`);
