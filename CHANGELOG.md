@@ -61,6 +61,9 @@
   permanent. Behaviour change on a map with a temporary layer: its lanes and
   lane sections are baked, so the lane count, `Lane::successors` and a
   section's index change.
+- The viewer tints temporary lanes amber, lifts them a centimetre off the
+  shared surface so both draw and hover, and names the layer in the readout
+  and the sidebar.
 - `tests/data/lane_layers.xodr` has roads with temporary layers, links
   between the layers, a layer listed first, validities of each layer and a
   junction link between temporary lanes.
