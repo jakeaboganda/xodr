@@ -3408,8 +3408,10 @@ impl<'a> Repeat<'a> {
 /// its [`sweep_stations`] on the road: `width` wide about its `t`, `height`
 /// tall from its `zOffset`. A missing width is 0, a wall with no thickness, as
 /// libOpenDRIVE has it. With a `radius`, the sweep is round instead, a pipe
-/// resting on `zOffset`, and `width` and `height` play no part. Also returns
-/// the station the sections start at, and the `s` they end at. `None` if less
+/// resting on `zOffset`, and `width` and `height` play no part. A detached
+/// repeat's sections lie level and square to its line, or across the road
+/// where its ends meet in plan. Also returns the station the sections start
+/// at, and the `s` they end at. `None` if less
 /// than a millimetre of it is on the road.
 fn sweep(repeat: &Repeat, base: &Station, road: &Road) -> Option<(Shape, Station, f64)> {
     let start = repeat.start.max(0.0);
@@ -3419,6 +3421,10 @@ fn sweep(repeat: &Repeat, base: &Station, road: &Road) -> Option<(Shape, Station
     }
     let first = repeat.at(base, (start - repeat.start) / repeat.length);
     let round = first.radius.is_some();
+    let left = repeat
+        .line
+        .map(|[a, b]| Vector::new(a.y - b.y, b.x - a.x, 0.0).normalize_or_zero())
+        .filter(|left| *left != Vector::ZERO);
     let section = |s: f64| {
         let st = repeat.at(base, (s - repeat.start) / repeat.length);
         let (half, height) = match st.radius {
@@ -3429,11 +3435,8 @@ fn sweep(repeat: &Repeat, base: &Station, road: &Road) -> Option<(Shape, Station
             ),
         };
         let corner = |side: f64| {
-            let mut base = match (st.ground, repeat.line) {
-                (Some(ground), Some([a, b])) => {
-                    let left = Vector::new(a.y - b.y, b.x - a.x, 0.0).normalize_or_zero();
-                    ground + left * (side * half) as f32
-                }
+            let mut base = match (st.ground, left) {
+                (Some(ground), Some(left)) => ground + left * (side * half) as f32,
                 _ => road.surface(s, st.t + side * half).0,
             };
             base.z += st.z_offset as f32;
@@ -5625,7 +5628,7 @@ mod tests {
     #[test]
     fn an_object_perpendicular_to_the_road_leans_with_the_bank_and_ignores_pitch_and_roll() {
         // zOffset raises it square to the banked surface, and it rolls with
-        // the bank alone, as libOpenDRIVE places every object.
+        // the bank alone.
         let objects = objects_of(&banked_road_with(
             r#"<object id="1" s="10" t="3" zOffset="0.5" pitch="0.2" roll="0.05" perpToRoad="true"/>"#,
         ));

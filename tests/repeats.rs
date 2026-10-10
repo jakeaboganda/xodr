@@ -147,6 +147,7 @@ fn a_detached_continuous_repeat_runs_straight_and_square_to_its_line() {
         let across = left - right;
         assert!((across.length() - 0.3).abs() < 1e-4, "{across:?} across");
         assert!(across.dot(along).abs() < 1e-4, "{across:?} not square");
+        assert!(along.cross(across).z > 0.0, "{across:?} runs right to left");
         assert!(across.z.abs() < 1e-6, "{across:?} not level");
     }
     assert_near(sections(wall)[0].0, a, "start");
