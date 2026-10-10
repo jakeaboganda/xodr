@@ -173,8 +173,12 @@ pub struct LaneHeight {
 pub struct ObjectProvenance {
     /// The baked object this record describes.
     pub object: ObjectId,
-    /// The `<road id>` the object is on.
+    /// The `<road id>` the object is on. Empty for an object of a junction.
     pub road_id: String,
+    /// The `<junction id>` whose `<objects>` hold the object, which stands
+    /// along the junction's reference line. Empty for an object on a road.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub junction_id: String,
     /// The `<object id>` it came from. Every object a `<repeat>` or several
     /// outlines bake from one `<object>` shares it. Empty if the file gives
     /// none. For an object an `<objectReference>` placed, this is the id the
@@ -193,8 +197,8 @@ pub struct ObjectProvenance {
     /// the file says. Meant for objects such as a speed bump that act over a
     /// stretch of road.
     pub valid_length: Option<f64>,
-    /// `Some` if an `<objectReference>` on `road_id` placed the object: the
-    /// road its `<object>` is on. `s`, `t`, `orientation` and `valid_length`
+    /// `Some` if an `<objectReference>` on `road_id` or in `junction_id`
+    /// placed the object: the road its `<object>` is on. `s`, `t`, `orientation` and `valid_length`
     /// are then the reference's, and the shape is the `<object>`'s, moved to
     /// the reference's station.
     pub referenced_from: Option<String>,
@@ -614,6 +618,17 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     }
     if lanes.is_empty() {
         return Err(ImportError::Malformed("no lanes found".into()));
+    }
+    for junction in root.children().filter(|n| n.has_tag_name("junction")) {
+        let Some(objects_node) = child(junction, "objects") else {
+            continue;
+        };
+        match junction_line(junction) {
+            Some(line) => place_objects(objects_node, &index, &line, &mut objects),
+            None => warnings.push(Warning::JunctionObjectsDropped {
+                junction_id: junction.attribute("id").unwrap_or_default().to_string(),
+            }),
+        }
     }
     surfaces.extend(junction_crgs(root, &topo));
     let signals = signals::place(root, &roads, &lanes, &objects.provenance);
@@ -2669,6 +2684,41 @@ fn place_structures(
     }
 }
 
+/// A junction's reference line, from its `<planView>`, as a road for its
+/// `<objects>` to stand along: no `od_id`, its `junction` the junction's
+/// `id`, and no lanes, elevation or superelevation, as the spec says. So an
+/// object there stands at `z` 0, raised by its `zOffset`. `None` for a
+/// junction with no `<geometry>` the crate can bake.
+///
+/// The spec allows one `<line>`. The crate bakes any geometry a road may
+/// have.
+fn junction_line(junction: roxmltree::Node) -> Option<Road> {
+    let mut geoms: Vec<GeomRec> = child(junction, "planView")?
+        .children()
+        .filter(|n| n.has_tag_name("geometry"))
+        .filter_map(geometry)
+        .collect();
+    if geoms.is_empty() {
+        return None;
+    }
+    geoms.sort_by(|a, b| a.s.total_cmp(&b.s));
+    Some(Road {
+        id: RoadId(usize::MAX),
+        od_id: String::new(),
+        name: String::new(),
+        junction: junction.attribute("id").map(str::to_string),
+        length: geoms.iter().map(|g| g.s + g.length).fold(0.0, f64::max),
+        rule: TrafficRule::RightHand,
+        geoms,
+        elevations: Vec::new(),
+        superelevations: Vec::new(),
+        lateral: Lateral::default(),
+        lane_offsets: Vec::new(),
+        temporary_lane_offsets: Vec::new(),
+        sections: Vec::new(),
+    })
+}
+
 /// Every `<object>` in the document by its id, with the road it is on, for
 /// an `<objectReference>` to find. Ids are meant to be unique across the
 /// file. Where two objects share one, the first wins.
@@ -2972,6 +3022,11 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         out.provenance.push(ObjectProvenance {
             object: id,
             road_id: road.od_id.clone(),
+            junction_id: road
+                .junction
+                .clone()
+                .filter(|_| road.od_id.is_empty())
+                .unwrap_or_default(),
             od_id: text("id"),
             s: part.s,
             t: part.t,

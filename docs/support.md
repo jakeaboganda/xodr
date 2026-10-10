@@ -224,6 +224,9 @@ surface.
   The spec says the border cuts the area back, and the crate does not.
 - An `<objectReference>` places the object it names again, at the
   reference's own station.
+- A junction's `<objects>` stand along its `<planView>` reference line, at
+  height 0 plus their `zOffset`, since the line has no elevation. Their
+  provenance names the junction.
 - A `<marking>`, such as a crosswalk's stripes, becomes painted quads along
   the outline edges it names, or along one side of the object's box if it
   names none. It is read inside an `<outline>`, as OpenDRIVE 1.9 writes it,
@@ -374,6 +377,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `GeometryDropped` | a `<geometry>` missing its pose or `length`, with a `length` that isn't above 0 or is over 100 km, or of a shape the crate doesn't know |
 | `RoadMarkLineDropped` | a road mark line with more dashes than the crate paints (100,000 on the line, or 1,000,000 in the whole file), or whose paint lands out of range |
 | `TooManyCopies` | an `<object>` whose `<repeat>` or dashed `<marking>` would make over 100,000 copies or dashes |
+| `JunctionObjectsDropped` | a junction's `<objects>` with no `<planView>` geometry to stand along |
 | `OutlineGap` | an `<outline>` whose `<curveLocal>`s leave a gap over 1 cm. The crate joins it with a straight edge |
 | `RepeatEndMismatch` | a `<repeat>` whose cubic `t` ends more than a millimetre from its `tEnd`. The crate follows the cubic |
 | `LaneIdUnreadable` | a `<lane>` under `<left>` or `<right>` whose `id` isn't a whole number, or is 0 |
@@ -419,10 +423,9 @@ of the document, with how many times the file uses it.
 
 Elements it skips: `<vmsGroup>`, a header's `<license>` and
 `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a junction's
-`<objects>` and `<roadSection>`s, and an object's `<surface>` and
-`<skeleton>`. It skips `<userData>` anywhere but
-directly on an object, which it reads. It also skips the `<validity>`,
-`<dependency>` and `<reference>` of a board sign.
+`<roadSection>`s, and an object's `<surface>` and `<skeleton>`. It skips
+`<userData>` anywhere but directly on an object, which it reads. It also skips
+the `<validity>`, `<dependency>` and `<reference>` of a board sign.
 
 Uses of elements it reads that it ignores:
 

@@ -276,6 +276,12 @@ with
 
     uv run --with scenariogeneration==0.16.6 tests/data/curve_local.py
 
+`junction_objects.xodr` comes from `junction_objects.py`. It has a tee
+junction with objects along its reference line, and a junction whose objects
+have no line to stand along. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/junction_objects.py
+
 `outline_markings.xodr` comes from `outline_markings.py`. It has markings
 inside outlines, beside one under its object, and closed and open areas of
 paint, one with a hole and one with a border, on a banked road. Regenerate

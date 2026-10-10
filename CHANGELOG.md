@@ -79,6 +79,15 @@
   that file's curves do.
 - `tests/data/curve_local.xodr` has a stadium, a circle, a paramPoly3, a gap
   and a curve that cannot be drawn.
+- Behaviour change: a junction's `<objects>` are read. They stand along the
+  junction's `<planView>` reference line, at height 0 plus their `zOffset`.
+  New `Warning::JunctionObjectsDropped` for a junction with objects and no
+  reference line.
+- Breaking: `ObjectProvenance` has a new `junction_id` field, so a
+  literal one needs it. An older serialized one loads with it empty. A
+  junction's object has an empty `road_id`.
+- `tests/data/junction_objects.xodr` has a tee whose reference line carries a
+  box, an outline, a repeat and a reference to a road's object.
 
 ### Single-side lane sections
 

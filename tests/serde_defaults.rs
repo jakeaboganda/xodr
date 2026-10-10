@@ -63,11 +63,13 @@ fn provenance_records_without_their_new_fields_read_as_before() {
             "marking_weights",
             "invalidated",
             "temporary",
+            "junction_id",
         ],
     );
     assert!(old.material_road_mark_colors.is_empty() && old.marking_weights.is_empty());
     assert_eq!((old.fill_type.as_str(), old.outline_lane_type), ("", None));
     assert!(!old.invalidated && !old.temporary);
+    assert_eq!(old.junction_id, "");
 
     let signal = prov.signals.iter().find(|s| !s.signs.is_empty()).unwrap();
     let old = without(signal, &["signs"]);

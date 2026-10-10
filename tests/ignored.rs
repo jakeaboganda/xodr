@@ -38,7 +38,6 @@ fn every_ignored_feature_is_counted_where_the_file_uses_it() {
         of("", "", "<license>", 1),
         of("", "", "<defaultRegulations>", 1),
         of("", "", "<vmsGroup>", 1),
-        of("", "100", "<junction> <objects>", 1),
         of("", "100", "<roadSection>", 2),
         of("", "100", "<segment transitionLength>", 2),
         of("1", "", "<userData>", 3),
@@ -63,18 +62,6 @@ fn values_that_mean_nothing_raise_no_warning() {
         found.iter().all(|(road, ..)| road != "4"),
         "road 4 uses only values that mean nothing: {found:?}"
     );
-}
-
-#[test]
-fn a_feature_is_charged_to_the_road_that_uses_it() {
-    // A junction's <objects> and a road's are different elements: only the
-    // junction's is ignored.
-    let found = ignored("tests/data/ignored.xodr");
-    let objects: Vec<_> = found
-        .iter()
-        .filter(|(.., f, _)| f.contains("<objects>"))
-        .collect();
-    assert_eq!(objects, [&of("", "100", "<junction> <objects>", 1)]);
 }
 
 #[test]
@@ -105,7 +92,7 @@ fn only_the_ignored_warnings_say_they_are() {
         .iter()
         .filter(|w| w.is_ignored())
         .count();
-    assert_eq!(ignored, 20);
+    assert_eq!(ignored, 19);
     assert!(
         provenance.warnings.len() > ignored,
         "the fixture's boundary doesn't close, which is a fault"

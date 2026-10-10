@@ -122,7 +122,8 @@
 //! | `<junction><crossPath>` | `id`, `crossingRoad`, `roadAtStart`, `roadAtEnd` |
 //! | `<crossPath><startLaneLink>` | `s`, `from`, `to` |
 //! | `<crossPath><endLaneLink>` | `s`, `from`, `to` |
-//! | `<junction><planView>` | its `<geometry>`'s `s`, `x`, `y`, `hdg` |
+//! | `<junction><planView>` | its `<geometry>`s, as a road's |
+//! | `<junction><objects>` | its `<object>`s and `<objectReference>`s, as a road's |
 //! | `<junction><boundary>` | none |
 //! | `<boundary><segment>` | `type`, `roadId`, `boundaryLane`, `sStart`, `sEnd`, `contactPoint`, `jointLaneStart`, `jointLaneEnd` |
 //! | `<junction><elevationGrid>` | `sStart`, `gridSpacing` |
@@ -360,6 +361,15 @@
 //! - An outline with `outer="false"` is a hole. It goes into the holes of
 //!   the first closed outer outline of the same object that encloses it, and
 //!   the importer drops it if there is none.
+//!
+//! A junction's `<objects>` stand along its reference line, the `<planView>`
+//! of the junction, as a road's stand along its own. The line has no lanes,
+//! elevation or superelevation, as the spec says, so such an object stands
+//! at `z` 0, raised by its `zOffset`, and applies to no lanes. Its
+//! [`ObjectProvenance::junction_id`] names the junction, and its `road_id`
+//! is empty. The spec allows the line one `<line>`. The crate departs from it
+//! and bakes any geometry a road may have. A junction with `<objects>` but
+//! no geometry to place them along raises [`Warning::JunctionObjectsDropped`].
 //!
 //! An `<objectReference>` bakes the `<object>` it names, on whichever road
 //! that is, as if it stood at the reference's `s` and `t` with the
@@ -1077,10 +1087,9 @@
 //!
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
 //! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a
-//! junction's `<objects>` and `<roadSection>`s, and an object's `<surface>`
-//! and `<skeleton>`. It skips `<userData>` anywhere but
-//! directly on an object, which it reads. It skips the `validity`, `dependency`
-//! and `reference` of a board sign.
+//! junction's `<roadSection>`s, and an object's `<surface>` and `<skeleton>`.
+//! It skips `<userData>` anywhere but directly on an object, which it reads. It
+//! skips the `validity`, `dependency` and `reference` of a board sign.
 //!
 //! It also ignores these uses of elements it reads:
 //!
@@ -1351,6 +1360,8 @@
 //!   end at its `tEnd`.
 //! - [`Warning::OutlineGap`] for an outline whose `<curveLocal>`s do not
 //!   join.
+//! - [`Warning::JunctionObjectsDropped`] for a junction's `<objects>` with no
+//!   reference line to stand along.
 //! - [`Warning::LaneIdUnreadable`] for a lane whose `id` isn't a whole
 //!   number, or is 0 outside `<center>`.
 //! - [`Warning::LaneDropped`] for a lane with no `<width>` or `<border>` it
