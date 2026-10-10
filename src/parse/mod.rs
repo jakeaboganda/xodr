@@ -79,6 +79,11 @@ const SWEEP_TOLERANCE: f32 = 0.01;
 /// repeats 367 at most.
 const MAX_REPEAT_INSTANCES: f64 = 100_000.0;
 
+/// The most corners the outlines of one `<repeat>` may bake to, over all its
+/// copies. A `<curveLocal>` can sample to a thousand corners, so a repeat
+/// well under [`MAX_REPEAT_INSTANCES`] could still bake a billion.
+const MAX_OUTLINE_CORNERS: usize = 1_000_000;
+
 /// How far paint stands off the surface under it, in metres, where the map
 /// does not say: an object's `<marking>` with no `zOffset`, and a
 /// `fillType="paint"` area.
@@ -3004,6 +3009,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 too_many.set(true);
                 continue;
             };
+            let corners = stations.first().map_or(0, |st| {
+                outlined(st).iter().map(Part::corner_count).sum::<usize>()
+            });
+            if corners.saturating_mul(stations.len()) > MAX_OUTLINE_CORNERS {
+                too_many.set(true);
+                continue;
+            }
             for st in stations {
                 if !outlines.is_empty() {
                     parts.extend(outlined(&st));
@@ -3263,6 +3275,17 @@ struct Part {
 }
 
 impl Part {
+    /// How many corners its outline has, holes included. 0 for any other
+    /// shape.
+    fn corner_count(&self) -> usize {
+        match &self.shape {
+            Shape::Outline { corners, holes, .. } => {
+                corners.len() + holes.iter().map(Vec::len).sum::<usize>()
+            }
+            _ => 0,
+        }
+    }
+
     fn new(shape: Shape, at: &Station, stretch: (f64, f64)) -> Self {
         Self {
             shape,
@@ -3599,8 +3622,10 @@ fn outline<'a>(
     let mut ids = Vec::new();
     let mut sampled = Vec::new();
     let mut gap: f64 = 0.0;
+    let mut heading = None;
     for (i, &c) in nodes.iter().enumerate() {
         let height = attr_f64(c, "height").unwrap_or(0.0);
+        let previous = heading.take();
         if c.has_tag_name("cornerRoad") {
             let (s, t) = (attr_f64(c, "s")? + shift_s, attr_f64(c, "t")? + shift_t);
             if !road.on_road(s) {
@@ -3622,8 +3647,9 @@ fn outline<'a>(
         spans(s);
         let local: Vec<[f64; 4]> = if c.has_tag_name("curveLocal") {
             let next = nodes.get(i + 1).or(nodes.first().filter(|_| closed));
-            let curve =
-                curve_local::sample(c, next.filter(|n| !n.has_tag_name("cornerRoad")).copied())?;
+            let next = next.filter(|n| !n.has_tag_name("cornerRoad")).copied();
+            let curve = curve_local::sample(c, next, previous)?;
+            heading = Some(curve.end_heading);
             gap = gap.max(curve.gap);
             curve.points
         } else {

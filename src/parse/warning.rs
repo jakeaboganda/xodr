@@ -71,8 +71,9 @@ pub enum Warning {
     /// An `<object>` that would make more than 100,000 copies or dashes: a
     /// `<repeat>` with a `distance` that short for its `length`, or a dashed
     /// `<marking>`. A broken file can give a distance a fraction of a
-    /// millimetre. The crate leaves out the repeat's copies, or the
-    /// marking's paint.
+    /// millimetre. Also a repeat whose outlines would bake to over 1,000,000
+    /// corners. The crate leaves out the repeat's copies, or the marking's
+    /// paint.
     TooManyCopies {
         /// The `<road id>` it is on.
         road_id: String,

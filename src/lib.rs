@@ -345,15 +345,18 @@
 //!   has no solid of its own. `<outline>` is read under `<outlines>`, and
 //!   straight under `<object>` as OpenDRIVE 1.4 writes it.
 //! - A `<curveLocal>` is a line, an arc or a paramPoly3 in the object's own
-//!   frame, from its `(u, v)` heading `hdg`, cut into corners at most 25 cm
-//!   apart, and closer on a tight arc. Without a `length` it runs to the
-//!   next corner: a line straight there, an arc round its circle to it, and
-//!   a lone arc in a closed outline all the way round. A line without a
-//!   `hdg` heads for the next corner. `z` and `height` go straight from each
-//!   curve's to the next's. A `<cornerReference>` to a curve names its start,
-//!   and a marking or border between two curves follows the curve between
-//!   them. The spec says each curve ends where the next starts. Where one
-//!   ends more than a centimetre away, the crate joins them with a straight
+//!   frame, from its `(u, v)` heading `hdg`. A line is one edge. An arc or a
+//!   paramPoly3 is cut into edges of about 25 cm, closer on a tight arc, and at
+//!   most 1024. Without a `length` a curve runs to the next corner: a line
+//!   straight there, an arc round its circle to it, and a lone arc in a closed
+//!   outline all the way round. The last curve of an open outline has no next
+//!   corner, so without a `length` it is only its start. A line without a `hdg`
+//!   heads for the next corner. Any other curve without one goes on at the
+//!   heading the curve before it ends at. `z` and `height` go straight from
+//!   each curve's to the next's. A `<cornerReference>` to a curve names its
+//!   start, and a marking or border between two curves follows the curve
+//!   between them. The spec says each curve ends where the next starts. Where
+//!   one ends more than a centimetre away, the crate joins them with a straight
 //!   edge and raises [`Warning::OutlineGap`]. A paramPoly3 of `pRange`
 //!   `arcLength` with no `length` drops its outline.
 //! - Under a `<repeat>` with a `distance`, the outlines are baked at every
@@ -410,12 +413,12 @@
 //! normal.
 //!
 //! A closed outline with `fillType="paint"` is an area of paint, such as an
-//! arrow on the road. The spec does not say how to draw one. The crate lays
-//! it flat, 5 mm off the surface along its normal, as a marking with no
+//! arrow on the road. The spec does not say how to draw one. The crate lays it
+//! flat, 5 mm above its corners along their normals, as a marking with no
 //! `zOffset`, and drops its corners' heights. Its holes lie flat with it. An
 //! open outline encloses no area, so its `fillType` changes nothing. The spec
-//! says a border cuts back the area an outline fills. The crate departs from
-//! it and keeps a paint area's full outline, with the border lying over it.
+//! says a border cuts back the area an outline fills. The crate departs from it
+//! and keeps a paint area's full outline under a border.
 //!
 //! An object's `<parkingSpace>` becomes its [`ParkingSpace`], and each
 //! `<material>` one of its [`Material`]s. Each `<userData>` is a

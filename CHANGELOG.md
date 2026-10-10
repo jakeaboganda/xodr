@@ -68,8 +68,8 @@
   OpenDRIVE 1.9 writes it. `Ex_Parkingspace_rhomboid` and `Ex_Objects` lost
   these markings before.
 - Behaviour change: a closed outline with `fillType="paint"` lies flat, 5 mm
-  off the road, with no height. A border round it lies over it rather than
-  cutting it back, as the spec says.
+  above its corners, with no height. A border round it does not cut it
+  back, as the spec says it does.
 - `tests/data/outline_markings.xodr` has markings inside outlines and areas
   of paint on a banked road.
 - Behaviour change: `<curveLocal>` outlines are read, as lines, arcs and
