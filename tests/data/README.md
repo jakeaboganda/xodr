@@ -269,6 +269,13 @@ following the road with `perpToRoad`. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/object_poses.py
 
+`outline_markings.xodr` comes from `outline_markings.py`. It has markings
+inside outlines, beside one under its object, and closed and open areas of
+paint, one with a hole and one with a border, on a banked road. Regenerate
+with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/outline_markings.py
+
 `repeats.xodr` comes from `repeats.py`. It has repeats whose `t` is a
 cubic, one whose cubic misses its `tEnd`, and repeats detached from the
 reference line, on an arc. Regenerate with

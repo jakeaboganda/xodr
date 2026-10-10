@@ -64,6 +64,14 @@
   runs on the straight line between its two ends.
 - `tests/data/repeats.xodr` has cubic, detached and mismatched repeats on
   an arc.
+- Behaviour change: a `<marking>` inside an `<outline>` is read, as
+  OpenDRIVE 1.9 writes it. `Ex_Parkingspace_rhomboid` and `Ex_Objects` lost
+  these markings before.
+- Behaviour change: a closed outline with `fillType="paint"` lies flat, 5 mm
+  off the road, with no height. A border round it lies over it rather than
+  cutting it back, as the spec says.
+- `tests/data/outline_markings.xodr` has markings inside outlines and areas
+  of paint on a banked road.
 
 ### Single-side lane sections
 

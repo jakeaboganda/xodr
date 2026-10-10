@@ -78,6 +78,11 @@ const SWEEP_TOLERANCE: f32 = 0.01;
 /// repeats 367 at most.
 const MAX_REPEAT_INSTANCES: f64 = 100_000.0;
 
+/// How far paint stands off the surface under it, in metres, where the map
+/// does not say: an object's `<marking>` with no `zOffset`, and a
+/// `fillType="paint"` area.
+const PAINT_RAISE: f64 = 0.005;
+
 /// Why an OpenDRIVE document did not import.
 #[derive(Debug, thiserror::Error)]
 pub enum ImportError {
@@ -211,7 +216,9 @@ pub struct ObjectProvenance {
     #[cfg_attr(feature = "serde", serde(default))]
     pub temporary: bool,
     /// The `fillType` of the `<outline>` it baked from, such as `grass`. Free
-    /// text. Empty for a solid, and where the outline has none. A hole
+    /// text. Empty for a solid, and where the outline has none. A closed
+    /// outline of `paint` lies flat on the road, and keeps its full area
+    /// under a border, which the spec says cuts it back. A hole
     /// (`outer="false"`) folds into the outline round it and its own is
     /// dropped.
     #[cfg_attr(feature = "serde", serde(default))]
@@ -2987,9 +2994,14 @@ fn outline_parts(
             holes.push((outline_node, ring));
             continue;
         }
+        let painted = ring.closed && outline_node.attribute("fillType") == Some("paint");
         let mut part = Part::new(
             Shape::Outline {
-                corners: ring.corners.clone(),
+                corners: if painted {
+                    ring.paint()
+                } else {
+                    ring.corners.clone()
+                },
                 closed: ring.closed,
                 holes: Vec::new(),
             },
@@ -3022,8 +3034,9 @@ fn outline_parts(
         owner
             .borders
             .extend(borders(node, outline_node, &ring, true));
+        let painted = owner.fill_type == "paint";
         if let Shape::Outline { holes, .. } = &mut owner.shape {
-            holes.push(ring.corners);
+            holes.push(if painted { ring.paint() } else { ring.corners });
         }
     }
     parts
@@ -3291,6 +3304,19 @@ struct Ring {
 }
 
 impl Ring {
+    /// The corners as an area of paint: each base raised [`PAINT_RAISE`]
+    /// along its normal, with no height.
+    fn paint(&self) -> Vec<Corner> {
+        self.corners
+            .iter()
+            .zip(&self.ups)
+            .map(|(c, &up)| {
+                let base = c.base + up * PAINT_RAISE as f32;
+                Corner { base, top: base }
+            })
+            .collect()
+    }
+
     /// Each corner's base, with its normal.
     fn path(&self) -> Vec<(Point, Vector)> {
         self.corners
@@ -3393,23 +3419,26 @@ fn corner_nodes<'a>(
         .filter(|n| n.has_tag_name("cornerRoad") || n.has_tag_name("cornerLocal"))
 }
 
-/// The `<marking>` elements under `object`'s `<markings>`.
+/// The `<marking>` elements under the `<markings>` of `node`, an object or
+/// an outline.
 fn marking_nodes<'a>(
-    object: roxmltree::Node<'a, 'a>,
+    node: roxmltree::Node<'a, 'a>,
 ) -> impl Iterator<Item = roxmltree::Node<'a, 'a>> {
-    child(object, "markings")
+    child(node, "markings")
         .into_iter()
         .flat_map(|m| m.children())
         .filter(|n| n.has_tag_name("marking"))
 }
 
-/// The `<marking>`s under `object`'s `<markings>` that run along edges of
-/// one of its outlines, `outline`, placed as `ring`.
+/// The `<marking>`s that run along edges of one of `object`'s outlines,
+/// `outline`, placed as `ring`: those under the outline's own `<markings>`,
+/// as OpenDRIVE 1.9 writes them, then those under the object's.
 ///
 /// A marking follows the corners its `<cornerReference>`s name, in order, by
-/// the corners' `id`s. It belongs to the outline that has every one of them,
-/// so one naming a corner the outline lacks is left to another outline. So
-/// is one with fewer than two references.
+/// the corners' `id`s. One under the object belongs to the outline that has
+/// every one of them, so one naming a corner the outline lacks is left to
+/// another outline. One under the outline naming a corner it lacks is
+/// skipped. So is one with fewer than two references.
 fn markings(
     object: roxmltree::Node,
     outline: roxmltree::Node,
@@ -3417,7 +3446,8 @@ fn markings(
     too_many: &Cell<bool>,
 ) -> Vec<(Marking, RoadMarkWeight)> {
     let ids: Vec<Option<&str>> = corner_nodes(outline).map(|c| c.attribute("id")).collect();
-    marking_nodes(object)
+    marking_nodes(outline)
+        .chain(marking_nodes(object))
         .filter_map(|m| paint(m, &corner_path(m, &ids, ring)?, too_many))
         .collect()
 }
@@ -3469,7 +3499,7 @@ fn paint(
     too_many: &Cell<bool>,
 ) -> Option<(Marking, RoadMarkWeight)> {
     let width = attr_f64(m, "width").filter(|w| *w > 0.0)?;
-    let raise = attr_f64(m, "zOffset").unwrap_or(0.005) as f32;
+    let raise = attr_f64(m, "zOffset").unwrap_or(PAINT_RAISE) as f32;
     let path: Vec<(Point, Vector)> = path.iter().map(|&(p, up)| (p + up * raise, up)).collect();
     let line = attr_f64(m, "lineLength").unwrap_or(0.0).max(0.0);
     let space = attr_f64(m, "spaceLength").unwrap_or(0.0).max(0.0);

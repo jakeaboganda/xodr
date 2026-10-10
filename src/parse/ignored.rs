@@ -71,11 +71,6 @@ const FEATURES: &[Feature] = &[
         when: always,
     },
     Feature {
-        name: "<outline> <markings>",
-        path: "objects/object/outlines/outline/markings",
-        when: always,
-    },
-    Feature {
         name: "<sign> <validity>",
         path: "signals/signal/staticBoard/sign/validity",
         when: always,

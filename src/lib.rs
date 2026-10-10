@@ -159,7 +159,7 @@
 //! | `<outlines><outline>` | `id`, `closed`, `outer`, `fillType`, `laneType` |
 //! | `<cornerRoad>` | `id`, `s`, `t`, `dz`, `height` |
 //! | `<cornerLocal>` | `id`, `u`, `v`, `z`, `height` |
-//! | `<markings><marking>` | `side`, `color`, `weight`, `width`, `zOffset`, `lineLength`, `spaceLength`, `startOffset`, `stopOffset` |
+//! | `<markings><marking>`, `<outline><markings><marking>` | `side`, `color`, `weight`, `width`, `zOffset`, `lineLength`, `spaceLength`, `startOffset`, `stopOffset` |
 //! | `<borders><border>` | `type`, `width`, `outlineId`, `useCompleteOutline` |
 //! | `<cornerReference>` | `id` |
 //! | `<road><surface><CRG>` | `file`, `mode`, `purpose`, `orientation`, `sStart`, `sEnd`, `sOffset`, `tOffset`, `hOffset`, `xOffset`, `yOffset`, `zOffset`, `zScale` |
@@ -360,8 +360,12 @@
 //! reference's own `<validity>`s apply, not its `<object>`'s, whose lane ids
 //! are on another road.
 //!
-//! A `<marking>` becomes a [`Marking`] on the outline that has every corner
-//! its `<cornerReference>`s name. The marking is a strip `width` across,
+//! A `<marking>` under an `<outline>`'s `<markings>`, as OpenDRIVE 1.9 writes
+//! it, becomes a [`Marking`] on that outline, along the corners its
+//! `<cornerReference>`s name. One naming a corner the outline lacks is
+//! skipped. A `<marking>` under the object's own `<markings>`, as earlier
+//! versions write it, goes on the outline that has every corner it names. An
+//! outline's own markings come first. The marking is a strip `width` across,
 //! centred on the edges through those corners, and cut into dashes by
 //! `lineLength` and `spaceLength`. A marking with no corner references
 //! paints the edge of its `side` of a solid's box, on its base: `front`,
@@ -378,6 +382,14 @@
 //! So on a banked road a band along `<cornerRoad>` corners tilts with the
 //! bank rather than lying level, and paint is raised off the road along its
 //! normal.
+//!
+//! A closed outline with `fillType="paint"` is an area of paint, such as an
+//! arrow on the road. The spec does not say how to draw one. The crate lays
+//! it flat, 5 mm off the surface along its normal, as a marking with no
+//! `zOffset`, and drops its corners' heights. Its holes lie flat with it. An
+//! open outline encloses no area, so its `fillType` changes nothing. The spec
+//! says a border cuts back the area an outline fills. The crate departs from
+//! it and keeps a paint area's full outline, with the border lying over it.
 //!
 //! An object's `<parkingSpace>` becomes its [`ParkingSpace`], and each
 //! `<material>` one of its [`Material`]s. Each `<userData>` is a
@@ -1053,10 +1065,9 @@
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
 //! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a
 //! junction's `<objects>` and `<roadSection>`s, and an object's `<surface>`,
-//! `<skeleton>` and `<curveLocal>` outlines. It skips `<userData>` anywhere
-//! but directly on an object, which it reads. It skips the `<markings>` of
-//! an outline, and the `validity`, `dependency` and `reference` of a
-//! board sign.
+//! `<skeleton>` and `<curveLocal>` outlines. It skips `<userData>` anywhere but
+//! directly on an object, which it reads. It skips the `validity`, `dependency`
+//! and `reference` of a board sign.
 //!
 //! It also ignores these uses of elements it reads:
 //!
@@ -1087,8 +1098,9 @@
 //! - the center lane's `id`, `type`, `level` and `link`, in
 //!   [`Provenance::center_lanes`], as a [`CenterLaneProvenance`];
 //! - an object's `invalidated` and `temporary`, its markings' `weight`, its
-//!   materials' `roadMarkColor`, and its outline's `fillType` and
-//!   `laneType`, in [`ObjectProvenance`];
+//!   materials' `roadMarkColor`, and its outline's `fillType` and `laneType`,
+//!   in [`ObjectProvenance`]. A `fillType` of `paint` also lays the outline
+//!   flat;
 //! - a sign's own attributes, in [`SignalProvenance::signs`], as a
 //!   [`SignProvenance`];
 //! - a switch's partner, as a [`Partner`] in [`Switch`];
