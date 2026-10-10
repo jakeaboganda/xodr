@@ -79,6 +79,11 @@ pub fn bake(
     if let Err(e) = mesh.validate() {
         notes.push(format!("mesh is not a valid triangle mesh: {e}"));
     }
+    let temporary = net.temporary_mesh();
+    if let Err(e) = temporary.validate() {
+        notes.push(format!("temporary mesh is not a valid triangle mesh: {e}"));
+    }
+    let drawn = with_temporary(&mesh, &temporary);
 
     let object_mesh = net.object_mesh();
     if !object_mesh.objects.is_empty() {
@@ -99,7 +104,7 @@ pub fn bake(
         }
     });
 
-    let mut json = build_scene(&net, &mesh, &object_mesh, &provenance);
+    let mut json = build_scene(&net, &drawn, &object_mesh, &provenance);
     json["crg"] = crg_overlay(&net, &mesh, &surface, &loaded);
     if let Some(warnings) = json["warnings"].as_array_mut() {
         warnings.extend(
@@ -109,6 +114,34 @@ pub fn bake(
         );
     }
     Ok(Scene { json, notes })
+}
+
+/// How far, in metres, the page lifts the temporary lanes off the surface
+/// they share with the permanent ones, so both draw and pick.
+const TEMPORARY_LIFT: f32 = 0.01;
+
+/// `surface` and then `temporary` in one mesh, so the page draws and picks
+/// every lane from one buffer. The temporary lanes lie on the same surface
+/// as the permanent ones under them, so they are lifted by
+/// [`TEMPORARY_LIFT`].
+fn with_temporary(surface: &Mesh, temporary: &Mesh) -> Mesh {
+    let mut out = surface.clone();
+    let (vertices, indices) = (out.vertices.len() as u32, out.indices.len() as u32);
+    out.vertices.extend(
+        temporary
+            .vertices
+            .iter()
+            .map(|p| Point::new(p.x, p.y, p.z + TEMPORARY_LIFT)),
+    );
+    out.normals.extend(temporary.normals.iter().copied());
+    out.indices
+        .extend(temporary.indices.iter().map(|i| i + vertices));
+    out.lanes.extend(temporary.lanes.iter().map(|s| LaneSpan {
+        lane: s.lane,
+        vertices: s.vertices.start + vertices..s.vertices.end + vertices,
+        indices: s.indices.start + indices..s.indices.end + indices,
+    }));
+    out
 }
 
 /// Assemble the viewer scene: flat mesh buffers, the lane table, the object
@@ -921,6 +954,7 @@ fn lane_entry(net: &RoadNetwork, provenance: &Provenance, span: &LaneSpan) -> Va
     entry.insert("section".into(), json!(prov.map(|p| p.section)));
     entry.insert("odLaneId".into(), json!(prov.map(|p| p.od_id)));
     entry.insert("laneType".into(), json!(lane.map(|l| l.kind.as_str())));
+    entry.insert("layer".into(), json!(lane.map(|l| l.layer.as_str())));
     entry.insert("advisory".into(), json!(prov.map(|p| p.advisory.as_str())));
     entry.insert(
         "dynamicLaneType".into(),

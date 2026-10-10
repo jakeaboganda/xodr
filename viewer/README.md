@@ -138,7 +138,9 @@ every lane section, as the link names no section. An object's
 readout shows whether it is invalidated or temporary, its material's
 `roadMarkColor`, a bold marking, and its outline's `fillType` and
 `laneType`. A road mark's
-readout shows its `material` and its type's `name`. A lane's readout also
+readout shows its `material` and its type's `name`. A lane of a road's temporary layer is tinted amber and lifted a centimetre
+off the surface it shares with the permanent layer, so both draw and hover.
+Its readout and its sidebar row say it is on the temporary layer. A lane's readout also
 shows its `advisory` and whether its type or direction can change or it is
 under road works, and the readout of a mark on the center line shows the
 center lane's `id`, `type`, `level` and links.

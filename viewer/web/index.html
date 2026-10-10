@@ -131,6 +131,7 @@ const LANE_COLORS = {
   'special1': 0x8a4a7a, 'special2': 0x4a8a7a, 'special3': 0x7a8a4a,
 };
 const FALLBACK_COLOR = 0xc026d3;
+const TEMPORARY_TINT = new THREE.Color(0xf0b429);
 
 // Object colour per type, keyed by the crate's `ObjectType::as_str`. Brighter
 // and more saturated than the lanes, so an object stands out from the road it
@@ -583,6 +584,8 @@ function laneTypeColors(data) {
     // setHex reads sRGB and stores the renderer's working space, so the buffer
     // matches what a material colour of the same hex would have produced.
     c.setHex(LANE_COLORS[lane.laneType] ?? FALLBACK_COLOR);
+    // A temporary lane is tinted toward amber, the colour of road-works paint.
+    if (lane.layer === 'temporary') c.lerp(TEMPORARY_TINT, 0.45);
     for (let v = lane.vertexRange[0]; v < lane.vertexRange[1]; v++) {
       out[v * 3] = c.r; out[v * 3 + 1] = c.g; out[v * 3 + 2] = c.b;
     }
@@ -1521,7 +1524,7 @@ function renderSidebar() {
     const g = group(frag, `road ${road}`, 'road', `road ${escapeHtml(road)} <span class="tag">${counts.join(' · ')}</span>`);
     r.lanes.sort((a, b) => a.section - b.section || b.odLaneId - a.odLaneId);
     for (const l of r.lanes) {
-      item(g, l, `<span>lane ${l.odLaneId} <span class="tag">§${l.section} ${l.laneType}</span></span>` +
+      item(g, l, `<span>lane ${l.odLaneId} <span class="tag">§${l.section} ${l.laneType}${l.layer === 'temporary' ? ' · temporary' : ''}</span></span>` +
         `<span class="tag">${l.length.toFixed(0)} m</span>`, () => { select('lane', l); frameOnLane(l); });
     }
     if (r.objects.length) {
@@ -1603,7 +1606,7 @@ function onHover(ev) {
 
   const p = hit.point;
   const rows = [
-    `<b>road ${escapeHtml(String(lane.roadId))}</b>${lane.roadName ? ` ${escapeHtml(JSON.stringify(lane.roadName))}` : ''}  lane ${lane.odLaneId}  <b>${lane.laneType}</b>`,
+    `<b>road ${escapeHtml(String(lane.roadId))}</b>${lane.roadName ? ` ${escapeHtml(JSON.stringify(lane.roadName))}` : ''}  lane ${lane.odLaneId}  <b>${lane.laneType}</b>${lane.layer === 'temporary' ? '  temporary layer' : ''}`,
     `x ${p.x.toFixed(2)}   y ${p.y.toFixed(2)}   z ${p.z.toFixed(2)}`,
     ...roadRows(lane, i, u, s, t),
     `width ${laneWidth(lane, i, u).toFixed(2)} m   heading ${vec3(heading)}`,
