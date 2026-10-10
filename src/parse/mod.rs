@@ -629,7 +629,10 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             continue;
         };
         match junction_line(junction) {
-            Some(line) => place_objects(objects_node, &index, &line, &mut objects),
+            Some(line) => {
+                let id = junction.attribute("id");
+                place_objects(objects_node, &index, &line, id, &mut objects);
+            }
             None => warnings.push(Warning::JunctionObjectsDropped {
                 junction_id: junction.attribute("id").unwrap_or_default().to_string(),
             }),
@@ -872,7 +875,10 @@ fn junction_lanes(root: roxmltree::Node, topo: &Topology, id: &str) -> Vec<LaneI
 /// The object `<surface>` CRGs, after the road and junction ones in
 /// `surfaces`. A junction's object's covers the lanes of the junction's
 /// roads. One that hides the road's CRGs over one that replaces the road's
-/// height raises [`Warning::CrgHideIgnored`].
+/// height, on a lane they share, raises [`Warning::CrgHideIgnored`]. On a
+/// road they must overlap along it too. A junction's object stands along the
+/// junction's line, which measures `s` apart from its roads, so there a
+/// shared lane is enough.
 fn object_crgs(
     root: roxmltree::Node,
     topo: &Topology,
@@ -882,12 +888,14 @@ fn object_crgs(
 ) -> Vec<CrgSurface> {
     let replaces = |road: &CrgSurface, object: &ObjectCrg| {
         let (from, to) = object.stretch;
-        let along = road.road.as_ref().is_none_or(|r| {
-            let (first, last) = (r.stations.first(), r.stations.last());
-            first
-                .zip(last)
-                .is_some_and(|(a, b)| a.s <= to && from <= b.s)
-        });
+        let on_junction = !object.junction_id.is_empty();
+        let along = on_junction
+            || road.road.as_ref().is_none_or(|r| {
+                let (first, last) = (r.stations.first(), r.stations.last());
+                first
+                    .zip(last)
+                    .is_some_and(|(a, b)| a.s <= to && from <= b.s)
+            });
         road.purpose == CrgPurpose::Elevation
             && matches!(
                 road.mode,
@@ -1578,7 +1586,7 @@ fn parse_road(
         return Err(RoadSkipReason::OutOfRange);
     }
     if let Some(objects_node) = child(road, "objects") {
-        place_objects(objects_node, index, &baked.road, objects);
+        place_objects(objects_node, index, &baked.road, None, objects);
         place_structures(objects_node, &baked.road, out, structures);
     }
     for node in child(road, "surface")
@@ -2756,10 +2764,10 @@ fn place_structures(
 }
 
 /// A junction's reference line, from its `<planView>`, as a road for its
-/// `<objects>` to stand along: no `od_id`, its `junction` the junction's
-/// `id`, and no lanes, elevation or superelevation, as the spec says. So an
-/// object there stands at `z` 0, raised by its `zOffset`. `None` for a
-/// junction with no `<geometry>` the crate can bake.
+/// `<objects>` to stand along: no `od_id`, and no lanes, elevation or
+/// superelevation, as the spec says. So an object there stands at `z` 0,
+/// raised by its `zOffset`. `None` for a junction with no `<geometry>` the
+/// crate can bake.
 ///
 /// The spec allows one `<line>`. The crate bakes any geometry a road may
 /// have.
@@ -2777,7 +2785,7 @@ fn junction_line(junction: roxmltree::Node) -> Option<Road> {
         id: RoadId(usize::MAX),
         od_id: String::new(),
         name: String::new(),
-        junction: junction.attribute("id").map(str::to_string),
+        junction: None,
         length: geoms.iter().map(|g| g.s + g.length).fold(0.0, f64::max),
         rule: TrafficRule::RightHand,
         geoms,
@@ -2829,6 +2837,9 @@ struct Placement<'a> {
     shift: (f64, f64),
     /// For a reference, the road the `<object>` is on.
     referenced_from: Option<&'a str>,
+    /// The junction whose `<objects>` hold it, which it stands along the
+    /// reference line of. `None` on a road.
+    junction: Option<&'a str>,
     /// The `<validity>` lane ranges, `fromLane` and `toLane`, of the
     /// `<object>` or the `<objectReference>`. A reference does not take the
     /// `<object>`'s, which name lanes on the `<object>`'s road.
@@ -2847,6 +2858,7 @@ impl<'a> Placement<'a> {
             valid_length: attr_f64(object, "validLength"),
             shift: (0.0, 0.0),
             referenced_from: None,
+            junction: None,
             validity: validity(object),
         })
     }
@@ -2868,6 +2880,7 @@ impl<'a> Placement<'a> {
             valid_length: attr_f64(reference, "validLength"),
             shift: (s - from("s"), t - from("t")),
             referenced_from: Some(road),
+            junction: None,
             validity: validity(reference),
         })
     }
@@ -2900,14 +2913,16 @@ fn orientation(node: roxmltree::Node) -> Orientation {
 }
 
 /// Bake every `<object>` and `<objectReference>` under one road's
-/// `<objects>` into `out`. `index` finds the `<object>` a reference names.
+/// `<objects>` into `out`, or under the `junction`'s with `road` its
+/// reference line. `index` finds the `<object>` a reference names.
 ///
 /// A reference to an id no `<object>` has is skipped, as is one missing `s`
 /// or `t`.
-fn place_objects(
-    objects_node: roxmltree::Node,
-    index: &ObjectIndex,
+fn place_objects<'a>(
+    objects_node: roxmltree::Node<'a, 'a>,
+    index: &ObjectIndex<'a>,
     road: &Road,
+    junction: Option<&'a str>,
     out: &mut Objects,
 ) {
     for node in objects_node.children() {
@@ -2922,7 +2937,8 @@ fn place_objects(
         } else {
             None
         };
-        if let Some((object, at)) = placed {
+        if let Some((object, mut at)) = placed {
+            at.junction = junction;
             place_object(object, &at, road, out);
         }
     }
@@ -3037,11 +3053,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
 
     let kind = object_type(node.attribute("type"));
     let text = |name| node.attribute(name).unwrap_or_default().to_string();
-    let junction_id = road
-        .junction
-        .clone()
-        .filter(|_| road.od_id.is_empty())
-        .unwrap_or_default();
+    let junction_id = at.junction.unwrap_or_default().to_string();
     if let Some(crg) = child(node, "surface").and_then(|s| child(s, "CRG")) {
         let surfaces: Vec<ObjectCrg> = parts
             .iter()
@@ -3059,6 +3071,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         if surfaces.is_empty() {
             out.warnings.push(Warning::ObjectSurfaceDropped {
                 road_id: road.od_id.clone(),
+                junction_id: junction_id.clone(),
                 object_id: text("id"),
             });
         }
@@ -3148,9 +3161,10 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
 /// and the stretch of road it covers. `None` unless the part is a box with a
 /// length and a width, the one shape the spec allows a surface.
 ///
-/// The CRG covers the lanes of `road` within the box's half diagonal of the
-/// part's station. An object's `zOffset` and `height` play no part, as the
-/// spec says.
+/// The CRG covers the lanes of `road` within the box's diagonal of the
+/// part's station, which takes in the box on a curve too. It covers no
+/// other road's lanes. An object's `zOffset` and `height` play no part, as
+/// the spec says.
 fn object_crg(crg: roxmltree::Node, part: &Part, road: &Road) -> Option<(CrgSurface, (f64, f64))> {
     let Shape::Solid {
         position,
@@ -3165,7 +3179,7 @@ fn object_crg(crg: roxmltree::Node, part: &Part, road: &Road) -> Option<(CrgSurf
         return None;
     }
     let (half_length, half_width) = (f64::from(length) / 2.0, f64::from(width) / 2.0);
-    let reach = half_length.hypot(half_width);
+    let reach = 2.0 * half_length.hypot(half_width);
     let stretch = (part.s - reach, part.s + reach);
     let mode = CrgMode::Object(CrgObject {
         origin: CrgPose {
@@ -3175,7 +3189,7 @@ fn object_crg(crg: roxmltree::Node, part: &Part, road: &Road) -> Option<(CrgSurf
         },
         half_length,
         half_width,
-        hide_road: crg.attribute("hideRoadSurfaceCRG") != Some("false"),
+        hide_road: !matches!(crg.attribute("hideRoadSurfaceCRG"), Some("false" | "0")),
     });
     let mut surface = crg_surface(crg, mode, road.lanes(stretch, &[]), None);
     surface.purpose = CrgPurpose::Elevation;

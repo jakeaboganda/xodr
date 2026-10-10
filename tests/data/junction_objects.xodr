@@ -218,6 +218,28 @@
             <objectReference id="post" s="30" t="0" zOffset="0" orientation="none" />
         </objects>
     </junction>
+    <road id="" junction="100" length="10">
+        <planView>
+            <geometry s="0" x="0" y="100" hdg="0" length="10">
+                <line />
+            </geometry>
+        </planView>
+        <lanes>
+            <laneSection s="0">
+                <center>
+                    <lane id="0" type="none" />
+                </center>
+                <right>
+                    <lane id="-1" type="driving">
+                        <width sOffset="0" a="3" b="0" c="0" d="0" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="lost" name="Lost" type="pole" s="5" t="-1.5" zOffset="0" radius="0.1" height="1" />
+        </objects>
+    </road>
     <junction id="300" name="curved">
         <planView>
             <geometry s="0" x="100" y="0" hdg="0" length="50">

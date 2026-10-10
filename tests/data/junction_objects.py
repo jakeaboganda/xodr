@@ -14,7 +14,8 @@ Its <objects> hold:
 - "Bollard": a post repeated every 5 m over 10 m from s = 20 at t = -3.
 - an <objectReference> at s = 30, t = 0 to road 1's "Post".
 
-Connecting road 1000 carries a "Cone" of its own. Junction 300's reference
+Connecting road 1000 carries a "Cone" of its own, and a road with an empty
+id in junction 100 a "Lost" pole. Junction 300's reference
 line is an arc of radius 100 m from (100, 0) heading +X, which the spec does
 not allow, with a "Marker" 20 m along it. Junction 200 has
 <objects> but no <planView>, so they have nothing to stand
@@ -79,6 +80,15 @@ connecting = root.find("road[@id='1000']")
 connecting.append(frag(
     '<objects><object id="cone" name="Cone" type="obstacle" s="2" t="0" zOffset="0" '
     'radius="0.2" height="0.5"/></objects>'
+))
+root.append(frag(
+    '<road id="" junction="100" length="10"><planView>'
+    '<geometry s="0" x="0" y="100" hdg="0" length="10"><line/></geometry></planView>'
+    '<lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>'
+    '<lane id="-1" type="driving"><width sOffset="0" a="3" b="0" c="0" d="0"/></lane>'
+    '</right></laneSection></lanes><objects>'
+    '<object id="lost" name="Lost" type="pole" s="5" t="-1.5" zOffset="0" radius="0.1" height="1"/>'
+    '</objects></road>'
 ))
 root.append(frag(
     '<junction id="300" name="curved"><planView>'

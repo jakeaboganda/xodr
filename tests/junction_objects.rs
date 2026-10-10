@@ -150,3 +150,14 @@ fn a_junction_reference_line_of_any_geometry_is_baked() {
     let want = Point::new(100.0 + 100.0 * hdg.sin(), 100.0 * (1.0 - hdg.cos()), 0.0);
     assert_near(position, want, "marker");
 }
+
+#[test]
+fn an_object_on_a_road_with_no_id_names_no_junction() {
+    let (_, prov) = load();
+    let lost: Vec<_> = prov.objects.iter().filter(|p| p.od_id == "lost").collect();
+    assert_eq!(lost.len(), 1);
+    assert_eq!(
+        (lost[0].road_id.as_str(), lost[0].junction_id.as_str()),
+        ("", "")
+    );
+}

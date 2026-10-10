@@ -21,8 +21,10 @@ Road 1 has no road CRG. Its objects:
   0.3 and rolled 0.2, with `plate.crg`.
 
 Road 2 has an `attached` road CRG, `road.crg`, over its whole length. Its
-objects are 2 by 2 m boxes with `plate.crg`: "Hider" at s = 20, t = -1.75,
-which hides the road CRG, and "Stacker" at s = 60, which does not.
+objects are 2 by 2 m boxes with `plate.crg` at t = -1.75: "Hider" at s = 20,
+which hides the road CRG, "Default" at s = 40, which says nothing and so
+hides it, "Stacker" at s = 60, which does not, and "Zero" at s = 80, which
+says "0" and does not.
 
 Road 3 has an `attached0` road CRG, `road.crg`, over its whole length. Its
 objects: "Clash" at s = 20, which hides it, as the spec forbids, and "Sum"
@@ -75,8 +77,9 @@ def frag(text):
 
 
 def crg(file, hide="true", scale="1"):
-    return (f'<surface><CRG file="{file}" hideRoadSurfaceCRG="{hide}" zScale="{scale}"/>'
-            '</surface>')
+    hidden = "" if hide is None else f' hideRoadSurfaceCRG="{hide}"'
+    return f'<surface><CRG file="{file}"{hidden} zScale="{scale}"/></surface>'
+
 
 
 def box(name, s, t, inner, size=2, extra=""):
@@ -107,7 +110,9 @@ def road_crg(mode):
 
 roads["2"].append(objects(
     box("Hider", 20, -1.75, crg("plate.crg", hide="true")),
+    box("Default", 40, -1.75, crg("plate.crg", hide=None)),
     box("Stacker", 60, -1.75, crg("plate.crg", hide="false")),
+    box("Zero", 80, -1.75, crg("plate.crg", hide="0")),
 ))
 roads["2"].append(road_crg("attached"))
 roads["3"].append(objects(
