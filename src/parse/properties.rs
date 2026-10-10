@@ -67,8 +67,9 @@ pub(super) struct TypeDef {
 }
 
 /// A lane's `<speed>`: its limit from `s_offset` into its lane section on.
+#[derive(Clone)]
 pub(super) struct LaneSpeedDef {
-    s_offset: f64,
+    pub(super) s_offset: f64,
     speed: SpeedDef,
 }
 

@@ -35,6 +35,7 @@ mod properties;
 mod railway;
 mod road_marks;
 mod signals;
+mod single_side;
 mod virtual_junctions;
 mod warning;
 use links::{LaneMeta, RoadInfo, Topology};
@@ -804,6 +805,7 @@ fn sanitize(xml: &str) -> std::borrow::Cow<'_, str> {
 /// One lane parsed from a `<laneSection>`, before it is sampled into a [`Lane`].
 /// Where it lies across the road is its [`LaneGeom`], which goes to the
 /// [`Road`].
+#[derive(Clone)]
 struct LaneDef {
     id: i32,
     kind: LaneType,
@@ -1817,7 +1819,9 @@ fn bake_lanes(
             .collect();
         sections.sort_by(|a, b| start(a).total_cmp(&start(b)));
         any |= !sections.is_empty();
-        for (i, section) in sections.iter().enumerate() {
+        let starts: Vec<f64> = sections.iter().map(start).collect();
+        let defs = single_side::full_sections(&sections, &starts);
+        for (i, (section, mut def)) in sections.iter().zip(defs).enumerate() {
             let index = next_index + i;
             let s_start = start(section);
             let next = sections.get(i + 1).map_or(length, start);
@@ -1832,7 +1836,6 @@ fn bake_lanes(
                 continue; // zero-length section
             }
             let first = topo.metas.len();
-            let mut def = SectionDef::parse(*section);
             let [left, right] = std::mem::take(&mut def.geoms);
             let mut geom = RoadSection {
                 index,

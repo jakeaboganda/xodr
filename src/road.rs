@@ -640,6 +640,28 @@ impl Cubic {
         self.a + self.b * ds + self.c * ds * ds + self.d * ds * ds * ds
     }
 
+    /// The record as it reads `by` metres further along its lane section,
+    /// for a section that starts there: the same curve, from an `sOffset`
+    /// `by` less. One that starts before the new section starts at 0, as the
+    /// curve stands there.
+    pub fn moved_on(&self, by: f64) -> Cubic {
+        let start = self.start - by;
+        if start >= 0.0 {
+            return Cubic {
+                start,
+                ..self.clone()
+            };
+        }
+        let at = -start;
+        Cubic {
+            start: 0.0,
+            a: self.eval(self.start + at),
+            b: self.slope(self.start + at),
+            c: self.c + 3.0 * self.d * at,
+            d: self.d,
+        }
+    }
+
     /// The rate of change at `s`.
     pub fn slope(&self, s: f64) -> f64 {
         let ds = s - self.start;

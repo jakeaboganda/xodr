@@ -41,6 +41,15 @@
 - `tests/data/gantries.xodr` is a demo of gantry scenes: lane control,
   a sign bridge, a message board and traffic lights.
 
+### Single-side lane sections
+
+- A `<laneSection singleSide="true">` is read. The sides it leaves out carry
+  on from the sections before, so each section the crate bakes has both
+  sides. Before, such a section read as the whole cross-section, and the
+  other side stopped at its start.
+- `tests/data/single_side.xodr` has sections that give the left, the right
+  and each, with carried widths, heights, marks and links.
+
 ### Lane layers
 
 - A road's temporary lane layer is read. Both `<lanes>` bake, each with its
