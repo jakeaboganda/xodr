@@ -81,11 +81,6 @@ const FEATURES: &[Feature] = &[
         when: always,
     },
     Feature {
-        name: "<junction> <objects>",
-        path: "objects",
-        when: in_a_junction,
-    },
-    Feature {
         name: "<roadSection>",
         path: "roadSection",
         when: always,
@@ -105,11 +100,6 @@ fn not_on_an_object(node: roxmltree::Node) -> bool {
     !node
         .parent_element()
         .is_some_and(|p| p.has_tag_name("object"))
-}
-
-fn in_a_junction(node: roxmltree::Node) -> bool {
-    node.parent_element()
-        .is_some_and(|p| p.has_tag_name("junction"))
 }
 
 fn repeats_a_layer(node: roxmltree::Node) -> bool {

@@ -16,11 +16,11 @@ means nothing, and holds an object <userData>, which the crate reads. Roads
 1 to 3 also hold <userData> and <include> in places the crate skips. Road 5
 holds 500 <userData> on one lane.
 
-Junction 100 is a tee of roads 11, 12 and 13, with an <objects>, two
-<roadSection>s, boundary segments with and without a transitionLength, and
-lane links that cross layers. The header holds a <license>, a
-<dataQuality>, <defaultRegulations> and <userData>, and the file a
-<vmsGroup>.
+Junction 100 is a tee of roads 11, 12 and 13, with an <objects>, which the
+crate reads, two <roadSection>s, boundary segments with and without a
+transitionLength, and lane links that cross layers. The header holds a
+<license>, a <dataQuality>, <defaultRegulations> and <userData>, and the
+file a <vmsGroup>.
 
 scenariogeneration writes none of these, so they are spliced into its
 roads as XML. The header date is fixed, so the file is the same each run.

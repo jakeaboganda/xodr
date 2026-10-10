@@ -103,6 +103,12 @@ pub enum Warning {
         /// The widest gap, in metres.
         gap: f64,
     },
+    /// A junction with `<objects>` but no `<planView>` geometry the crate
+    /// can bake, so nothing to place them along. The crate drops them.
+    JunctionObjectsDropped {
+        /// Its `<junction id>`.
+        junction_id: String,
+    },
     /// A `<lane>` under `<left>` or `<right>` whose `id` isn't a whole
     /// number, or is 0, the center lane's. The crate can't tell which lane
     /// it is, so it drops it.
@@ -577,6 +583,7 @@ impl Warning {
             | Self::UnknownJunctionGroupType { .. }
             | Self::ElevationGridNotApplied { .. }
             | Self::ElevationGridDropped { .. }
+            | Self::JunctionObjectsDropped { .. }
             | Self::BoundaryNotClosed { .. }
             | Self::BoundaryClockwise { .. } => "",
         }
@@ -704,6 +711,10 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "road {road_id:?}: object {object_id:?} has an outline whose curves leave a gap of {gap:.3} m"
+            ),
+            Self::JunctionObjectsDropped { junction_id } => write!(
+                f,
+                "junction {junction_id:?}: its objects have no reference line to stand along, so they were left out"
             ),
             Self::LaneIdUnreadable {
                 road_id,
