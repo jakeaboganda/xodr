@@ -255,6 +255,11 @@ solid yellow one on the other. The two blue boxes are parking spaces.
 
 ![A crosswalk's markings and two parking spaces](markings.png)
 
+A closed outline filled with paint, such as an arrow on the road, lies flat
+on the road in the colour of paint: its material's `roadMarkColor`, or white.
+Markings inside an outline, as OpenDRIVE 1.9 writes them, draw like any
+other.
+
 Borders, such as a kerb, are bands along the outline, coloured by type.
 Hover one for its type and width. Where two borders share an edge, the one
 later in the file is drawn over the other.
