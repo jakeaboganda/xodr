@@ -159,6 +159,7 @@
 //! | `<outlines><outline>` | `id`, `closed`, `outer`, `fillType`, `laneType` |
 //! | `<cornerRoad>` | `id`, `s`, `t`, `dz`, `height` |
 //! | `<cornerLocal>` | `id`, `u`, `v`, `z`, `height` |
+//! | `<curveLocal>` | `id`, `u`, `v`, `z`, `height`, `hdg`, `length`, and a `<line>`, `<arc>` or `<paramPoly3>` as in the plan view |
 //! | `<markings><marking>`, `<outline><markings><marking>` | `side`, `color`, `weight`, `width`, `zOffset`, `lineLength`, `spaceLength`, `startOffset`, `stopOffset` |
 //! | `<borders><border>` | `type`, `width`, `outlineId`, `useCompleteOutline` |
 //! | `<cornerReference>` | `id` |
@@ -339,6 +340,18 @@
 //! - Each `<outline>` is a [`Shape::Outline`], and an object with outlines
 //!   has no solid of its own. `<outline>` is read under `<outlines>`, and
 //!   straight under `<object>` as OpenDRIVE 1.4 writes it.
+//! - A `<curveLocal>` is a line, an arc or a paramPoly3 in the object's own
+//!   frame, from its `(u, v)` heading `hdg`, cut into corners at most 25 cm
+//!   apart, and closer on a tight arc. Without a `length` it runs to the
+//!   next corner: a line straight there, an arc round its circle to it, and
+//!   a lone arc in a closed outline all the way round. A line without a
+//!   `hdg` heads for the next corner. `z` and `height` go straight from each
+//!   curve's to the next's. A `<cornerReference>` to a curve names its start,
+//!   and a marking or border between two curves follows the curve between
+//!   them. The spec says each curve ends where the next starts. Where one
+//!   ends more than a centimetre away, the crate joins them with a straight
+//!   edge and raises [`Warning::OutlineGap`]. A paramPoly3 of `pRange`
+//!   `arcLength` with no `length` drops its outline.
 //! - Under a `<repeat>` with a `distance`, the outlines are baked at every
 //!   step in place of the solid. libOpenDRIVE bakes them once. At each step
 //!   `<cornerLocal>` corners follow the object's frame, and `<cornerRoad>`
@@ -1064,8 +1077,8 @@
 //!
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
 //! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a
-//! junction's `<objects>` and `<roadSection>`s, and an object's `<surface>`,
-//! `<skeleton>` and `<curveLocal>` outlines. It skips `<userData>` anywhere but
+//! junction's `<objects>` and `<roadSection>`s, and an object's `<surface>`
+//! and `<skeleton>`. It skips `<userData>` anywhere but
 //! directly on an object, which it reads. It skips the `validity`, `dependency`
 //! and `reference` of a board sign.
 //!
@@ -1336,6 +1349,8 @@
 //!   `<marking>` would make over 100,000 copies or dashes.
 //! - [`Warning::RepeatEndMismatch`] for a repeat whose cubic `t` does not
 //!   end at its `tEnd`.
+//! - [`Warning::OutlineGap`] for an outline whose `<curveLocal>`s do not
+//!   join.
 //! - [`Warning::LaneIdUnreadable`] for a lane whose `id` isn't a whole
 //!   number, or is 0 outside `<center>`.
 //! - [`Warning::LaneDropped`] for a lane with no `<width>` or `<border>` it
