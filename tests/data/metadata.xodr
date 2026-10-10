@@ -211,6 +211,10 @@
                 <center>
                     <lane id="0" type="driving" level="false">
                         <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                        <link>
+                            <predecessor id="0" />
+                            <successor id="1" />
+                        </link>
                     </lane>
                 </center>
                 <right>

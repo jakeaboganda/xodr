@@ -302,14 +302,20 @@ fn an_object_keeps_whether_it_is_invalidated_or_temporary() {
 }
 
 #[test]
-fn a_material_keeps_the_colour_of_the_marks_on_it() {
+fn an_object_keeps_the_colour_of_the_marks_on_each_material() {
     let (net, prov) = full();
-    let materials = &baked(&net, &prov, "m1")[0].0.materials;
-    let colours: Vec<_> = materials
+    let (object, record) = baked(&net, &prov, "m1")[0];
+    let surfaces: Vec<_> = object
+        .materials
         .iter()
-        .map(|m| (m.surface.as_str(), m.road_mark_color.as_str()))
+        .map(|m| m.surface.as_str())
         .collect();
-    assert_eq!(colours, [("asphalt", "yellow"), ("gravel", "")]);
+    assert_eq!(surfaces, ["asphalt", "gravel"]);
+    assert_eq!(record.material_road_mark_colors, ["yellow", ""]);
+    assert!(baked(&net, &prov, "a1")[0]
+        .1
+        .material_road_mark_colors
+        .is_empty());
 }
 
 #[test]
@@ -480,4 +486,21 @@ fn a_boolean_that_is_not_true_false_or_a_digit_reads_as_false() {
     assert!(lane(0, -1).road_works, "\"true\"");
     assert!(!lane(0, 2).road_works, "\"True\"");
     assert!(!lane(1, 2).road_works, "\"True\"");
+}
+
+#[test]
+fn the_center_lane_keeps_its_id_and_its_links() {
+    let (_, prov) = full();
+    let at = |road: &str, section| {
+        prov.center_lanes
+            .iter()
+            .find(|c| c.road_id == road && c.section == section)
+            .map(|c| (c.od_id, c.predecessor, c.successor))
+            .unwrap()
+    };
+    assert_eq!(at("2", 0), (Some(0), None, None));
+    assert_eq!(at("2", 1), (Some(0), Some(0), Some(1)));
+    let (_, prov) = bare();
+    let first = prov.center_lanes.iter().find(|c| c.road_id == "1").unwrap();
+    assert_eq!(first.od_id, None, "\"zero\" is no whole number");
 }

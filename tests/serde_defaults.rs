@@ -6,8 +6,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 use xodr::{
-    load_file_with_provenance, BoardSign, Header, LaneAdvisory, LaneProvenance, Marking, Material,
-    Object, ObjectProvenance, Orientation, RoadMarkProvenance, RoadMarkWeight, SignalBoard, Switch,
+    load_file_with_provenance, BoardSign, Header, LaneAdvisory, LaneProvenance, Marking, Object,
+    ObjectProvenance, Orientation, Partner, RoadMarkProvenance, RoadMarkWeight, SignalBoard,
 };
 
 /// `value` as an older version wrote it, without `removed`, loaded again.
@@ -39,7 +39,7 @@ fn an_object_without_its_new_flags_is_neither_invalidated_nor_temporary() {
 }
 
 #[test]
-fn a_marking_and_a_material_without_their_new_fields_read_as_before() {
+fn a_marking_without_its_weight_reads_as_standard() {
     let (net, _) = full();
     let marked = net
         .objects()
@@ -52,13 +52,6 @@ fn a_marking_and_a_material_without_their_new_fields_read_as_before() {
         .find(|m| m.weight == RoadMarkWeight::Bold)
         .expect("a bold marking");
     assert_eq!(without(bold, &["weight"]).weight, RoadMarkWeight::Standard);
-    let painted: &Material = net
-        .objects()
-        .iter()
-        .flat_map(|o| &o.materials)
-        .find(|m| !m.road_mark_color.is_empty())
-        .expect("a material with a mark colour");
-    assert_eq!(without(painted, &["road_mark_color"]).road_mark_color, "");
 }
 
 #[test]
@@ -100,11 +93,12 @@ fn a_sign_without_its_new_fields_has_the_defaults() {
 }
 
 #[test]
-fn a_switch_without_its_partner_name_has_none() {
+fn a_partner_without_its_name_has_none() {
     let (net, _) = load_file_with_provenance("tests/data/railways.xodr").unwrap();
-    let switch: &Switch = &net.switches()[0];
-    assert_eq!(switch.partner_name, "Crossover end");
-    assert_eq!(without(switch, &["partner_name"]).partner_name, "");
+    let partner: &Partner = net.switches()[0].partner.as_ref().unwrap();
+    assert_eq!(partner.name, "Crossover end");
+    let old = without(partner, &["name"]);
+    assert_eq!((old.id.as_str(), old.name.as_str()), ("8", ""));
 }
 
 #[test]
@@ -128,7 +122,15 @@ fn provenance_records_without_their_new_fields_read_as_before() {
         .iter()
         .find(|o| !o.fill_type.is_empty())
         .unwrap();
-    let old = without(object, &["fill_type", "outline_lane_type"]);
+    let old = without(
+        object,
+        &[
+            "fill_type",
+            "outline_lane_type",
+            "material_road_mark_colors",
+        ],
+    );
+    assert!(old.material_road_mark_colors.is_empty());
     assert_eq!((old.fill_type.as_str(), old.outline_lane_type), ("", None));
 
     let mark: &RoadMarkProvenance = prov

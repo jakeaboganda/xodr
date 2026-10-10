@@ -873,7 +873,6 @@ fn an_object_keeps_what_its_surface_is_made_of() {
             surface: "concrete".into(),
             friction: Some(0.7),
             roughness: Some(0.02),
-            road_mark_color: String::new(),
         }]
     );
     assert_eq!(
@@ -882,7 +881,6 @@ fn an_object_keeps_what_its_surface_is_made_of() {
             surface: "asphalt".into(),
             friction: Some(0.6),
             roughness: None,
-            road_mark_color: String::new(),
         }]
     );
     assert_eq!(of(ObjectType::Tree), []);

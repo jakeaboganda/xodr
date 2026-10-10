@@ -273,11 +273,6 @@ pub struct Material {
     pub friction: Option<f32>,
     /// The surface roughness, in metres, if the map gives one.
     pub roughness: Option<f32>,
-    /// The colour of the road marks on the surface, from an object's
-    /// `roadMarkColor`, such as `white`. Free text. Empty if the map gives
-    /// none, and for a lane's material, which has no such attribute.
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub road_mark_color: String,
 }
 
 /// One piece of vendor data a map attaches to an object, kept as text.

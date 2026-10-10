@@ -19,12 +19,20 @@ pub struct Switch {
     pub main: TrackPoint,
     /// Where the side track leaves it.
     pub side: TrackPoint,
-    /// The `id` of its partner switch, such as the other end of a crossover,
-    /// if it has one.
-    pub partner: Option<String>,
-    /// The `name` of its `<partner>`, empty if it has none.
+    /// Its partner switch, such as the other end of a crossover, if it has
+    /// one.
+    pub partner: Option<Partner>,
+}
+
+/// A switch's `<partner>`.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Partner {
+    /// The partner switch's `id`.
+    pub id: String,
+    /// The `name` the map gives the partner. Empty if it has none.
     #[cfg_attr(feature = "serde", serde(default))]
-    pub partner_name: String,
+    pub name: String,
 }
 
 /// Which way a [`Switch`] is set, from its `position`.
