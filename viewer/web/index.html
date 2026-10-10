@@ -153,9 +153,9 @@ const PARKING_COLORS = {
   'bus': 0xffab00, 'truck': 0x8d6e63, 'residents': 0xab47bc, 'women': 0xf06292,
 };
 
-// An object's colour: paint for an area of paint, in its first material's
-// `roadMarkColor` if it has one, its parking access if it is a parking
-// space, else its type.
+// An object's colour: paint for an area of paint, in the first
+// `roadMarkColor` among its materials, or white, its parking access if it
+// is a parking space, else its type.
 function objectColor(o) {
   if (o.fillType === 'paint') {
     const color = o.materials?.find(m => m.roadMarkColor)?.roadMarkColor ?? 'standard';
