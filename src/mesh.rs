@@ -3,7 +3,7 @@ use std::ops::Range;
 use crate::coords::{Point, Vector};
 use crate::geometry::left_normal;
 use crate::grid::{Aabb, Grid};
-use crate::network::{LaneId, RoadNetwork};
+use crate::network::{LaneId, Layer, RoadNetwork};
 use crate::object_mesh::ObjectSpan;
 
 /// A triangle mesh (Z-up, meters): per-vertex positions and normals, plus
@@ -280,7 +280,9 @@ impl<'a> MeshSampler<'a> {
 }
 
 impl RoadNetwork {
-    /// Tessellate every lane into one surface mesh, a quad strip per lane.
+    /// Tessellate every lane of the permanent layer into one surface mesh,
+    /// a quad strip per lane. The temporary layer's lanes lie on the same
+    /// surface and are not in it. [`Self::temporary_mesh`] has them.
     /// Sidewalks, medians and shoulders are surfaces a body can stand on and a
     /// renderer must draw, so the mesh covers the whole cross-section, not only
     /// the part traffic uses. [`Mesh::lanes`] names the lane behind each slice,
@@ -309,6 +311,18 @@ impl RoadNetwork {
     /// is clamped, pinching the lane at the apex, while the outer rib keeps its
     /// full half-width and radius.
     pub fn surface_mesh(&self) -> Mesh {
+        self.layer_mesh(Layer::Permanent)
+    }
+
+    /// The lanes of the temporary layer, tessellated as
+    /// [`Self::surface_mesh`] does the permanent ones. They stand at the same
+    /// height as the lanes under them, so draw them over the surface with a
+    /// depth offset. Empty on a map with no temporary layer.
+    pub fn temporary_mesh(&self) -> Mesh {
+        self.layer_mesh(Layer::Temporary)
+    }
+
+    fn layer_mesh(&self, layer: Layer) -> Mesh {
         // Floor on the stub threshold, in metres: nothing this close together
         // is a real sample, whatever its neighbours look like.
         const WELD_FLOOR: f32 = 0.1;
@@ -321,7 +335,7 @@ impl RoadNetwork {
         const STUB_FRACTION: f32 = 0.25;
         let horizontal = |v: Vector| Vector::new(v.x, v.y, 0.0);
         let mut mesh = Mesh::default();
-        for lane in self.lanes() {
+        for lane in self.lanes().iter().filter(|l| l.layer == layer) {
             let raw = lane.center.points();
             let raw_tangents = lane.center.tangents();
             // Welding selects centerline vertices rather than rewriting them,
@@ -467,6 +481,7 @@ mod tests {
         let net = RoadNetwork::new(vec![Lane {
             id: LaneId(0),
             kind: LaneType::Driving,
+            layer: crate::Layer::Permanent,
             direction: Direction::Forward,
             center: Polyline::new(vec![
                 Point::new(0.0, 0.0, 0.0),
@@ -546,6 +561,7 @@ mod tests {
             ..Lane {
                 id: LaneId(0),
                 kind: LaneType::Driving,
+                layer: crate::Layer::Permanent,
                 direction: Direction::Forward,
                 center: Polyline::new(vec![
                     Point::new(0.0, 0.0, 0.0),
@@ -582,6 +598,7 @@ mod tests {
         RoadNetwork::new(vec![Lane {
             id: LaneId(0),
             kind: LaneType::Driving,
+            layer: crate::Layer::Permanent,
             direction: Direction::Forward,
             center: Polyline::new(points),
             width,
@@ -697,6 +714,7 @@ mod tests {
         let net = RoadNetwork::new(vec![Lane {
             id: LaneId(0),
             kind: LaneType::Driving,
+            layer: crate::Layer::Permanent,
             direction: Direction::Forward,
             center: Polyline::new(vec![Point::ORIGIN, Point::new(10.0, 0.0, 0.0)]),
             width: 4.0,
@@ -753,6 +771,7 @@ mod tests {
         let net = RoadNetwork::new(vec![Lane {
             id: LaneId(0),
             kind: LaneType::Driving,
+            layer: crate::Layer::Permanent,
             direction: Direction::Forward,
             center: Polyline::new(vec![Point::ORIGIN, Point::new(10.0, 0.0, 0.0)]),
             width: 6.0,

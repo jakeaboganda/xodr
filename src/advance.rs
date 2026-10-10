@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 
 use crate::coords::Point;
-use crate::network::{Direction, Lane, LaneId, RoadNetwork};
+use crate::network::{Direction, Lane, LaneId, LayerPolicy, RoadNetwork};
 use crate::road::{station_at, LanePosition, RoadSection};
 use crate::LaneChange;
 
@@ -72,6 +72,17 @@ impl RoadNetwork {
     /// Step a few metres at a time. Empty if `from` is not on a lane of the
     /// network's roads, or `distance` is not finite.
     pub fn advance(&self, from: LanePosition, distance: f64) -> Vec<Advance> {
+        self.advance_with(from, distance, LayerPolicy::default())
+    }
+
+    /// [`Self::advance`] under `policy`: with [`LayerPolicy::PermanentOnly`]
+    /// a branch never goes on to a lane of the temporary layer.
+    pub fn advance_with(
+        &self,
+        from: LanePosition,
+        distance: f64,
+        policy: LayerPolicy,
+    ) -> Vec<Advance> {
         let (Some(lane), Some(arc)) = (self.lane(from.lane), self.centerline_s(from)) else {
             return Vec::new();
         };
@@ -120,6 +131,7 @@ impl RoadNetwork {
             let next: Vec<&Lane> = linked
                 .iter()
                 .filter_map(|&id| self.lane(id))
+                .filter(|next| policy.admits(next))
                 .filter(|next| lane.direction != Direction::Both || self.at_end(lane, next, up))
                 .collect();
             if remaining > room && !next.is_empty() {

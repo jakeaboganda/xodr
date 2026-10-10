@@ -51,39 +51,14 @@ const FEATURES: &[Feature] = &[
         when: always,
     },
     Feature {
-        name: "a second <lanes>",
+        name: "a repeated <lanes> of one layer",
         path: "lanes",
-        when: follows_another_lanes,
-    },
-    Feature {
-        name: "<lanes layer=\"temporary\">",
-        path: "lanes",
-        when: temporary_layer,
+        when: repeats_a_layer,
     },
     Feature {
         name: "<laneSection singleSide=\"true\">",
         path: "lanes/laneSection",
         when: single_sided,
-    },
-    Feature {
-        name: "<predecessor layer>",
-        path: "lanes/laneSection/side/lane/link/predecessor",
-        when: names_a_layer,
-    },
-    Feature {
-        name: "<successor layer>",
-        path: "lanes/laneSection/side/lane/link/successor",
-        when: names_a_layer,
-    },
-    Feature {
-        name: "<validity layer>",
-        path: "**/validity",
-        when: names_a_layer_off_a_sign,
-    },
-    Feature {
-        name: "<laneLink fromLayer or toLayer>",
-        path: "connection/laneLink",
-        when: crosses_layers,
     },
     Feature {
         name: "<object perpToRoad=\"true\">",
@@ -167,32 +142,11 @@ fn in_a_junction(node: roxmltree::Node) -> bool {
         .is_some_and(|p| p.has_tag_name("junction"))
 }
 
-fn follows_another_lanes(node: roxmltree::Node) -> bool {
+fn repeats_a_layer(node: roxmltree::Node) -> bool {
+    let temporary = |n: &roxmltree::Node| n.attribute("layer") == Some("temporary");
     node.prev_siblings()
         .skip(1)
-        .any(|n| n.has_tag_name("lanes"))
-}
-
-fn temporary_layer(node: roxmltree::Node) -> bool {
-    node.attribute("layer") == Some("temporary")
-}
-
-fn names_a_layer(node: roxmltree::Node) -> bool {
-    node.attribute("layer")
-        .is_some_and(|layer| layer != "permanent")
-}
-
-fn names_a_layer_off_a_sign(node: roxmltree::Node) -> bool {
-    names_a_layer(node)
-        && !node
-            .parent_element()
-            .is_some_and(|p| p.has_tag_name("sign"))
-}
-
-fn crosses_layers(node: roxmltree::Node) -> bool {
-    ["fromLayer", "toLayer"]
-        .iter()
-        .any(|name| node.attribute(*name).is_some_and(|l| l != "permanent"))
+        .any(|n| n.has_tag_name("lanes") && temporary(&n) == temporary(&node))
 }
 
 fn flag(node: roxmltree::Node, name: &str) -> bool {

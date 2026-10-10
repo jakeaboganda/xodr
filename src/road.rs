@@ -4,7 +4,7 @@
 
 use crate::coords::Point;
 use crate::crg::RefPoint;
-use crate::{Direction, LaneId, RoadMarkId};
+use crate::{Direction, LaneId, Layer, RoadMarkId};
 
 /// A road's identity: its position in
 /// [`RoadNetwork::roads`](crate::RoadNetwork::roads). Look a road up with
@@ -121,6 +121,9 @@ pub struct Road {
     pub(crate) superelevations: Vec<Cubic>,
     pub(crate) lateral: Lateral,
     pub(crate) lane_offsets: Vec<Cubic>,
+    /// The `<laneOffset>`s of the temporary layer, which are its own.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) temporary_lane_offsets: Vec<Cubic>,
     pub(crate) sections: Vec<RoadSection>,
 }
 
@@ -157,8 +160,12 @@ impl Road {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct RoadSection {
-    /// Its position among the road's `<laneSection>`s, ordered by `s`.
+    /// Its position among the road's `<laneSection>`s: the permanent
+    /// layer's in order of `s`, then the temporary layer's.
     pub index: usize,
+    /// The layer it is on.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub layer: Layer,
     pub start: f64,
     pub end: f64,
     /// The stations its lanes are sampled at. Each baked lane has one
@@ -849,9 +856,24 @@ impl Road {
         }
     }
 
-    /// The `t` of the center lane at `s`, from `<laneOffset>`.
+    /// The `t` of the center lane of the permanent layer at `s`, from
+    /// `<laneOffset>`.
     pub(crate) fn base(&self, s: f64) -> f64 {
-        active(&self.lane_offsets, s).map_or(0.0, |o| o.eval(s))
+        self.base_of(Layer::Permanent, s)
+    }
+
+    /// The `<laneOffset>`s of `layer`.
+    pub(crate) fn offsets_of(&self, layer: Layer) -> &[Cubic] {
+        match layer {
+            Layer::Permanent => &self.lane_offsets,
+            Layer::Temporary => &self.temporary_lane_offsets,
+        }
+    }
+
+    /// The `t` of the center lane of `layer` at `s`. The layers have their
+    /// own `<laneOffset>`s.
+    pub(crate) fn base_of(&self, layer: Layer, s: f64) -> f64 {
+        active(self.offsets_of(layer), s).map_or(0.0, |o| o.eval(s))
     }
 
     /// The surface at a station `(s, t)`, on the lane there, and the
@@ -985,13 +1007,28 @@ impl Road {
         self.sections.iter().find(|section| section.index == index)
     }
 
-    /// The lane section at `s`. On a boundary, the one starting there.
+    /// The permanent layer's lane section at `s`. On a boundary, the one
+    /// starting there. The permanent layer defines the surface.
     pub(crate) fn section_at(&self, s: f64) -> Option<&RoadSection> {
+        let mut permanent = self
+            .sections
+            .iter()
+            .filter(|section| section.layer == Layer::Permanent);
+        permanent
+            .clone()
+            .rev()
+            .find(|section| section.start <= s + 1e-9)
+            .or(permanent.next())
+    }
+
+    /// The lane section of `layer` that covers `s`, if there is one. On a
+    /// boundary, the one starting there.
+    pub(crate) fn section_of(&self, layer: Layer, s: f64) -> Option<&RoadSection> {
         self.sections
             .iter()
             .rev()
-            .find(|section| section.start <= s + 1e-9)
-            .or(self.sections.first())
+            .filter(|section| section.layer == layer)
+            .find(|section| section.start <= s + 1e-9 && s <= section.end + 1e-9)
     }
 
     /// Each lane of `section` across the road at `s`, from the center
@@ -1001,7 +1038,7 @@ impl Road {
         section: &'a RoadSection,
         s: f64,
     ) -> impl Iterator<Item = Across> + 'a {
-        let base = self.base(s);
+        let base = self.base_of(section.layer, s);
         let s_lane = s - section.start;
         let phi = active(&self.superelevations, s).map_or(0.0, |e| e.eval(s));
         [(&section.left, 1.0), (&section.right, -1.0)]
@@ -1049,23 +1086,25 @@ impl Road {
         (0.0..=self.length).contains(&s)
     }
 
-    /// The lanes alongside the stretch `[from, to]` whose `<lane id>` is in
-    /// one of the `validity` ranges, or all of them if there are no ranges.
-    /// A section starting exactly at `to` counts only if the stretch is a
-    /// single station, so a station on a section boundary is in the section
-    /// that starts there.
-    pub(crate) fn lanes(&self, (from, to): (f64, f64), validity: &[(i32, i32)]) -> Vec<LaneId> {
-        let last = self.sections.len().saturating_sub(1);
+    /// The lanes alongside the stretch `[from, to]`, on either layer, whose
+    /// `<lane id>` and layer are in one of the `validity` ranges, or all of
+    /// them if there are no ranges. A section starting exactly at `to`
+    /// counts only if the stretch is a single station, so a station on a
+    /// section boundary is in the section that starts there.
+    pub(crate) fn lanes(&self, (from, to): (f64, f64), validity: &[Validity]) -> Vec<LaneId> {
+        let last = |layer| self.sections.iter().rposition(|s| s.layer == layer);
+        let last = [last(Layer::Permanent), last(Layer::Temporary)];
         self.sections
             .iter()
             .enumerate()
             .filter(|(i, sec)| {
+                let ends_the_road = last.contains(&Some(*i));
                 let starts = sec.start < to || (from == to && sec.start <= to);
-                starts && (from < sec.end || (*i == last && from <= sec.end))
+                starts && (from < sec.end || (ends_the_road && from <= sec.end))
             })
-            .flat_map(|(_, sec)| &sec.lanes)
-            .filter(|(od_id, _)| is_valid(*od_id, validity))
-            .map(|&(_, id)| id)
+            .flat_map(|(_, sec)| sec.lanes.iter().map(move |lane| (sec.layer, lane)))
+            .filter(|(layer, (od_id, _))| is_valid(*od_id, *layer, validity))
+            .map(|(_, &(_, id))| id)
             .collect()
     }
 }
@@ -1109,13 +1148,16 @@ pub(crate) fn station_at(points: &[Point], stations: &[f64], arc: f32) -> f64 {
     stations[0]
 }
 
-/// Whether the lane `od_id` is in one of the `validity` ranges, or there are
-/// none.
-pub(crate) fn is_valid(od_id: i32, validity: &[(i32, i32)]) -> bool {
+/// A `<validity>`: the lanes `fromLane` to `toLane` on a layer.
+pub(crate) type Validity = (i32, i32, Layer);
+
+/// Whether the lane `od_id` on `layer` is in one of the `validity` ranges,
+/// or there are none.
+pub(crate) fn is_valid(od_id: i32, layer: Layer, validity: &[Validity]) -> bool {
     validity.is_empty()
         || validity
             .iter()
-            .any(|&(a, b)| (a.min(b)..=a.max(b)).contains(&od_id))
+            .any(|&(a, b, l)| l == layer && (a.min(b)..=a.max(b)).contains(&od_id))
 }
 
 fn to_point([x, y, z]: [f64; 3]) -> Point {

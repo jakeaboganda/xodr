@@ -13,7 +13,7 @@ use std::collections::{BinaryHeap, HashMap};
 
 use crate::coords::Point;
 
-use crate::network::{Direction, Lane, LaneId, RoadNetwork};
+use crate::network::{Direction, Lane, LaneId, LayerPolicy, RoadNetwork};
 
 /// Waypoint spacing (meters) when sampling a route's lane centerlines.
 const ROUTE_STEP: f32 = 2.0;
@@ -32,9 +32,15 @@ impl RoadNetwork {
     /// The route never runs against a lane's traffic: a goal behind the start
     /// on a one-way lane is reached round the network, or not at all.
     pub fn route(&self, from: Point, to: Point) -> Option<Vec<Point>> {
-        let (start, start_proj) = self.nearest_lane(from)?;
-        let (goal, goal_proj) = self.nearest_lane(to)?;
-        let path = self.lane_path((start, start_proj.s), (goal, goal_proj.s))?;
+        self.route_with(from, to, LayerPolicy::default())
+    }
+
+    /// [`Self::route`] under `policy`: with [`LayerPolicy::PermanentOnly`] the
+    /// route snaps to, and runs over, the permanent layer's lanes alone.
+    pub fn route_with(&self, from: Point, to: Point, policy: LayerPolicy) -> Option<Vec<Point>> {
+        let (start, start_proj) = self.nearest_lane_with(from, policy)?;
+        let (goal, goal_proj) = self.nearest_lane_with(to, policy)?;
+        let path = self.lane_path((start, start_proj.s), (goal, goal_proj.s), policy)?;
         Some(self.sample_route(&path, start_proj.s, goal_proj.s))
     }
 
@@ -46,12 +52,13 @@ impl RoadNetwork {
         &self,
         (start, start_s): (LaneId, f32),
         (goal, goal_s): (LaneId, f32),
+        policy: LayerPolicy,
     ) -> Option<Vec<LaneId>> {
         if start == goal && ahead(self.lane(start)?.direction, start_s, goal_s) {
             return Some(vec![start]);
         }
         let mut search = Search::default();
-        search.expand(self, start, 0.0);
+        search.expand(self, start, 0.0, policy);
         while let Some(State { cost, lane }) = search.heap.pop() {
             if lane == goal {
                 return Some(reconstruct(&search.prev, start, goal));
@@ -59,7 +66,7 @@ impl RoadNetwork {
             if cost > *search.dist.get(&lane).unwrap_or(&f32::INFINITY) {
                 continue; // a stale, longer entry
             }
-            search.expand(self, lane, cost);
+            search.expand(self, lane, cost, policy);
         }
         None
     }
@@ -192,12 +199,15 @@ struct Search {
 impl Search {
     /// Relax the edges out of `lane`, reached at `cost`: successors cost the
     /// lane's length, lane changes a flat penalty.
-    fn expand(&mut self, net: &RoadNetwork, lane: LaneId, cost: f32) {
+    fn expand(&mut self, net: &RoadNetwork, lane: LaneId, cost: f32, policy: LayerPolicy) {
         let Some(l) = net.lane(lane) else { return };
         let step = l.center.length();
         let edges = (l.successors.iter().map(|&n| (n, cost + step)))
             .chain(l.neighbors.iter().map(|&n| (n, cost + LANE_CHANGE_COST)));
         for (next, nd) in edges {
+            if !net.lane(next).is_some_and(|n| policy.admits(n)) {
+                continue;
+            }
             if nd < *self.dist.get(&next).unwrap_or(&f32::INFINITY) {
                 self.dist.insert(next, nd);
                 self.prev.insert(next, lane);
@@ -245,6 +255,7 @@ mod tests {
         Lane {
             id: LaneId(id),
             kind: LaneType::Driving,
+            layer: crate::Layer::Permanent,
             direction: dir,
             center: Polyline::new(pts.iter().map(|p| Point::from_array(*p)).collect()),
             width: 3.5,

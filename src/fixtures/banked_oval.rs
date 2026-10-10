@@ -84,6 +84,7 @@ pub(crate) fn banked_oval() -> RoadNetwork {
     RoadNetwork::new(vec![Lane {
         id: LaneId(0),
         kind: LaneType::Driving,
+        layer: crate::Layer::Permanent,
         direction: Direction::Forward,
         center: Polyline::new(points),
         width: WIDTH,

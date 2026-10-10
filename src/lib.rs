@@ -83,7 +83,8 @@
 //! | `<strip><width>`, `<strip><constant>`, `<strip><linear>`, `<strip><quadratic>`, `<strip><cubic>` | none |
 //! | `<coefficients>`, under each of those and `<tOffset>` | `s`, `a`, `b`, `c`, `d` |
 //! | `<lanes><laneOffset>` | `s`, `a`, `b`, `c`, `d` |
-//! | `<laneSection>` | `s` |
+//! | `<lanes>` | `layer` |
+//! | `<laneSection>` | `s`, `length` |
 //! | `<left>`, `<center>`, `<right>` | none |
 //! | `<lane>` | `id`, `type`, `level`, `direction`, `advisory`, `dynamicLaneType`, `dynamicLaneDirection`, `roadWorks` |
 //! | `<center><lane>` | `id`, `type`, `level` |
@@ -102,11 +103,11 @@
 //! | `<roadMark><explicit>` | none |
 //! | `<explicit><line>` | `length`, `tOffset`, `sOffset`, `rule`, `width` |
 //! | `<roadMark><sway>` | `ds`, `a`, `b`, `c`, `d` |
-//! | `<lane><link>` | `id` |
+//! | `<lane><link>` | `id`, `layer` |
 //! | `<junction>` | `id`, `name`, `type`, `mainRoad`, `sStart`, `sEnd`, `orientation` |
 //! | `<connection>` | `id`, `type`, `incomingRoad`, `connectingRoad`, `linkedRoad`, `contactPoint` |
 //! | `<connection><predecessor>`, `<connection><successor>` | `elementId`, `elementS`, `elementDir`, `contactPoint` |
-//! | `<laneLink>` | `from`, `to`, `overlapZone` |
+//! | `<laneLink>` | `from`, `to`, `overlapZone`, `fromLayer`, `toLayer` |
 //! | `<junction><priority>` | `high`, `low` |
 //! | `<road><railroad>` | none |
 //! | `<railroad><switch>` | `id`, `name`, `position` |
@@ -149,7 +150,7 @@
 //! | `<controller>`, at the top level | `id`, `name`, `sequence` |
 //! | `<controller><control>` | `signalId`, `type` |
 //! | `<junction><controller>` | `id`, `type`, `sequence` |
-//! | `<validity>`, under `<object>`, `<objectReference>`, `<signal>`, `<signalReference>`, `<tunnel>` and `<bridge>` | `fromLane`, `toLane` |
+//! | `<validity>`, under `<object>`, `<objectReference>`, `<signal>`, `<signalReference>`, `<tunnel>` and `<bridge>` | `fromLane`, `toLane`, `layer` |
 //! | `<object><parkingSpace>` | `access`, `restrictions` |
 //! | `<object><material>` | `surface`, `friction`, `roughness`, `roadMarkColor` |
 //! | `<object><userData>` | `code`, `value` |
@@ -495,6 +496,49 @@
 //! allow is dropped, with a
 //! [`Warning::RailwayDropped`]. No other reader to compare against reads
 //! either.
+//!
+//! # Lane layers
+//!
+//! A road has a permanent lane layer along its whole length, and may have a
+//! temporary one over parts of it, as for road works. Each is a `<lanes>`,
+//! with its own lane sections and its own `<laneOffset>`. A [`Lane`] says
+//! which it is on in [`Lane::layer`], and a lane section's index counts the
+//! permanent layer's sections first, then the temporary layer's, as
+//! [`LaneProvenance::layer`] and `section` have it. A temporary section may
+//! give a `length`, and then ends there or at the next section of its layer.
+//!
+//! Both layers share one surface, which only the permanent layer defines.
+//! [`RoadNetwork::surface_mesh`], [`RoadNetwork::road_point`] and heights
+//! follow the permanent lanes, and [`RoadNetwork::temporary_mesh`] has the
+//! temporary lanes for drawing over them. The temporary layer's road marks
+//! are baked like any, on its lanes.
+//!
+//! A lane's `<link>` may name several lanes before and after it, each with
+//! a `layer`. That is how traffic goes from a permanent lane onto a
+//! temporary one, and back, and a lane of one layer then has lanes of both
+//! as successors. A junction `<laneLink>` says which layer it leaves from
+//! and arrives on with `fromLayer` and `toLayer`. A `<validity>` with a
+//! `layer` picks lanes of that layer, and one without picks the permanent
+//! layer's. An object or signal with no `<validity>` applies to the lanes of
+//! both layers.
+//!
+//! The temporary lanes take precedence for driving, as the spec says. So
+//! [`RoadNetwork::nearest_lane`], [`RoadNetwork::lane_position`],
+//! [`RoadNetwork::route`] and [`RoadNetwork::advance`] look at both layers,
+//! and a temporary lane that holds a point is the one they find there.
+//! Their `_with` forms take a [`LayerPolicy`], and
+//! [`LayerPolicy::PermanentOnly`] looks at the permanent layer alone.
+//!
+//! The crate departs from the OpenDRIVE 1.9 spec here:
+//!
+//! - A link with no `layer` reads as the permanent layer, the spec says. The
+//!   crate reads it so only where the lane's own layer has no section there
+//!   to go on to. A lane of the temporary layer that links to the next
+//!   section of its layer, with no `layer`, goes there.
+//! - A road with no permanent `<lanes>`, only a temporary one, bakes the
+//!   first as the permanent layer, as it did before layers were read.
+//! - A permanent `<laneSection>`'s `length`, which the spec forbids, is
+//!   ignored.
 //!
 //! # Lane borders
 //!
@@ -943,12 +987,8 @@
 //!
 //! It also ignores these uses of elements it reads:
 //!
-//! - a second `lanes` on a road, and a `lanes` with `layer="temporary"`. The
-//!   crate bakes the first `lanes` of a road as the road, as if it were
-//!   permanent;
+//! - a second `lanes` of one layer on a road, which the crate leaves out;
 //! - `singleSide="true"` on a lane section;
-//! - a `layer` other than `permanent` on a lane link or a `validity`, and a
-//!   `fromLayer` or `toLayer` on a junction lane link;
 //! - `perpToRoad="true"` on an object;
 //! - a repeat's `bT`, `cT` or `dT` other than 0, and
 //!   `detachFromReferenceLine="true"`;
@@ -1308,7 +1348,9 @@ pub use junction::{
     JunctionGroupKind, LinkPoint, MainRoad, VirtualJunction, VirtualLink,
 };
 pub use mesh::{LaneSpan, Mesh, MeshError, MeshSampler};
-pub use network::{Direction, Lane, LaneAdvisory, LaneId, LaneType, RoadNetwork};
+pub use network::{
+    Direction, Lane, LaneAdvisory, LaneId, LaneType, Layer, LayerPolicy, RoadNetwork,
+};
 pub use object::{
     Border, Corner, Extent, Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Section,
     Shape, UserData,

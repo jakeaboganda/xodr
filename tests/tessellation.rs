@@ -63,6 +63,7 @@ fn a_corner_tighter_than_the_half_width_does_not_fold() {
     let net = RoadNetwork::new(vec![Lane {
         id: LaneId(0),
         kind: LaneType::Driving,
+        layer: xodr::Layer::Permanent,
         direction: Direction::Forward,
         center: Polyline::new(pts),
         width,
@@ -94,6 +95,7 @@ fn lane_of(width: f32, pts: &[[f32; 3]]) -> RoadNetwork {
     RoadNetwork::new(vec![Lane {
         id: LaneId(0),
         kind: LaneType::Driving,
+        layer: xodr::Layer::Permanent,
         direction: Direction::Forward,
         center: Polyline::new(pts.iter().map(|p| Point::from_array(*p)).collect()),
         width,
