@@ -402,6 +402,11 @@ cursor, and the CRG files on the lane.
 The grid is as fine as the finest CRG file, or coarser to keep to about
 250,000 cells per file.
 
+An object's `<surface>` CRG, such as a pothole, gets a grid of its own over
+the object's box, at its file's spacing, so a small one is not lost between
+the cells over the road. It hangs 5 mm above the surface with the object's
+CRG added. Hover it for the CRG height there, which takes in the object's.
+
 `tests/data/crg.xodr` lays the same generated file on four roads, one per
 mode, and a friction file on the first. Open it with `crg_bumps.crg` and
 `crg_grip.crg`, which sit beside it.

@@ -1135,8 +1135,10 @@ fn spacing(grid: &CrgGrid) -> f64 {
     du.min(dv)
 }
 
-/// The CRG overlay: [`RoadSurface`] sampled over every lane a CRG covers, on
-/// a grid draped `LIFT` above the road mesh. Each vertex carries the CRG
+/// The CRG overlay: [`RoadSurface`] sampled over every lane a road or
+/// junction CRG covers, on a grid draped `LIFT` above the road mesh, and
+/// over each object CRG's box at its file's spacing, `LIFT` above the
+/// surface. Each vertex carries the CRG
 /// grid height (`heights`), the surface height (`z`) and the friction, null
 /// where none applies. A cell is drawn only where all four corners have one
 /// of them. The grid is as fine as the finest loaded file, or coarser to stay
@@ -1158,7 +1160,7 @@ fn crg_overlay(
     let covered: HashSet<LaneId> = net
         .crg_surfaces()
         .iter()
-        .filter(|c| loaded.contains_key(&c.file))
+        .filter(|c| loaded.contains_key(&c.file) && !matches!(c.mode, CrgMode::Object(_)))
         .flat_map(|c| c.lanes.iter().copied())
         .collect();
     let spans: Vec<&LaneSpan> = mesh
@@ -1226,6 +1228,41 @@ fn crg_overlay(
                 .collect();
             if !previous.is_empty() {
                 for j in 0..columns {
+                    let quad = [previous[j], previous[j + 1], row[j + 1], row[j]];
+                    if let [Some(a), Some(b), Some(c), Some(d)] = quad {
+                        indices.extend([a, b, c, a, c, d]);
+                    }
+                }
+            }
+            previous = row;
+        }
+    }
+    for c in net.crg_surfaces() {
+        let (CrgMode::Object(object), Some(&step)) = (c.mode, loaded.get(&c.file)) else {
+            continue;
+        };
+        let (sin, cos) = object.origin.heading.sin_cos();
+        let count = |half: f64| (2.0 * half / step).ceil().clamp(1.0, 200.0) as usize;
+        let (nu, nv) = (count(object.half_length), count(object.half_width));
+        let mut previous: Vec<Option<u32>> = vec![];
+        for i in 0..=nu {
+            let u = object.half_length * (2.0 * i as f64 / nu as f64 - 1.0);
+            let row: Vec<Option<u32>> = (0..=nv)
+                .map(|j| {
+                    let v = object.half_width * (2.0 * j as f64 / nv as f64 - 1.0);
+                    let x = object.origin.x + u * cos - v * sin;
+                    let y = object.origin.y + u * sin + v * cos;
+                    let sample = surface.sample(x, y, &mut SurfaceHint::default())?;
+                    sample.crg_height?;
+                    positions.extend([x as f32, y as f32, sample.z as f32 + LIFT]);
+                    heights.push(sample.crg_height.map(|h| h as f32));
+                    z.push(sample.z as f32);
+                    friction.push(sample.friction.map(|f| f as f32));
+                    Some((heights.len() - 1) as u32)
+                })
+                .collect();
+            if !previous.is_empty() {
+                for j in 0..nv {
                     let quad = [previous[j], previous[j + 1], row[j + 1], row[j]];
                     if let [Some(a), Some(b), Some(c), Some(d)] = quad {
                         indices.extend([a, b, c, a, c, d]);
