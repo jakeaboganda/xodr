@@ -296,8 +296,8 @@
 //! or banked road stands level. With `perpToRoad="true"` its frame follows
 //! the road instead: the road's axes at its origin, up the grade and across
 //! the bank, turned by `hdg`, and raised `zOffset` along the surface normal.
-//! Its `pitch` and `roll` are ignored. libOpenDRIVE places every object that
-//! way.
+//! Its `pitch` and `roll` are ignored. libOpenDRIVE places every object in
+//! the road's axes too, but turns it by its `pitch` and `roll` there.
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:
 //!
@@ -334,11 +334,13 @@
 //!   The crate departs from it and reads one as written, so a cubic may drift
 //!   right.
 //! - With `detachFromReferenceLine="true"`, a repeat runs on the straight
-//!   line between the ground at its two ends, `(s, tStart)` and
-//!   `(s + length, tEnd)`. Each copy stands on the line, and a sweep's
-//!   cross-sections lie level and square to it. A copy's `hdg` still turns
-//!   it from the road's heading at its `s`, since the spec detaches only
-//!   positions. A `<cornerRoad>` under it moves as if it were not detached.
+//!   line between the ground at its two ends: at its start at `tStart`, and
+//!   at its end at the `t` it ends at, `tEnd` or its cubic's end. Each copy
+//!   stands on the line, and a sweep's cross-sections lie level and square to
+//!   it. A copy's `hdg` still turns it from the road's heading at its `s`,
+//!   and with `perpToRoad` it takes the road's axes there, since the spec
+//!   detaches only positions. A `<cornerRoad>` under it moves as if it were
+//!   not detached.
 //! - Each `<outline>` is a [`Shape::Outline`], and an object with outlines
 //!   has no solid of its own. `<outline>` is read under `<outlines>`, and
 //!   straight under `<object>` as OpenDRIVE 1.4 writes it.

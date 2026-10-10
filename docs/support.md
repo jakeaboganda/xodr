@@ -203,7 +203,8 @@ surface.
   stands upright: its pitch and roll are against the horizontal, as the
   schema says, so it stands level on a grade or a bank. With
   `perpToRoad="true"` it follows the road surface under its origin and
-  ignores its pitch and roll, as libOpenDRIVE places every object. Figure 20
+  ignores its pitch and roll. libOpenDRIVE places every object in the road's
+  axes too, but turns it by its pitch and roll there. Figure 20
   of the spec places objects in the road's tilted frame instead, and the
   crate follows the schema.
 - A `<repeat>` with a `distance` becomes one object per step, so a row of
