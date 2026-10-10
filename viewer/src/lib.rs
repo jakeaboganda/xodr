@@ -80,8 +80,10 @@ pub fn bake(
         notes.push(format!("mesh is not a valid triangle mesh: {e}"));
     }
     let temporary = net.temporary_mesh();
-    if let Err(e) = temporary.validate() {
-        notes.push(format!("temporary mesh is not a valid triangle mesh: {e}"));
+    if !temporary.lanes.is_empty() {
+        if let Err(e) = temporary.validate() {
+            notes.push(format!("temporary mesh is not a valid triangle mesh: {e}"));
+        }
     }
     let drawn = with_temporary(&mesh, &temporary);
 
