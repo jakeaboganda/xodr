@@ -473,3 +473,54 @@ fn several_links_into_one_junction_cross_it_once() {
     let first = &net.lanes()[0];
     assert_eq!(first.successors.len(), 1, "{:?}", first.successors);
 }
+
+#[test]
+fn a_temporary_lane_traffic_may_not_use_hides_the_permanent_lane_under_it() {
+    let (net, prov) = fixture();
+    let found = |x: f32, y: f32, policy| {
+        net.nearest_lane_with(Point::new(x, y, 0.0), policy)
+            .map(|(id, _)| {
+                let p = prov.lanes.iter().find(|p| p.lane == id).unwrap();
+                (p.road_id.clone(), p.od_id, p.layer)
+            })
+            .unwrap()
+    };
+    let lane_1 = 240.0 - 1.75;
+    // Over the restricted lane, from 20 to 60 m, lane -1 is hidden and the
+    // nearest driving lane is -2. Beside it, lane -1 is itself.
+    assert_eq!(
+        found(40.0, lane_1, LayerPolicy::Both),
+        ("6".into(), -2, Layer::Permanent)
+    );
+    assert_eq!(
+        found(10.0, lane_1, LayerPolicy::Both),
+        ("6".into(), -1, Layer::Permanent)
+    );
+    assert_eq!(
+        found(70.0, lane_1, LayerPolicy::Both),
+        ("6".into(), -1, Layer::Permanent)
+    );
+    // With only the permanent layer, it is not hidden.
+    assert_eq!(
+        found(40.0, lane_1, LayerPolicy::PermanentOnly),
+        ("6".into(), -1, Layer::Permanent)
+    );
+    // Road 7's only driving lane is closed for works, so the nearest lane
+    // is another road's.
+    let (road, ..) = found(40.0, 300.0 - 1.75, LayerPolicy::Both);
+    assert_ne!(road, "7");
+    assert_eq!(found(40.0, 300.0 - 1.75, LayerPolicy::PermanentOnly).0, "7");
+}
+
+#[test]
+fn a_lane_position_finds_the_closed_temporary_lane_whatever_its_type() {
+    let (net, prov) = fixture();
+    let at = Point::new(40.0, 240.0 - 1.75, 0.0);
+    let position = net.lane_position_with(at, LayerPolicy::Both).unwrap();
+    let p = prov.lanes.iter().find(|p| p.lane == position.lane).unwrap();
+    assert_eq!((p.road_id.as_str(), p.layer), ("6", Layer::Temporary));
+    assert_eq!(
+        net.lane(position.lane).unwrap().kind,
+        xodr::LaneType::Restricted
+    );
+}

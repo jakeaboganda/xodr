@@ -398,6 +398,8 @@ pub struct RoadNetwork {
     index: LaneIndex,
     /// As `index`, for the temporary layer's lanes.
     temporary_index: LaneIndex,
+    /// The temporary layer's lanes that close the lanes under them.
+    closing_index: LaneIndex,
     /// Each lane's place on its road, from `roads`.
     road_lanes: HashMap<LaneId, RoadLane>,
     /// Every lane's surface bucketed by its XY footprint, for
@@ -601,6 +603,16 @@ impl LaneIndex {
         self.spans.is_empty()
     }
 
+    /// The lanes of the temporary layer traffic may not use, which close
+    /// the permanent lanes under them to [`RoadNetwork::nearest_lane`].
+    fn closing(lanes: &[Lane]) -> Self {
+        Self::build(
+            lanes,
+            |lane| lane.layer == Layer::Temporary && !lane.kind.is_drivable(),
+            |_, _| 0.0,
+        )
+    }
+
     /// The [`LaneType::Driving`] lanes' centerlines, for
     /// [`RoadNetwork::nearest_lane`].
     ///
@@ -718,6 +730,7 @@ impl RoadNetwork {
     pub fn new(lanes: Vec<Lane>) -> Self {
         let index = LaneIndex::driving(&lanes, Layer::Permanent);
         let temporary_index = LaneIndex::driving(&lanes, Layer::Temporary);
+        let closing_index = LaneIndex::closing(&lanes);
         Self {
             lanes,
             objects: Vec::new(),
@@ -746,6 +759,7 @@ impl RoadNetwork {
             stations: Vec::new(),
             index,
             temporary_index,
+            closing_index,
             road_lanes: HashMap::new(),
             footprints: LaneIndex::default(),
         }
@@ -1486,9 +1500,11 @@ impl RoadNetwork {
 
     /// [`Self::nearest_lane`] under `policy`. With [`LayerPolicy::Both`], a
     /// temporary driving lane whose width holds the point wins over a nearer
-    /// lane of the permanent layer. Where none does, and with
+    /// lane of the permanent layer. A temporary lane traffic may not use, such
+    /// as a restricted one or one closed for works, hides the permanent lane
+    /// under it, so that lane is passed over. With
     /// [`LayerPolicy::PermanentOnly`], only the permanent layer's lanes are
-    /// looked at.
+    /// looked at, as if there were no temporary ones.
     pub fn nearest_lane_with(
         &self,
         point: Point,
@@ -1497,27 +1513,28 @@ impl RoadNetwork {
         if !point.to_array().iter().all(|c| c.is_finite()) {
             return None;
         }
-        if policy == LayerPolicy::Both && !self.temporary_index.is_empty() {
-            let held = self.nearest_of(point, Layer::Temporary, true);
+        let both = policy == LayerPolicy::Both;
+        if both && !self.temporary_index.is_empty() {
+            let held = self.nearest_in(&self.temporary_index, point, true, false);
             if held.is_some() {
                 return held;
             }
         }
-        self.nearest_of(point, Layer::Permanent, false)
+        let hidden = both && !self.closing_index.is_empty();
+        self.nearest_in(&self.index, point, false, hidden)
     }
 
-    /// The nearest driving lane of `layer` to `point`, or if `must_hold`, the
-    /// nearest one whose width holds the point.
-    fn nearest_of(
+    /// The nearest lane of `index` to `point`. With `must_hold`, the nearest
+    /// whose width holds the point. With `skip_closed`, one whose place under
+    /// the point a lane of the temporary layer traffic may not use closes is
+    /// passed over.
+    fn nearest_in(
         &self,
+        index: &LaneIndex,
         point: Point,
-        layer: Layer,
         must_hold: bool,
+        skip_closed: bool,
     ) -> Option<(LaneId, Projection)> {
-        let index = match layer {
-            Layer::Permanent => &self.index,
-            Layer::Temporary => &self.temporary_index,
-        };
         index.grid.nearest(point.x, point.y, |item, best| {
             let i = item as usize;
             // The footprint is a lower bound on the distance to the
@@ -1532,6 +1549,17 @@ impl RoadNetwork {
             let projection = lane.center.project_segments(point, segments.clone());
             if must_hold && !holds(lane, point, &projection) {
                 return None;
+            }
+            if skip_closed {
+                // Where the lane lies under the point, not just along this
+                // span of it.
+                let under = lane.center.project(point).point;
+                if self
+                    .nearest_in(&self.closing_index, under, true, false)
+                    .is_some()
+                {
+                    return None;
+                }
             }
             Some((
                 (point - projection.point).length_squared(),

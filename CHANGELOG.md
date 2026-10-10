@@ -66,6 +66,8 @@
   `lane_position`, `route` and `advance` find them where they hold the
   point. New `LayerPolicy`, and `nearest_lane_with`, `lane_position_with`,
   `route_with` and `advance_with` take it.
+- A temporary lane traffic may not use, such as a restricted one or one
+  closed for works, hides the permanent lane under it from `nearest_lane`.
 - Breaking: `Lane` has a new `layer` field. An older serialized network
   without it loads as permanent. Behaviour change on a map with a temporary
   layer: its lanes are now in the network, so the lane count and

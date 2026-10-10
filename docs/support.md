@@ -148,7 +148,11 @@ layer.
   the lanes of both layers.
 - Temporary lanes take precedence for driving. `nearest_lane`,
   `lane_position`, `route` and `advance` find a temporary lane where it holds
-  the point. Only driving lanes take precedence in `nearest_lane`.
+  the point. In `nearest_lane` only driving lanes take precedence. A
+  temporary lane traffic may not use, such as a restricted one or one closed
+  for works, hides the permanent lane under it, so `nearest_lane` finds the
+  nearest lane that is not hidden. The lane graph, `route` and `advance` do
+  not hide it.
 
 To ask for the permanent layer alone, call the `_with` form of each query
 with `LayerPolicy::PermanentOnly`. The default, `LayerPolicy::Both`, is what
