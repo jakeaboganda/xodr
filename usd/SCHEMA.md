@@ -372,3 +372,10 @@ grey, and other types mid grey. Paint uses the colour its line names, or
 white. Objects and signal boards are grey, except an area of paint, a closed
 outline of `fillType` `paint`. It takes the paint colour of the first
 `roadMarkColor` among the object's materials, or white.
+
+## Not in the stage
+
+The stage carries no OpenCRG data. A road's, a junction's or an object's
+`<surface>` CRG changes neither the lane meshes nor the object meshes, and
+no attribute names the files. Sample them with the crate's `RoadSurface`
+instead.

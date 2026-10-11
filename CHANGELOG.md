@@ -21,6 +21,8 @@
   with a `fillType` carries it in `xodr:fillType`.
 - In `tests/data/outline_markings.xodr`, the "Patch" paint area has a
   yellow `roadMarkColor`.
+- `usd/SCHEMA.md` says the stage carries no OpenCRG data, an object's
+  `<surface>` CRG included.
 
 ### Docs and viewer
 
