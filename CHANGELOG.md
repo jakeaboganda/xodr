@@ -33,6 +33,11 @@
   it names.
 - A lane `<speed>` the crate cannot read ends the one before it and holds
   no limit. Before, the limit before it ran on.
+- `lane_position` finds a point whose road `s` lands a rounding error
+  short of a lane section. Before, it returned `None`.
+- Under `LayerPolicy::Both`, `lane_position` takes a temporary lane only
+  for a point between its borders, as documented. Before, a point past the
+  outermost temporary lane was on it.
 
 ## 0.6.0 - 2026-10-11
 

@@ -1053,6 +1053,13 @@ impl RoadNetwork {
             let held = road
                 .section_of(Layer::Temporary, at.s)
                 .and_then(|section| Some((section, road.lane_at(section, at.s, at.t)?)))
+                .filter(|(_, lane)| {
+                    let (lo, hi) = (
+                        lane.inner_t.min(lane.outer_t),
+                        lane.inner_t.max(lane.outer_t),
+                    );
+                    (lo..=hi).contains(&at.t)
+                })
                 .and_then(|(section, lane)| {
                     let (_, id) = *section.lanes.iter().find(|(od, _)| *od == lane.od_id)?;
                     Some(LanePosition {
@@ -1067,7 +1074,7 @@ impl RoadNetwork {
         }
         let section = road
             .section_at(at.s)
-            .filter(|section| (section.start..=section.end).contains(&at.s))?;
+            .filter(|section| (section.start - 1e-9..=section.end).contains(&at.s))?;
         let innermost = |od_id: i32| road.across(section, at.s).find(|a| a.od_id == od_id);
         let lane = road
             .lane_at(section, at.s, at.t)
