@@ -349,6 +349,9 @@
                 </right>
             </laneSection>
         </lanes>
+        <surface>
+            <CRG file="road.crg" sStart="0" sEnd="5" orientation="same" mode="attached0" sOffset="0" tOffset="0" />
+        </surface>
     </road>
     <road rule="RHT" id="1001" junction="9" length="24">
         <link>
