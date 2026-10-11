@@ -1084,3 +1084,47 @@ fn a_repeat_or_marking_with_too_many_copies_is_left_out_with_a_warning() {
     assert!(net.objects()[0].markings[0].pieces.is_empty());
     assert_eq!(prov.warnings, [warned("crossing")]);
 }
+
+fn on_straight_road(objects: &str) -> String {
+    format!(
+        r#"<OpenDRIVE><header/><road id="1" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes><objects>{objects}</objects></road></OpenDRIVE>"#
+    )
+}
+
+#[test]
+fn a_repeat_keeps_its_last_copy_when_the_step_does_not_divide_exactly_in_floats() {
+    let posts = r#"<object id="p" type="pole" s="5" t="-5" height="1" radius="0.1">
+        <repeat s="5" length="0.7" distance="0.1" tStart="-5" tEnd="-5"/></object>"#;
+    let net = xodr::load_str(&on_straight_road(posts)).unwrap();
+    assert_eq!(net.objects().len(), 8);
+}
+
+#[test]
+fn an_outline_reads_0_and_1_as_booleans() {
+    let ring = |attrs: &str, half: f64| {
+        let c = |id, u, v| format!(r#"<cornerLocal id="{id}" u="{u}" v="{v}" height="1"/>"#);
+        format!(
+            r#"<outline id="{half}" {attrs}>{}{}{}{}</outline>"#,
+            c(0, -half, -half),
+            c(1, half, -half),
+            c(2, half, half),
+            c(3, -half, half)
+        )
+    };
+    let shed = format!(
+        r#"<object id="o" type="building" s="50" t="-10"><outlines>{}{}</outlines></object>"#,
+        ring(r#"closed="1""#, 2.0),
+        ring(r#"outer="0""#, 1.0)
+    );
+    let net = xodr::load_str(&on_straight_road(&shed)).unwrap();
+    assert_eq!(net.objects().len(), 1);
+    let Shape::Outline { closed, holes, .. } = &net.objects()[0].shape else {
+        panic!("not an outline: {:?}", net.objects()[0].shape);
+    };
+    assert!(*closed);
+    assert_eq!(holes.len(), 1);
+}

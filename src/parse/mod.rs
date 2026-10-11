@@ -3277,7 +3277,7 @@ fn outline_parts(
         };
         faults.gap.set(faults.gap.get().max(ring.gap));
         faults.turned.set(faults.turned.get() || ring.turned);
-        if outline_node.attribute("outer") == Some("false") {
+        if matches!(outline_node.attribute("outer"), Some("false" | "0")) {
             holes.push((outline_node, ring));
         } else {
             parts.push(area(node, outline_node, &ring, st, too_many));
@@ -3507,7 +3507,7 @@ impl<'a> Repeat<'a> {
     /// One station every `distance` metres, both ends included, or `None` if
     /// that is more than [`MAX_REPEAT_INSTANCES`].
     fn stations(&self, base: &Station) -> Option<Vec<Station>> {
-        let count = (self.length / self.distance).floor() + 1.0;
+        let count = (self.length / self.distance + 1e-9).floor() + 1.0;
         if count > MAX_REPEAT_INSTANCES {
             return None;
         }
@@ -3716,7 +3716,7 @@ fn outline<'a>(
 ) -> Option<Ring<'a>> {
     let mut stretch = (f64::INFINITY, f64::NEG_INFINITY);
     let mut spans = |s: f64| stretch = (stretch.0.min(s), stretch.1.max(s));
-    let closed = node.attribute("closed") != Some("false");
+    let closed = !matches!(node.attribute("closed"), Some("false" | "0"));
     let nodes: Vec<roxmltree::Node> = corner_nodes(node).collect();
     let mut corners = Vec::new();
     let mut ups = Vec::new();
@@ -4026,7 +4026,7 @@ fn borders(
         })
         .filter_map(|b| {
             let width = attr_f64(b, "width").filter(|w| *w > 0.0)?;
-            let path = if b.attribute("useCompleteOutline") == Some("true") {
+            let path = if matches!(b.attribute("useCompleteOutline"), Some("true" | "1")) {
                 let mut path = ring.path();
                 if closed {
                     path.push(path[0]);
