@@ -535,3 +535,15 @@ fn a_lane_link_or_junction_the_crate_cannot_read_is_dropped_with_a_warning() {
         ]
     );
 }
+
+#[test]
+fn numbers_with_surrounding_whitespace_are_read() {
+    let xodr = r#"<OpenDRIVE><header/><road id="1" length=" 20.0" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20 "><line/></geometry></planView>
+        <lanes><laneSection s=" 0"><center><lane id="0" type="none"/></center><right>
+        <lane id=" -1" type="driving"><width sOffset="0" a=" 3.5 " b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    let (net, prov) = load_str_with_provenance(xodr).unwrap();
+    assert_eq!(net.lanes().len(), 1);
+    assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+}

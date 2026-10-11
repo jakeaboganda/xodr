@@ -1104,7 +1104,7 @@ fn cross_section(
         })
     };
     for strip in strips {
-        let id = strip.attribute("id").and_then(|v| v.parse::<i32>().ok());
+        let id = attr_i32(strip, "id");
         let slot = match id {
             Some(1) => &mut out.left[0],
             Some(2) => &mut out.left[1],
@@ -1230,7 +1230,7 @@ impl SectionDef {
                 continue;
             };
             for lane in side_node.children().filter(|n| n.has_tag_name("lane")) {
-                let id = lane.attribute("id").and_then(|s| s.parse::<i32>().ok());
+                let id = attr_i32(lane, "id");
                 let Some(id) = id.filter(|&id| id != 0) else {
                     bad_ids.push(lane.attribute("id").unwrap_or_default().to_string());
                     continue;
@@ -1372,11 +1372,18 @@ fn lane_type(od_type: Option<&str>) -> LaneType {
 /// literal `NaN`, and turns an out-of-range exponent (`1e400`) into infinity,
 /// so an XML attribute carries either straight into the baked geometry. One
 /// such value poisons every point derived from it, and a NaN vertex makes the
-/// road's physics trimesh impossible to build.
+/// road's physics trimesh impossible to build. Surrounding whitespace is
+/// allowed, as the schema's numeric types collapse it.
 fn attr_f64(node: roxmltree::Node, name: &str) -> Option<f64> {
     node.attribute(name)
-        .and_then(|s| s.parse::<f64>().ok())
+        .and_then(|s| s.trim().parse::<f64>().ok())
         .filter(|v| v.is_finite())
+}
+
+/// An integer attribute, or `None` if it is absent or unparseable.
+/// Surrounding whitespace is allowed, as for [`attr_f64`].
+fn attr_i32(node: roxmltree::Node, name: &str) -> Option<i32> {
+    node.attribute(name)?.trim().parse().ok()
 }
 
 /// `node`'s attribute `name` as an `f32`, or `None` like [`attr_f64`]. A
@@ -2908,7 +2915,7 @@ impl<'a> Placement<'a> {
 /// The `fromLane`-`toLane` range of each `<validity>` under `node`. One
 /// missing either is skipped.
 fn validity(node: roxmltree::Node) -> Vec<Validity> {
-    let lane = |v: roxmltree::Node, name| v.attribute(name)?.parse::<i32>().ok();
+    let lane = attr_i32;
     node.children()
         .filter(|n| n.has_tag_name("validity"))
         .filter_map(|v| {

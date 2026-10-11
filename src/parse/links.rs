@@ -541,7 +541,7 @@ pub(crate) fn junctions(
             };
             let mut lane_links = Vec::new();
             for l in c.children().filter(|n| n.has_tag_name("laneLink")) {
-                let id = |name| l.attribute(name).and_then(|v| v.parse::<i32>().ok());
+                let id = |name| super::attr_i32(l, name);
                 let layer = |name| Layer::from_attr(l.attribute(name));
                 match (id("from"), id("to")) {
                     (Some(from), Some(to)) => lane_links.push(JunctionLaneLink {
