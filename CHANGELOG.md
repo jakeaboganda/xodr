@@ -43,6 +43,9 @@
   `None`.
 - `Lane::bank_at` and `Lane::width_at` hold the last value of a profile
   shorter than the centerline. Before, they panicked.
+- `route` reaches a goal lane entered by a lane change only if the change
+  lands behind the goal. Before, it could return a route that ended past
+  the goal, or one to a goal behind the start that no loop reaches.
 
 ## 0.6.0 - 2026-10-11
 
