@@ -14,6 +14,8 @@ and two right lanes, 3 m wide. Its objects:
   t = 4, turned 0.2 rad, with `perpToRoad="true"`, and a marking along its
   first edge.
 - 4, "Booth": the shelter at s = 50, standing upright.
+- 5, "Plumb" and 6, "Leaning": 3 m posts at s = 10, at t = -2 and t = 2,
+  the second with `perpToRoad="true"`, to show the two side by side.
 
 scenariogeneration writes no `perpToRoad` and no `<markings>`, so they are
 spliced into its XML. The header date is fixed, so the file is the same each
@@ -35,6 +37,10 @@ for id, name, s in [("1", "Upright", 20), ("2", "Follower", 40)]:
                                 zOffset=0.5, hdg=0.3, pitch=0.2, roll=-0.1,
                                 length=2, width=1, height=3))
 
+for id, name, t in [("5", "Plumb", -2), ("6", "Leaning", 2)]:
+    road.add_object(xodr.Object(s=10, t=t, Type=xodr.ObjectType.pole, id=id, name=name,
+                                length=0.3, width=0.3, height=3))
+
 for id, name, s in [("3", "Shelter", 30), ("4", "Booth", 50)]:
     shelter = xodr.Object(s=s, t=4, Type=xodr.ObjectType.building, id=id, name=name,
                           hdg=0.2)
@@ -55,7 +61,7 @@ root = tree.getroot()
 root.find("header").set("date", "2026-01-01T00:00:00")
 objects = {o.get("id"): o for o in root.iter("object")}
 objects["1"].set("perpToRoad", "false")
-for id in ["2", "3"]:
+for id in ["2", "3", "6"]:
     objects[id].set("perpToRoad", "true")
 for id in ["3", "4"]:
     markings = ET.SubElement(objects[id], "markings")

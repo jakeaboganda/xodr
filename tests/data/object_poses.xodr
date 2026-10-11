@@ -49,6 +49,8 @@
         <objects>
             <object id="1" s="20" t="-4.5" subtype="None" dynamic="no" zOffset="0.5" pitch="0.2" roll="-0.1" width="1" height="3" name="Upright" type="pole" orientation="none" hdg="0.3" length="2" perpToRoad="false" />
             <object id="2" s="40" t="-4.5" subtype="None" dynamic="no" zOffset="0.5" pitch="0.2" roll="-0.1" width="1" height="3" name="Follower" type="pole" orientation="none" hdg="0.3" length="2" perpToRoad="true" />
+            <object id="5" s="10" t="-2" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="0.3" height="3" name="Plumb" type="pole" orientation="none" hdg="0" length="0.3" />
+            <object id="6" s="10" t="2" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="0.3" height="3" name="Leaning" type="pole" orientation="none" hdg="0" length="0.3" perpToRoad="true" />
             <object id="3" s="30" t="4" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Shelter" type="building" orientation="none" hdg="0.2" perpToRoad="true">
                 <outlines>
                     <outline closed="true" id="0">
