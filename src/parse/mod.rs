@@ -2702,6 +2702,8 @@ struct Faults {
     gap: Cell<f64>,
     /// Whether a `<skeleton>` `<polyline>` could not be placed.
     skeleton_dropped: Cell<bool>,
+    /// Whether a `<curveLocal>` set its `hdg` aside to join up.
+    turned: Cell<bool>,
 }
 
 /// The structures baked so far, and the provenance of each, in step.
@@ -3139,6 +3141,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             object_id: text("id"),
         });
     }
+    if faults.turned.get() {
+        out.warnings.push(Warning::CurveHeadingIgnored {
+            road_id: road.od_id.clone(),
+            junction_id: junction_id.clone(),
+            object_id: text("id"),
+        });
+    }
     if faults.skeleton_dropped.get() {
         out.warnings.push(Warning::SkeletonDropped {
             road_id: road.od_id.clone(),
@@ -3260,6 +3269,7 @@ fn outline_parts(
             continue;
         };
         faults.gap.set(faults.gap.get().max(ring.gap));
+        faults.turned.set(faults.turned.get() || ring.turned);
         if outline_node.attribute("outer") == Some("false") {
             holes.push((outline_node, ring));
         } else {
@@ -3621,6 +3631,8 @@ struct Ring<'a> {
     stretch: (f64, f64),
     /// The widest gap between one `<curveLocal>` and the next, in metres.
     gap: f64,
+    /// Whether a `<curveLocal>` set its `hdg` aside to join up.
+    turned: bool,
 }
 
 impl Ring<'_> {
@@ -3704,6 +3716,7 @@ fn outline<'a>(
     let mut ids = Vec::new();
     let mut sampled = Vec::new();
     let mut gap: f64 = 0.0;
+    let mut turned = false;
     let mut heading = None;
     for (i, &c) in nodes.iter().enumerate() {
         let height = attr_f64(c, "height").unwrap_or(0.0);
@@ -3733,6 +3746,7 @@ fn outline<'a>(
             let curve = curve_local::sample(c, next, previous)?;
             heading = Some(curve.end_heading);
             gap = gap.max(curve.gap);
+            turned |= curve.turned;
             curve.points
         } else {
             let z = attr_f64(c, "z").unwrap_or(0.0);
@@ -3760,6 +3774,7 @@ fn outline<'a>(
         closed,
         stretch,
         gap,
+        turned,
     })
 }
 

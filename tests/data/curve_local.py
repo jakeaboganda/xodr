@@ -23,6 +23,9 @@ two right lanes, 3 m wide. So `(s, t)` is `(x, y)`. Its objects:
   length, which cannot be drawn.
 - 7, "Smooth" at s = 10, t = 6: the island's stadium, 4 m long, with no
   hdg after the first curve, so each curve goes on from the last.
+- 8, "Misheaded" at s = 40, t = -6: the island as ASAM's
+  `Ex_SmoothObjectOutline_traffic_island` writes it, 4 m long, whose last
+  line and arc give a hdg of -pi/2 where they head back along -u.
 - 6, "Swarm" at s = 0, t = 8: a 300 m arc, a thousand corners, repeated
   every 2.5 cm over 50 m, which would bake two million corners.
 
@@ -46,6 +49,7 @@ road.add_object([
     xodr.Object(s=20, t=5, Type=xodr.ObjectType.obstacle, id="5", name="Unsized"),
     xodr.Object(s=0, t=8, Type=xodr.ObjectType.obstacle, id="6", name="Swarm"),
     xodr.Object(s=10, t=6, Type=xodr.ObjectType.trafficIsland, id="7", name="Smooth"),
+    xodr.Object(s=40, t=-6, Type=xodr.ObjectType.trafficIsland, id="8", name="Misheaded"),
 ])
 
 odr = xodr.OpenDrive("curve_local")
@@ -123,6 +127,13 @@ outline(
 )
 outline("5", "true", curve(0, 0, 1, poly3("arcLength", [0, 1, 0, 0], [0, 0, 0.1, 0]), hdg=0))
 outline("6", "false", curve(0, 0, 1, arc(0.01), hdg=0, length=300))
+outline(
+    "8", "true",
+    curve(0, 0, 0.3, line(), hdg=0, length=4),
+    curve(4, 0, 0.3, arc(0.5), hdg=0, length=half),
+    curve(4, 4, 0.3, line(), hdg=-math.pi / 2, length=4),
+    curve(0, 4, 0.3, arc(0.5), hdg=-math.pi / 2, length=half),
+)
 outline(
     "7", "true",
     curve(0, 0, 0.3, line(), hdg=0, length=4),

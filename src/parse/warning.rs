@@ -110,6 +110,18 @@ pub enum Warning {
         /// Its `<junction id>`.
         junction_id: String,
     },
+    /// A `<curveLocal>` whose `hdg` leaves a gap to the next curve, where
+    /// going on at the heading the curve before it ends at closes it. The
+    /// spec says the curves join. The crate departs from the `hdg` and goes
+    /// on at that heading.
+    CurveHeadingIgnored {
+        /// The `<road id>` it is on. Empty for an object of a junction.
+        road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+    },
     /// A `<polyline>` of an object's `<skeleton>` the crate cannot place: one
     /// with a vertex past either end of the road, a `<vertexLocal>` on an
     /// object whose origin is off the road, or fewer than two vertices. The
@@ -584,6 +596,7 @@ impl Warning {
             | Self::OutlineGap { road_id, .. }
             | Self::ObjectSurfaceDropped { road_id, .. }
             | Self::SkeletonDropped { road_id, .. }
+            | Self::CurveHeadingIgnored { road_id, .. }
             | Self::CrgHideIgnored { road_id, .. }
             | Self::RoadMarkLineDropped { road_id, .. }
             | Self::LaneDropped { road_id, .. }
@@ -756,6 +769,15 @@ impl fmt::Display for Warning {
             Self::JunctionObjectsDropped { junction_id } => write!(
                 f,
                 "junction {junction_id:?}: its objects have no reference line to stand along, so they were left out"
+            ),
+            Self::CurveHeadingIgnored {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
+                f,
+                "{}: object {object_id:?} has a <curveLocal> whose hdg leaves a gap, so it goes on from the curve before instead",
+                place(road_id, junction_id)
             ),
             Self::SkeletonDropped {
                 road_id,

@@ -217,3 +217,27 @@ fn a_curve_with_no_heading_goes_on_from_the_curve_before() {
         assert!(off < 1e-3, "{:?} is {off} m off the stadium", c.base);
     }
 }
+
+#[test]
+fn a_heading_that_leaves_a_gap_gives_way_to_the_curve_before_with_a_warning() {
+    let (net, provenance) = load();
+    let misheaded = named(&net, "Misheaded").expect("the misheaded island");
+    for c in corners(misheaded) {
+        let off = off_stadium(4.0, local(40.0, -6.0, 0.0, c.base));
+        assert!(off < 1e-3, "{:?} is {off} m off the stadium", c.base);
+    }
+    let turned: Vec<&str> = provenance
+        .warnings
+        .iter()
+        .filter_map(|w| match w {
+            Warning::CurveHeadingIgnored { object_id, .. } => Some(object_id.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(turned, ["8"]);
+    let gaps = provenance
+        .warnings
+        .iter()
+        .any(|w| matches!(w, Warning::OutlineGap { object_id, .. } if object_id == "8"));
+    assert!(!gaps, "the misheaded island joins up");
+}

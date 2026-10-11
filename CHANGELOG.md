@@ -75,8 +75,11 @@
 - Behaviour change: `<curveLocal>` outlines are read, as lines, arcs and
   paramPoly3 curves in the object's frame, cut into corners.
   `Ex_SmoothObjectOutline_traffic_island` gets its island. New
-  `Warning::OutlineGap` where one curve ends away from the next, as two of
-  that file's curves do.
+  `Warning::OutlineGap` where one curve ends away from the next.
+- Two of that file's curves give a `hdg` a right angle off. Where a curve's
+  `hdg` leaves a gap and going on from the curve before closes it, the
+  crate departs from the `hdg` and goes on from the curve before, with new
+  `Warning::CurveHeadingIgnored`.
 - Behaviour change: an inner outline, `outer="false"`, with a `fillType` or
   a `laneType` is an object of its own as well as a hole in the outline
   round it, with its own markings and borders. Before, it was only a hole,

@@ -146,6 +146,24 @@
                     </outline>
                 </outlines>
             </object>
+            <object id="8" s="40" t="-6" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Misheaded" type="trafficIsland" orientation="none" hdg="0">
+                <outlines>
+                    <outline id="0" closed="true">
+                        <curveLocal u="0" v="0" z="0" height="0.3" hdg="0" length="4">
+                            <line />
+                        </curveLocal>
+                        <curveLocal u="4" v="0" z="0" height="0.3" hdg="0" length="6.283185307179586">
+                            <arc curvature="0.5" />
+                        </curveLocal>
+                        <curveLocal u="4" v="4" z="0" height="0.3" hdg="-1.5707963267948966" length="4">
+                            <line />
+                        </curveLocal>
+                        <curveLocal u="0" v="4" z="0" height="0.3" hdg="-1.5707963267948966" length="6.283185307179586">
+                            <arc curvature="0.5" />
+                        </curveLocal>
+                    </outline>
+                </outlines>
+            </object>
         </objects>
     </road>
 </OpenDRIVE>
