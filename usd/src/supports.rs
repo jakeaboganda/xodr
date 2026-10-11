@@ -274,9 +274,12 @@ pub(crate) fn supports(
         let (sin, cos) = signal.heading.sin_cos();
         let facing = Vector::new(cos, sin, 0.0);
         let p = signal.position;
-        let over = traffic.height_at(p.x, p.y).is_some();
         let height = signal.height.unwrap_or(FALLBACK_SIZE);
         let width = signal.width.unwrap_or(FALLBACK_SIZE);
+        let over = (0..=4).any(|k| {
+            let q = p + Vector::new(-sin, cos, 0.0) * (width * (k as f32 / 4.0 - 0.5));
+            traffic.height_at(q.x, q.y).is_some()
+        });
         let member = |g: &Group| {
             let to = Vector::new(p.x - g.origin.x, p.y - g.origin.y, 0.0);
             Member {
@@ -616,49 +619,72 @@ fn pole_object(net: &RoadNetwork, paths: &Paths, signal: &Signal) -> Option<Stri
         net.objects()
             .iter()
             .filter(|o| o.kind == ObjectType::Pole)
-            .filter_map(|o| match &o.shape {
-                Shape::Solid { position, .. } => {
-                    Some((across(*position, signal.position), o.id)).filter(|(d, _)| *d <= NEAR)
-                }
-                Shape::Skeleton { lines } => Some((skeleton_near(lines, signal)?, o.id)),
-                _ => None,
+            .filter_map(|o| {
+                let distance = match &o.shape {
+                    Shape::Solid { position, .. } => {
+                        Some(across(*position, signal.position)).filter(|d| *d <= NEAR)
+                    }
+                    Shape::Skeleton { lines } => skeleton_near(lines, signal),
+                    _ => None,
+                };
+                Some((distance?, paths.objects.get(&o.id)?))
             })
             .min_by(|a, b| a.0.total_cmp(&b.0))
-            .and_then(|(_, id)| paths.objects.get(&id))
+            .map(|(_, path)| path)
     };
     referenced.or_else(near).cloned()
 }
 
-/// How far `signal`'s board is across the ground from the axis of the
-/// nearest segment of the skeleton `lines` whose surface comes within
-/// [`NEAR`] of the board, or `None` if none does. The board runs up from
-/// the signal's position by its height. A radius that is not finite counts
-/// as 0.
+/// How far `signal`'s board is from the axis of the nearest segment of the
+/// skeleton `lines` whose surface comes within [`NEAR`] of the board, or
+/// `None` if none does. The board is the upright line from the signal's
+/// position up by its height. A radius that is not finite counts as 0.
 fn skeleton_near(lines: &[Vec<SkeletonVertex>], signal: &Signal) -> Option<f32> {
     let p = signal.position;
-    let (low, high) = (p.z, p.z + signal.height.unwrap_or(FALLBACK_SIZE));
+    let top = Point::new(p.x, p.y, p.z + signal.height.unwrap_or(FALLBACK_SIZE));
     let radius = |v: &SkeletonVertex| if v.radius.is_finite() { v.radius } else { 0.0 };
     let segments = lines.iter().flat_map(|line| line.windows(2));
     segments
         .filter_map(|w| {
-            let (a, b) = (w[0].position, w[1].position);
-            let ab = Vector::new(b.x - a.x, b.y - a.y, 0.0);
-            let ap = Vector::new(p.x - a.x, p.y - a.y, 0.0);
-            let f = (ap.dot(ab) / ab.length_squared()).clamp(0.0, 1.0);
-            let f = if f.is_finite() { f } else { 0.0 };
-            let axis = (ap - ab * f).length();
+            let (axis, f) = segment_distance((w[0].position, w[1].position), (p, top));
             let r = radius(&w[0]) + (radius(&w[1]) - radius(&w[0])) * f;
-            let (bottom, top) = if ab.length() < 1e-6 {
-                (a.z.min(b.z), a.z.max(b.z))
-            } else {
-                let z = a.z + (b.z - a.z) * f;
-                (z, z)
-            };
-            let up = (bottom - high).max(low - top).max(0.0);
-            let gap = (axis - r).max(0.0).hypot((up - r).max(0.0));
-            (gap <= NEAR).then_some(axis)
+            ((axis - r).max(0.0) <= NEAR).then_some(axis)
         })
         .reduce(f32::min)
+}
+
+/// The shortest distance between the segments `ab` and `cd`, and how far
+/// along `ab`, from 0 to 1, it is reached.
+fn segment_distance((a, b): (Point, Point), (c, d): (Point, Point)) -> (f32, f32) {
+    const EPS: f32 = 1e-12;
+    let (d1, d2, r) = (b - a, d - c, a - c);
+    let (aa, ee, f) = (d1.dot(d1), d2.dot(d2), d2.dot(r));
+    let (s, t) = if aa <= EPS && ee <= EPS {
+        (0.0, 0.0)
+    } else if aa <= EPS {
+        (0.0, (f / ee).clamp(0.0, 1.0))
+    } else {
+        let c1 = d1.dot(r);
+        if ee <= EPS {
+            ((-c1 / aa).clamp(0.0, 1.0), 0.0)
+        } else {
+            let bb = d1.dot(d2);
+            let denom = aa * ee - bb * bb;
+            let s = match denom > EPS {
+                true => ((bb * f - c1 * ee) / denom).clamp(0.0, 1.0),
+                false => 0.0,
+            };
+            let t = (bb * s + f) / ee;
+            if t < 0.0 {
+                ((-c1 / aa).clamp(0.0, 1.0), 0.0)
+            } else if t > 1.0 {
+                (((bb - c1) / aa).clamp(0.0, 1.0), 1.0)
+            } else {
+                (s, t)
+            }
+        }
+    };
+    (((a + d1 * s) - (c + d2 * t)).length(), s)
 }
 
 /// The distance from `a` to `b` across the ground.
@@ -866,6 +892,48 @@ mod tests {
             }
             clears_its_boards(map);
         }
+    }
+
+    /// `road(2, signal)` with `objects` before its signals.
+    fn with_objects(objects: &str, signal: &str) -> String {
+        road(2, signal).replace(
+            "<signals>",
+            &format!("<objects>{objects}</objects><signals>"),
+        )
+    }
+
+    fn support(map: &str) -> Support {
+        export(map).2.remove(0).support
+    }
+
+    #[test]
+    fn a_leaning_skeleton_pole_holds_the_board_on_it() {
+        let pole = |top: f32| {
+            format!(
+                r#"<object id="8" type="pole" s="50" t="-9.1"><skeleton><polyline id="1">
+                <vertexRoad id="1" s="50" t="-9.1" dz="0" radius="0.1"/>
+                <vertexRoad id="2" s="50" t="{top}" dz="7" radius="0.1"/></polyline></skeleton></object>"#
+            )
+        };
+        let board = sign(1, -9.0, 0.6, 0.6, "+");
+        for top in [-9.1, -9.0999, -9.12] {
+            let held = support(&with_objects(&pole(top), &board));
+            assert!(matches!(held, Support::Object(_)), "top at {top}");
+        }
+    }
+
+    #[test]
+    fn a_pole_with_no_prim_does_not_hide_one_with_a_prim() {
+        let poles = r#"<object id="8" type="pole" s="50" t="-9.05" radius="0" height="0"/>
+            <object id="9" type="pole" s="50" t="-9.3" radius="0.05" height="6"/>"#;
+        let held = support(&with_objects(poles, &sign(1, -9.0, 0.6, 0.6, "+")));
+        assert!(matches!(held, Support::Object(_)));
+    }
+
+    #[test]
+    fn a_board_reaching_over_a_lane_is_over_traffic() {
+        let map = road(2, &sign(1, -7.2, 3.0, 1.0, "+"));
+        assert_ne!(kinds(&map), [Kind::Pole]);
     }
 
     /// Check that no member of a structure the exporter adds to `map` goes

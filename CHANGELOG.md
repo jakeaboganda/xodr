@@ -49,6 +49,10 @@
 - The OpenUSD stage escapes a carriage return or other control character in
   a string from the map. Before, a name such as `Sh&#13;ed` wrote a raw one
   and the stage did not parse.
+- In the OpenUSD stage, a skeleton pole that leans holds the board on it,
+  a nearer pole object with no prim no longer hides one with a prim, and a
+  board whose width reaches over a lane counts as over traffic, so it gets
+  an arm or a span rather than a roadside pole.
 
 ## 0.6.0 - 2026-10-11
 
