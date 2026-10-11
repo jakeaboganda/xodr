@@ -3928,20 +3928,36 @@ fn marking_nodes<'a>(
 /// as OpenDRIVE 1.9 writes them, then those under the object's.
 ///
 /// A marking follows the corners its `<cornerReference>`s name, in order, by
-/// the corners' `id`s. One under the object belongs to the outline that has
-/// every one of them, so one naming a corner the outline lacks is left to
-/// another outline. One under the outline naming a corner it lacks is
-/// skipped. So is one with fewer than two references.
+/// the corners' `id`s. One under the object belongs to the first outline
+/// that has every one of them, as corner ids are unique only within an
+/// outline. One under the outline naming a corner it lacks is skipped. So is
+/// one with fewer than two references.
 fn markings(
     object: roxmltree::Node,
     outline: roxmltree::Node,
     ring: &Ring,
     too_many: &Cell<bool>,
 ) -> Vec<(Marking, RoadMarkWeight)> {
+    let outlines = outline_nodes(object);
+    let owned =
+        |m: &roxmltree::Node| outlines.iter().find(|o| names_corners_of(m, o)) == Some(&outline);
     marking_nodes(outline)
-        .chain(marking_nodes(object))
+        .chain(marking_nodes(object).filter(owned))
         .filter_map(|m| paint(m, &corner_path(m, ring)?, too_many))
         .collect()
+}
+
+/// Whether every `<cornerReference>` of `marking` names a corner of
+/// `outline`.
+fn names_corners_of(marking: &roxmltree::Node, outline: &roxmltree::Node) -> bool {
+    let ids: Vec<&str> = outline
+        .children()
+        .filter_map(|c| c.attribute("id"))
+        .collect();
+    marking
+        .children()
+        .filter(|n| n.has_tag_name("cornerReference"))
+        .all(|r| r.attribute("id").is_some_and(|id| ids.contains(&id)))
 }
 
 /// The `<marking>`s under `object`'s `<markings>` with no
