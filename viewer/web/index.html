@@ -153,16 +153,34 @@ const PARKING_COLORS = {
   'bus': 0xffab00, 'truck': 0x8d6e63, 'residents': 0xab47bc, 'women': 0xf06292,
 };
 
-// An object's colour: paint for an area of paint, in the first
-// `roadMarkColor` among its materials, or white, its parking access if it
-// is a parking space, else its type.
-function objectColor(o) {
+// Area colour per outline `fillType`, as the schema names them, so the
+// parts of an island read apart. `paint` takes the paint's own colour.
+const FILL_COLORS = {
+  'grass': 0x6fae4f, 'concrete': 0xb8b8b0, 'cobble': 0x9a7b5f, 'asphalt': 0x3c3f45,
+  'pavement': 0xd0c3a8, 'gravel': 0xa39e93, 'soil': 0x7a5a3a,
+};
+
+// What gives an object its colour, as a legend group and the key in it:
+// paint for an area of paint, in the first `roadMarkColor` among its
+// materials, or white, then its fill, then its parking access if it is a
+// parking space, else its type.
+function colorSource(o) {
   if (o.fillType === 'paint') {
-    const color = o.materials?.find(m => m.roadMarkColor)?.roadMarkColor ?? 'standard';
-    return MARKING_COLORS[color] ?? MARKING_FALLBACK_COLOR;
+    return ['road marks', o.materials?.find(m => m.roadMarkColor)?.roadMarkColor ?? 'standard'];
   }
-  return (o.parkingSpace && PARKING_COLORS[o.parkingSpace.access])
-    ?? OBJECT_COLORS[o.objectType] ?? OBJECT_FALLBACK_COLOR;
+  if (FILL_COLORS[o.fillType]) return ['fills', o.fillType];
+  if (o.parkingSpace && PARKING_COLORS[o.parkingSpace.access]) {
+    return ['parking access', o.parkingSpace.access];
+  }
+  return ['objects', o.objectType];
+}
+
+function objectColor(o) {
+  const [group, key] = colorSource(o);
+  if (group === 'road marks') return MARKING_COLORS[key] ?? MARKING_FALLBACK_COLOR;
+  if (group === 'fills') return FILL_COLORS[key];
+  if (group === 'parking access') return PARKING_COLORS[key];
+  return OBJECT_COLORS[key] ?? OBJECT_FALLBACK_COLOR;
 }
 
 // Paint colour per marking colour name, as the map spells it. `standard` is
@@ -1407,13 +1425,14 @@ function buildLegend() {
     }
   };
   group('lanes', lanes.map(l => l.laneType), LANE_COLORS, FALLBACK_COLOR);
-  group('objects', objects.map(o => o.objectType), OBJECT_COLORS, OBJECT_FALLBACK_COLOR);
+  const coloredBy = name => objects.map(colorSource).filter(([g]) => g === name).map(([, k]) => k);
+  group('objects', coloredBy('objects'), OBJECT_COLORS, OBJECT_FALLBACK_COLOR);
+  group('fills', coloredBy('fills'), FILL_COLORS, OBJECT_FALLBACK_COLOR);
   group('structures', structures.map(s => s.kind), STRUCTURE_COLORS, FALLBACK_COLOR);
   group('hovered lane', Object.keys(LINK_COLORS), LINK_COLORS, FALLBACK_COLOR);
   group('signals', signals.map(s => s.dynamic ? 'dynamic' : 'static'), SIGNAL_COLORS, FALLBACK_COLOR);
   group('road marks', roadMarks.flatMap(m => m.lines.map(l => l.color)), MARKING_COLORS, MARKING_FALLBACK_COLOR);
-  group('parking access', objects.filter(o => o.parkingSpace).map(o => o.parkingSpace.access),
-    PARKING_COLORS, OBJECT_COLORS['parking-space']);
+  group('parking access', coloredBy('parking access'), PARKING_COLORS, OBJECT_COLORS['parking-space']);
   if (crgMesh) {
     const { center, range } = crgMesh.userData;
     const mm = x => `${x < 0 ? '−' : ''}${Math.abs(x * 1000).toFixed(1)} mm`;

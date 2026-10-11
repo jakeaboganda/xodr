@@ -217,7 +217,10 @@ splits and steps each way.
 
 ## Objects
 
-Each object is drawn where the crate places it, coloured by type. Anything
+Each object is drawn where the crate places it, coloured by type. An
+outline with a `fillType`, such as grass or cobble, takes its fill's colour
+instead, so the parts of a traffic island read apart. The legend lists the
+fills in their own group. Anything
 with an area comes from the crate's `object_mesh()`: boxes, cylinders,
 outlines and sweeps. So a hole in an outline shows as a gap. The mesh leaves
 out a post given only a height, which is drawn as a thin post, and a solid
