@@ -46,6 +46,9 @@
 - `route` reaches a goal lane entered by a lane change only if the change
   lands behind the goal. Before, it could return a route that ended past
   the goal, or one to a goal behind the start that no loop reaches.
+- The OpenUSD stage escapes a carriage return or other control character in
+  a string from the map. Before, a name such as `Sh&#13;ed` wrote a raw one
+  and the stage did not parse.
 
 ## 0.6.0 - 2026-10-11
 

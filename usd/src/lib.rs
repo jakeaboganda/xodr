@@ -623,11 +623,35 @@ fn list<T: std::fmt::Display>(items: impl IntoIterator<Item = T>) -> String {
         .join(", ")
 }
 
-/// `s` as a USD string literal.
+/// `s` as a USD string literal. A control character is written as an
+/// escape, as a raw one ends the line the literal must stay on.
 fn quote(s: &str) -> String {
-    let escaped = s
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n");
-    format!("\"{escaped}\"")
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c.is_ascii_control() => out.push_str(&format!("\\x{:02x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::quote;
+
+    #[test]
+    fn a_quoted_string_stays_on_one_line() {
+        assert_eq!(
+            quote("a\"b\\c\nd\re\tf\u{1}g"),
+            r#""a\"b\\c\nd\re\tf\x01g""#
+        );
+    }
 }
