@@ -276,6 +276,12 @@ with
 
     uv run --with scenariogeneration==0.16.6 tests/data/curve_local.py
 
+`inner_outlines.xodr` comes from `inner_outlines.py`. It has an island whose
+inner outlines are filled areas, a laned one and plain holes, two of them
+outside the outer outline. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/inner_outlines.py
+
 `junction_objects.xodr` comes from `junction_objects.py`. It has a tee
 junction with objects along its reference line, and a junction whose objects
 have no line to stand along. Regenerate with

@@ -228,9 +228,9 @@ pub struct ObjectProvenance {
     /// The `fillType` of the `<outline>` it baked from, such as `grass`. Free
     /// text. Empty for a solid, and where the outline has none. A closed
     /// outline of `paint` lies flat on the road, and keeps its full area
-    /// under a border, which the spec says cuts it back. A hole
-    /// (`outer="false"`) folds into the outline round it and its own is
-    /// dropped.
+    /// under a border, which the spec says cuts it back. An inner outline
+    /// (`outer="false"`) with a `fillType` or a `laneType` bakes to an
+    /// object of its own, which has them here.
     #[cfg_attr(feature = "serde", serde(default))]
     pub fill_type: String,
     /// The `laneType` of the `<outline>` it baked from, which the spec says
@@ -3236,8 +3236,13 @@ fn object_crg(crg: roxmltree::Node, part: &Part, road: &Road) -> Option<(CrgSurf
 /// An object's `outlines` placed at `st`, one [`Part`] per outer outline,
 /// with its holes, markings and borders. `origin` is the object's frame at
 /// `st`, if that is on the road, and `shift` moves `<cornerRoad>` corners.
+///
 /// An `outer="false"` outline is a hole in the first closed outer outline
-/// that encloses it in plan, and is dropped if none does.
+/// that encloses it in plan. One with a `fillType` or a `laneType` is an
+/// area of its own as well, as the spec has inner outlines, and gets a
+/// [`Part`] with its own markings and borders, whether or not an outer one
+/// encloses it. Otherwise its markings and borders go to the outline round
+/// it, and it is dropped if none does.
 fn outline_parts(
     node: roxmltree::Node,
     outlines: &[roxmltree::Node],
@@ -3257,54 +3262,78 @@ fn outline_parts(
         faults.gap.set(faults.gap.get().max(ring.gap));
         if outline_node.attribute("outer") == Some("false") {
             holes.push((outline_node, ring));
-            continue;
+        } else {
+            parts.push(area(node, outline_node, &ring, st, too_many));
         }
-        let painted = ring.closed && outline_node.attribute("fillType") == Some("paint");
-        let mut part = Part::new(
-            Shape::Outline {
-                corners: if painted {
-                    ring.paint()
-                } else {
-                    ring.corners.clone()
-                },
-                closed: ring.closed,
-                holes: Vec::new(),
-            },
-            st,
-            ring.stretch,
-        );
-        part.markings = markings(node, outline_node, &ring, too_many);
-        part.borders = borders(node, outline_node, &ring, ring.closed);
-        part.fill_type = outline_node
-            .attribute("fillType")
-            .unwrap_or_default()
-            .to_string();
-        part.outline_lane_type = outline_node
-            .attribute("laneType")
-            .map(|t| lane_type(Some(t)));
-        parts.push(part);
     }
+    let outer = parts.len();
     for (outline_node, ring) in holes {
+        let filled = outline_node.attribute("fillType").is_some()
+            || outline_node.attribute("laneType").is_some();
         let corners = &ring.corners;
-        let owner = parts.iter_mut().find(|p| {
+        let owner = parts[..outer].iter_mut().find(|p| {
             matches!(&p.shape, Shape::Outline { corners: outer, closed: true, .. }
                 if corners.len() >= 3 && corners.iter().all(|c| encloses(outer, c.base)))
         });
-        let Some(owner) = owner else {
-            continue;
-        };
-        owner
-            .markings
-            .extend(markings(node, outline_node, &ring, too_many));
-        owner
-            .borders
-            .extend(borders(node, outline_node, &ring, true));
-        let painted = owner.fill_type == "paint";
-        if let Shape::Outline { holes, .. } = &mut owner.shape {
-            holes.push(if painted { ring.paint() } else { ring.corners });
+        if let Some(owner) = owner {
+            if !filled {
+                owner
+                    .markings
+                    .extend(markings(node, outline_node, &ring, too_many));
+                owner
+                    .borders
+                    .extend(borders(node, outline_node, &ring, true));
+            }
+            let painted = owner.fill_type == "paint";
+            if let Shape::Outline { holes, .. } = &mut owner.shape {
+                holes.push(if painted {
+                    ring.paint()
+                } else {
+                    ring.corners.clone()
+                });
+            }
+        }
+        if filled {
+            parts.push(area(node, outline_node, &ring, st, too_many));
         }
     }
     parts
+}
+
+/// One outline of `node`, `outline_node`, placed as `ring`, as an area of
+/// its own: its shape, laid flat if it is closed and of paint, its markings
+/// and borders, and its `fillType` and `laneType`.
+fn area(
+    node: roxmltree::Node,
+    outline_node: roxmltree::Node,
+    ring: &Ring,
+    st: &Station,
+    too_many: &Cell<bool>,
+) -> Part {
+    let painted = ring.closed && outline_node.attribute("fillType") == Some("paint");
+    let mut part = Part::new(
+        Shape::Outline {
+            corners: if painted {
+                ring.paint()
+            } else {
+                ring.corners.clone()
+            },
+            closed: ring.closed,
+            holes: Vec::new(),
+        },
+        st,
+        ring.stretch,
+    );
+    part.markings = markings(node, outline_node, ring, too_many);
+    part.borders = borders(node, outline_node, ring, ring.closed);
+    part.fill_type = outline_node
+        .attribute("fillType")
+        .unwrap_or_default()
+        .to_string();
+    part.outline_lane_type = outline_node
+        .attribute("laneType")
+        .map(|t| lane_type(Some(t)));
+    part
 }
 
 /// One shape an `<object>` bakes to, and what goes with it, before it becomes

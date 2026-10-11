@@ -1,0 +1,103 @@
+<?xml version='1.0' encoding='utf-8'?>
+<OpenDRIVE>
+    <header name="inner_outlines" revMajor="1" revMinor="5" date="2026-01-01T00:00:00" north="0.0" south="0.0" east="0.0" west="0.0" />
+    <road rule="RHT" id="1" junction="-1" length="60">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="60">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile />
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-2" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="1" s="20" t="-4" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" name="Island" type="trafficIsland" orientation="none" hdg="0">
+                <outlines>
+                    <outline id="0" closed="true" fillType="grass">
+                        <cornerRoad s="10" t="-2" dz="0" height="0.2" id="0" />
+                        <cornerRoad s="30" t="-2" dz="0" height="0.2" id="1" />
+                        <cornerRoad s="30" t="-6" dz="0" height="0.2" id="2" />
+                        <cornerRoad s="10" t="-6" dz="0" height="0.2" id="3" />
+                    </outline>
+                    <outline id="1" closed="true" outer="false" fillType="cobble" laneType="walking">
+                        <cornerRoad s="12" t="-3" dz="0" height="0.2" id="10" />
+                        <cornerRoad s="16" t="-3" dz="0" height="0.2" id="11" />
+                        <cornerRoad s="16" t="-5" dz="0" height="0.2" id="12" />
+                        <cornerRoad s="12" t="-5" dz="0" height="0.2" id="13" />
+                        <markings>
+                            <marking color="white" width="0.1" zOffset="0.01" startOffset="0" stopOffset="0" lineLength="1" spaceLength="0">
+                                <cornerReference id="10" />
+                                <cornerReference id="11" />
+                            </marking>
+                        </markings>
+                    </outline>
+                    <outline id="2" closed="true" outer="false">
+                        <cornerRoad s="18" t="-3" dz="0" height="0.2" id="20" />
+                        <cornerRoad s="20" t="-3" dz="0" height="0.2" id="21" />
+                        <cornerRoad s="20" t="-5" dz="0" height="0.2" id="22" />
+                        <cornerRoad s="18" t="-5" dz="0" height="0.2" id="23" />
+                    </outline>
+                    <outline id="3" closed="true" outer="false" fillType="concrete">
+                        <cornerRoad s="22" t="-3" dz="0" height="0.2" id="30" />
+                        <cornerRoad s="26" t="-3" dz="0" height="0.2" id="31" />
+                        <cornerRoad s="26" t="-5" dz="0" height="0.2" id="32" />
+                        <cornerRoad s="22" t="-5" dz="0" height="0.2" id="33" />
+                    </outline>
+                    <outline id="4" closed="true" outer="false" fillType="gravel">
+                        <cornerRoad s="40" t="-3" dz="0" height="0.2" id="40" />
+                        <cornerRoad s="42" t="-3" dz="0" height="0.2" id="41" />
+                        <cornerRoad s="42" t="-5" dz="0" height="0.2" id="42" />
+                        <cornerRoad s="40" t="-5" dz="0" height="0.2" id="43" />
+                    </outline>
+                    <outline id="5" closed="true" outer="false">
+                        <cornerRoad s="45" t="-3" dz="0" height="0.2" id="50" />
+                        <cornerRoad s="46" t="-3" dz="0" height="0.2" id="51" />
+                        <cornerRoad s="46" t="-5" dz="0" height="0.2" id="52" />
+                        <cornerRoad s="45" t="-5" dz="0" height="0.2" id="53" />
+                    </outline>
+                    <outline id="6" closed="true" outer="false" laneType="driving">
+                        <cornerRoad s="27" t="-3" dz="0" height="0.2" id="60" />
+                        <cornerRoad s="29" t="-3" dz="0" height="0.2" id="61" />
+                        <cornerRoad s="29" t="-5" dz="0" height="0.2" id="62" />
+                        <cornerRoad s="27" t="-5" dz="0" height="0.2" id="63" />
+                    </outline>
+                </outlines>
+                <borders>
+                    <border width="0.2" type="curb" outlineId="1" useCompleteOutline="true" />
+                </borders>
+            </object>
+        </objects>
+    </road>
+</OpenDRIVE>

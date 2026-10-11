@@ -218,8 +218,9 @@ surface.
 - An `<outline>`, in road or local coordinates, becomes a footprint polygon
   with a height at every corner. Its `<curveLocal>` arcs and paramPoly3 curves
   are cut into edges of about 25 cm. An `outer="false"` outline is a hole cut
-  out of the outline round it. Under a `<repeat>` with a `distance`, the
-  outline repeats at every step.
+  out of the outline round it. With a `fillType` or a `laneType` it is also an
+  area of its own, such as a cobbled path across a grass island. Under a
+  `<repeat>` with a `distance`, the outline repeats at every step.
 - A `<skeleton>` becomes polylines with a radius at each vertex, which the
   object mesh draws as frustums, such as a pole and the arm it carries.
 - A closed outline with `fillType="paint"` is an area of paint. It lies flat,
