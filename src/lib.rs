@@ -382,9 +382,13 @@
 //!   `<cornerLocal>` corners follow the object's frame, and `<cornerRoad>`
 //!   corners move by the step's offset from the object's `(s, t)`. The
 //!   repeat's dimensions do not resize them.
-//! - An outline with `outer="false"` is a hole. It goes into the holes of
-//!   the first closed outer outline of the same object that encloses it, and
-//!   the importer drops it if there is none.
+//! - An outline with `outer="false"`, an inner outline, is a hole. It goes
+//!   into the holes of the first closed outer outline of the same object that
+//!   encloses it. The spec has inner outlines as areas with a fill or lane
+//!   type of their own too, so one with a `fillType` or a `laneType` is also
+//!   a [`Shape::Outline`] of its own, with its own markings and borders,
+//!   after the outer ones. An inner outline with neither is only a hole, and
+//!   the importer drops it if no outer outline encloses it.
 //!
 //! A junction's `<objects>` stand along its reference line, the `<planView>` of
 //! the junction, as a road's stand along its own. The line has no lanes,

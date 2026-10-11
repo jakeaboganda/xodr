@@ -353,8 +353,9 @@ fn an_outline_keeps_its_fill_type_and_lane_type() {
             ("grass", Some(LaneType::Sidewalk)),
             ("paint", Some(LaneType::Unknown)),
             ("", None),
+            ("soil", None),
         ],
-        "the hole bakes into the outline round it, whose fill type stays"
+        "the inner outline of soil is an area of its own after the outer ones"
     );
     let single = baked(&net, &prov, "o2");
     assert_eq!(single[0].1.fill_type, "gravel");

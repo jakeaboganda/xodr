@@ -77,6 +77,13 @@
   `Ex_SmoothObjectOutline_traffic_island` gets its island. New
   `Warning::OutlineGap` where one curve ends away from the next, as two of
   that file's curves do.
+- Behaviour change: an inner outline, `outer="false"`, with a `fillType` or
+  a `laneType` is an object of its own as well as a hole in the outline
+  round it, with its own markings and borders. Before, it was only a hole,
+  so the concrete and cobble areas of `Ex_Objects` and
+  `UC_2Lane-RoundAbout-3Arms` were lost.
+- `tests/data/inner_outlines.xodr` has filled, laned and plain inner
+  outlines, inside the outer one and outside it.
 - `tests/data/curve_local.xodr` has a stadium, a circle, a paramPoly3, a gap
   and a curve that cannot be drawn.
 - Behaviour change: a junction's `<objects>` are read. They stand along the
