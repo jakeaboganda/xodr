@@ -373,10 +373,15 @@
 //!   heading the curve before it ends at. `z` and `height` go straight from
 //!   each curve's to the next's. A `<cornerReference>` to a curve names its
 //!   start, and a marking or border between two curves follows the curve
-//!   between them. The spec says each curve ends where the next starts. Where
-//!   one ends more than a centimetre away, the crate joins them with a straight
-//!   edge and raises [`Warning::OutlineGap`]. A paramPoly3 of `pRange`
-//!   `arcLength` with no `length` drops its outline.
+//!   between them. The spec says each curve ends where the next starts. Where a
+//!   curve's `hdg` leaves a gap that going on at the heading the curve before
+//!   it ends at would close, the crate departs from the `hdg`, goes on at that
+//!   heading, and raises [`Warning::CurveHeadingIgnored`]. ASAM's
+//!   `Ex_SmoothObjectOutline_traffic_island` gives two of its curves a heading
+//!   a right angle off, which this corrects. Where a curve still ends more than
+//!   a centimetre from the next, the crate joins them with a straight edge and
+//!   raises [`Warning::OutlineGap`]. A paramPoly3 of `pRange` `arcLength` with
+//!   no `length` drops its outline.
 //! - Under a `<repeat>` with a `distance`, the outlines are baked at every
 //!   step in place of the solid. libOpenDRIVE bakes them once. At each step
 //!   `<cornerLocal>` corners follow the object's frame, and `<cornerRoad>`

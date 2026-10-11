@@ -29,6 +29,8 @@ pub(super) struct Curve {
     pub gap: f64,
     /// Its heading at its end, for a next curve with no `hdg` to go on from.
     pub end_heading: f64,
+    /// Whether it set aside its `hdg` to join up with the curves either side.
+    pub turned: bool,
 }
 
 /// Sample the `<curveLocal>` `node`. `next` is the corner after it, in the
@@ -43,12 +45,38 @@ pub(super) struct Curve {
 /// outline stays smooth, or else heads along `u`. `z` and `height` go
 /// straight from the curve's to `next`'s along it.
 ///
+/// The spec says each curve ends where the next starts. Where a curve's
+/// `hdg` leaves a gap that going on at `previous` would close, the curve
+/// goes on at `previous` instead, and is [`Curve::turned`]. ASAM's
+/// `Ex_SmoothObjectOutline_traffic_island` needs it.
+///
 /// `None` for a curve missing its `u` or `v`, one that is not a line, an arc
 /// or a paramPoly3, and a paramPoly3 of `pRange="arcLength"` with no
 /// `length`.
 pub(super) fn sample(
     node: roxmltree::Node,
     next: Option<roxmltree::Node>,
+    previous: Option<f64>,
+) -> Option<Curve> {
+    let given = attr_f64(node, "hdg");
+    let curve = trace(node, next, given, previous)?;
+    if curve.gap == 0.0 || given.is_none() {
+        return Some(curve);
+    }
+    match previous.and_then(|hdg| trace(node, next, Some(hdg), previous)) {
+        Some(joined) if joined.gap == 0.0 => Some(Curve {
+            turned: true,
+            ..joined
+        }),
+        _ => Some(curve),
+    }
+}
+
+/// [`sample`] with `hdg` for the curve's own.
+fn trace(
+    node: roxmltree::Node,
+    next: Option<roxmltree::Node>,
+    hdg: Option<f64>,
     previous: Option<f64>,
 ) -> Option<Curve> {
     let corner = |n: roxmltree::Node| -> Option<[f64; 4]> {
@@ -60,7 +88,6 @@ pub(super) fn sample(
     let end = next.and_then(corner);
     let [u, v, ..] = start;
     let given = attr_f64(node, "length").filter(|l| *l > 0.0 && *l <= MAX_LENGTH);
-    let hdg = attr_f64(node, "hdg");
     let (path, edges) = if child(node, "line").is_some() {
         let hdg = hdg
             .or_else(|| end.map(|[eu, ev, ..]| (ev - v).atan2(eu - u)))
@@ -122,6 +149,7 @@ pub(super) fn sample(
         points,
         gap: if gap > GAP { gap } else { 0.0 },
         end_heading: path.heading_at_end(),
+        turned: false,
     })
 }
 
