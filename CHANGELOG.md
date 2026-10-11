@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### OpenUSD objects
+
+- A junction's object names its junction in `xodr:junction`, the attribute
+  lanes and roads in a junction already use, instead of an empty
+  `xodr:roadId`.
+
 ### Docs and viewer
 
 - The README shows what the crate builds, in pictures of the test maps in
