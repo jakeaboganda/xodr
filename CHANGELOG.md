@@ -12,10 +12,13 @@
   `xodr:skeletonRadii`, `xodr:skeletonGround`, and the ids in
   `xodr:skeletonIds` and `xodr:skeletonVertexIds`.
 - A signal on a skeleton pole, or hung under its arm, is held by that pole
-  rather than by a pole the exporter adds. Before, only a solid pole could
+  rather than by a pole the exporter adds. The pole's surface must come
+  within 0.5 m of the board, up and down as well as across, so a sign on the
+  ground under the arm keeps its own pole. Before, only a solid pole could
   hold a signal it was not named by.
 - `tests/data/skeleton.xodr` has a light under the arm of its traffic light
-  pole, a sign on the pole, and a sign by no pole.
+  pole, a sign on the pole, a sign on the ground under the arm, and a sign by
+  no pole.
 - An area of paint takes the paint colour of its material's `roadMarkColor`,
   or white, as road marks do, instead of grey. Each object from an outline
   with a `fillType` carries it in `xodr:fillType`.

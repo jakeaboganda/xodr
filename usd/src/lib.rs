@@ -7,7 +7,7 @@ use std::io::{self, Write};
 
 use xodr::{
     JunctionArea, Lane, LaneId, LaneProvenance, LaneSpan, LaneType, Mesh, ObjectId, Point,
-    Provenance, RoadId, RoadNetwork, Shape, SkeletonIds, SkeletonVertex, Vector, Warning,
+    Provenance, RoadId, RoadNetwork, Shape, SkeletonVertex, Vector, Warning,
 };
 
 mod area;
@@ -370,9 +370,20 @@ fn objects(
             } else {
                 tags.push(("junction", Tag::Text(p.junction_id.clone())));
             }
-            if let Shape::Skeleton { lines } = &object.shape {
-                tags.extend(skeleton_tags(lines, &p.skeleton_ids));
+            if let Shape::Skeleton { .. } = object.shape {
+                let ids = &p.skeleton_ids;
+                tags.push((
+                    "skeletonIds",
+                    Tag::Texts(ids.iter().map(|i| i.polyline.clone()).collect()),
+                ));
+                tags.push((
+                    "skeletonVertexIds",
+                    Tag::Texts(ids.iter().flat_map(|i| i.vertices.clone()).collect()),
+                ));
             }
+        }
+        if let Shape::Skeleton { lines } = &object.shape {
+            tags.extend(skeleton_tags(lines));
         }
         let vertices = span.vertices.start as usize..span.vertices.end as usize;
         let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
@@ -399,8 +410,8 @@ fn objects(
 
 /// A skeleton's polylines as flat arrays, as USD writes curves: the number
 /// of vertices in each polyline, then each vertex's point, radius and
-/// whether it meets the ground, and the polylines' and vertices' ids.
-fn skeleton_tags(lines: &[Vec<SkeletonVertex>], ids: &[SkeletonIds]) -> [(&'static str, Tag); 6] {
+/// whether it meets the ground.
+fn skeleton_tags(lines: &[Vec<SkeletonVertex>]) -> [(&'static str, Tag); 4] {
     let vertices = || lines.iter().flatten();
     [
         (
@@ -418,14 +429,6 @@ fn skeleton_tags(lines: &[Vec<SkeletonVertex>], ids: &[SkeletonIds]) -> [(&'stat
         (
             "skeletonGround",
             Tag::Bools(vertices().map(|v| v.ground).collect()),
-        ),
-        (
-            "skeletonIds",
-            Tag::Texts(ids.iter().map(|i| i.polyline.clone()).collect()),
-        ),
-        (
-            "skeletonVertexIds",
-            Tag::Texts(ids.iter().flat_map(|i| i.vertices.clone()).collect()),
         ),
     ]
 }

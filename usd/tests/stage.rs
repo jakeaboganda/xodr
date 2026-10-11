@@ -312,6 +312,7 @@ fn an_object_of_a_junction_names_its_junction_rather_than_a_road() {
     assert!(!post.contains("xodr:junction"), "{post}");
     let junction = "custom string xodr:junction = \"100\"";
     assert!(reference.contains(junction), "{reference}");
+    assert!(!reference.contains("xodr:roadId"), "{reference}");
 }
 
 #[test]
@@ -352,6 +353,11 @@ fn a_signal_on_a_skeleton_pole_or_under_its_arm_is_held_by_it() {
     };
     assert_eq!(support("ArmLight"), "object");
     assert_eq!(support("PoleSign"), "object");
+    assert_eq!(
+        support("Under"),
+        "synthesized",
+        "on the ground under the arm"
+    );
     assert_eq!(support("Lone"), "synthesized");
     let light = prim(prim(&stage, "Objects"), "object_0");
     assert!(
@@ -380,6 +386,11 @@ fn an_area_of_paint_takes_the_colour_of_paint() {
     assert_eq!(color("2"), "[(0.9, 0.9, 0.9)]", "white by default");
     assert_eq!(color("4"), "[(0.95, 0.75, 0.1)]", "its material's yellow");
     assert_eq!(color("3"), "[(0.6, 0.6, 0.6)]", "grass is no paint");
+    assert_eq!(
+        color("5"),
+        "[(0.9, 0.9, 0.9)]",
+        "an open stripe of paint too"
+    );
     let island = objects_with_id(&stage, "3")[0];
     assert!(
         island.contains("custom string xodr:fillType = \"grass\""),
