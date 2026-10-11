@@ -252,3 +252,53 @@ fn the_ids_of_the_polylines_and_vertices_it_keeps_are_in_its_provenance() {
     assert_eq!(ids("Stub"), [owned("2", &["1", "2"])]);
     assert!(ids("Off").is_empty());
 }
+
+/// That the mesh of `object` at vertex 1 of its polyline `line` lies on
+/// the plane that halves the bend there, and that both segments share one
+/// ring of 16 points there.
+fn assert_mitred(net: &RoadNetwork, object: &Object, line: usize) {
+    let mesh = net.object_mesh();
+    let vertices = &lines(object)[line];
+    let (p, q, r) = (
+        vertices[0].position,
+        vertices[1].position,
+        vertices[2].position,
+    );
+    let half = ((q - p).normalize_or_zero() + (r - q).normalize_or_zero()).normalize_or_zero();
+    let span = mesh.objects.iter().find(|s| s.object == object.id).unwrap();
+    let near: Vec<Point> = mesh.vertices[span.vertices.start as usize..span.vertices.end as usize]
+        .iter()
+        .copied()
+        .filter(|v| (*v - q).length() < 0.3)
+        .collect();
+    let mut ring: Vec<Point> = Vec::new();
+    for v in &near {
+        let off = (*v - q).dot(half);
+        assert!(off.abs() < 1e-4, "{v:?} is {off} m off the mitre");
+        if ring.iter().all(|w| (*w - *v).length() > 1e-4) {
+            ring.push(*v);
+        }
+    }
+    assert_eq!(ring.len(), 16, "{} distinct points at the bend", ring.len());
+}
+
+#[test]
+fn segments_meet_on_the_plane_that_halves_the_bend_without_a_gap() {
+    let net = net();
+    assert_mitred(&net, named(&net, "Light")[0], 1);
+    assert_mitred(&net, named(&net, "Lamp")[0], 0);
+}
+
+#[test]
+fn a_bend_too_sharp_to_mitre_ends_its_segments_square() {
+    let net = net();
+    let mesh = net.object_mesh();
+    let hook = named(&net, "Hook")[0];
+    let line = &lines(hook)[0];
+    let span = mesh.objects.iter().find(|s| s.object == hook.id).unwrap();
+    for v in &mesh.vertices[span.vertices.start as usize..span.vertices.end as usize] {
+        let near = line.iter().any(|w| (*v - w.position).length() < 2.0);
+        let off = (*v - line[1].position).length();
+        assert!(near && off < 2.2, "{v:?} reaches out of the hook");
+    }
+}

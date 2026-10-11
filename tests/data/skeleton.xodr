@@ -94,6 +94,24 @@
                     </polyline>
                 </skeleton>
             </object>
+            <object id="7" s="5" t="-6" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="0.4" height="4.5" name="Lamp" type="streetLamp" orientation="none" hdg="0" length="2">
+                <skeleton>
+                    <polyline id="1">
+                        <vertexLocal id="1" u="0" v="0" z="0" radius="0.1" intersectionPoint="true" />
+                        <vertexLocal id="2" u="0" v="0" z="4" radius="0.1" />
+                        <vertexLocal id="3" u="1.299" v="0.75" z="4.3" radius="0.1" />
+                    </polyline>
+                </skeleton>
+            </object>
+            <object id="8" s="20" t="6" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="0.5" height="2.2" name="Hook" type="obstacle" orientation="none" hdg="0" length="0.5">
+                <skeleton>
+                    <polyline id="1">
+                        <vertexLocal id="1" u="0" v="0" z="0" radius="0.1" />
+                        <vertexLocal id="2" u="0" v="0" z="2" radius="0.1" />
+                        <vertexLocal id="3" u="0.1" v="0" z="0.5" radius="0.1" />
+                    </polyline>
+                </skeleton>
+            </object>
             <object id="6" s="15" t="-6" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" height="2" name="Cone" type="obstacle" orientation="none" hdg="0" radius="0.3">
                 <skeleton>
                     <polyline id="1">

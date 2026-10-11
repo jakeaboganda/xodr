@@ -98,7 +98,7 @@
   that hides a road CRG of a mode the spec does not let it hide.
 - Breaking: an object's `<skeleton>` is read, as new `Shape::Skeleton` of
   `SkeletonVertex` polylines, each vertex with a radius. `object_mesh` makes
-  each segment a frustum. Match on `Shape` with an arm for it. The spec's
+  each segment a frustum, mitred where the polyline bends. Match on `Shape` with an arm for it. The spec's
   text also gives vertices a width and a height, which its schema does not,
   and the crate reads the schema. A negative radius reads as 0. New
   `Warning::SkeletonDropped` for a polyline it cannot place. An object left

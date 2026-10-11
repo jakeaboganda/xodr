@@ -10,6 +10,10 @@ use crate::object::{orient, Corner, Extent, ObjectId, Section, Shape, SkeletonVe
 /// Sides on a tessellated cylinder.
 const CYLINDER_SEGMENTS: usize = 16;
 
+/// The sharpest bend in a skeleton that gets a mitre, in radians between
+/// the plane that halves it and either segment's square end.
+const MAX_MITRE: f32 = 1.2;
+
 /// The slice of a [`Mesh`] belonging to one object: a half-open range into
 /// `vertices` (and, in step, `normals`) and one into `indices`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,7 +45,8 @@ impl RoadNetwork {
     /// - A sweep is a wall up each side, a top, a floor and a cap at each end.
     ///   A round one is a 16-sided tube with a cap at each end.
     /// - A skeleton is a 16-sided frustum along each segment of each
-    ///   polyline, with a cap at each end of the polyline.
+    ///   polyline, mitred where it bends, with a cap at each end of the
+    ///   polyline.
     ///
     /// A face with no area is left out, so an object with no volume has no
     /// span: a solid with no extent, or a post given a height and no
@@ -352,54 +357,81 @@ fn round_sweep(mesh: &mut Mesh, sections: &[Section]) {
 }
 
 /// A skeleton polyline: a frustum of [`CYLINDER_SEGMENTS`] sides along each
-/// segment, from one vertex's radius to the next's, with its ends square to
-/// the segment. The polyline is capped at its two ends. A segment with no
-/// length is left out.
+/// segment, from one vertex's radius to the next's, capped at the polyline's
+/// two ends. Where it bends, both segments end on the plane that halves the
+/// bend, a mitre, so they meet without a gap. The rings turn with the
+/// polyline from one segment to the next, so the sides do not twist. A
+/// segment with no length is left out. A bend sharper than [`MAX_MITRE`]
+/// ends each segment square instead, as a mitre there would reach far out.
 fn skeleton(mesh: &mut Mesh, line: &[SkeletonVertex]) {
-    let directions = |axis: Vector| -> Vec<Vector> {
-        let side = if axis.cross(Vector::Z).length() > 1e-3 {
-            Vector::Z
-        } else {
-            Vector::X
-        };
-        let a = axis.cross(side).normalize_or_zero();
-        let b = axis.cross(a);
-        (0..CYLINDER_SEGMENTS)
-            .map(|k| {
-                let angle = k as f32 * std::f32::consts::TAU / CYLINDER_SEGMENTS as f32;
-                a * angle.cos() + b * angle.sin()
-            })
-            .collect()
-    };
-    let ring = |centre: Point, axis: Vector, radius: f32| -> Vec<Point> {
-        directions(axis)
-            .into_iter()
-            .map(|d| centre + d * radius)
-            .collect()
-    };
-    let segments: Vec<(&SkeletonVertex, &SkeletonVertex, Vector)> = line
-        .windows(2)
-        .filter_map(|w| {
-            let axis = (w[1].position - w[0].position).normalize_or_zero();
-            (axis != Vector::ZERO).then_some((&w[0], &w[1], axis))
-        })
-        .collect();
-    for &(p, q, axis) in &segments {
-        let (a, b) = (
-            ring(p.position, axis, p.radius),
-            ring(q.position, axis, q.radius),
-        );
-        let out = directions(axis);
-        for k in 0..CYLINDER_SEGMENTS {
-            let j = (k + 1) % CYLINDER_SEGMENTS;
-            face(mesh, &[a[k], a[j], b[j], b[k]], &fan(4), out[k] + out[j]);
+    let mut vertices: Vec<&SkeletonVertex> = Vec::new();
+    for v in line {
+        if vertices
+            .last()
+            .is_none_or(|last| (v.position - last.position).length() > 1e-6)
+        {
+            vertices.push(v);
         }
     }
-    if let (Some(&(first, _, start)), Some(&(_, last, end))) = (segments.first(), segments.last()) {
-        let caps = [(first, start, start * -1.0), (last, end, end)];
-        for (vertex, axis, out) in caps {
-            let cap = ring(vertex.position, axis, vertex.radius);
-            face(mesh, &cap, &fan(CYLINDER_SEGMENTS), out);
+    if vertices.len() < 2 {
+        return;
+    }
+    let axes: Vec<Vector> = vertices
+        .windows(2)
+        .map(|w| (w[1].position - w[0].position).normalize_or_zero())
+        .collect();
+    let mitre = |k: usize, axis: Vector| -> Vector {
+        let (before, after) = (k.checked_sub(1).map(|b| axes[b]), axes.get(k).copied());
+        match (before, after) {
+            (Some(a), Some(b)) => {
+                let half = (a + b).normalize_or_zero();
+                if half.dot(axis) < MAX_MITRE.cos() {
+                    axis
+                } else {
+                    half
+                }
+            }
+            _ => axis,
+        }
+    };
+    let first = axes[0];
+    let side = if first.cross(Vector::Z).length() > 1e-3 {
+        Vector::Z
+    } else {
+        Vector::X
+    };
+    let mut basis = first.cross(side).normalize_or_zero();
+    for (k, &axis) in axes.iter().enumerate() {
+        if k > 0 {
+            let (before, turn) = (axes[k - 1], axes[k - 1].cross(axis));
+            basis = basis.rotate_about(turn, turn.length().atan2(before.dot(axis)));
+        }
+        let other = axis.cross(basis);
+        let out: Vec<Vector> = (0..CYLINDER_SEGMENTS)
+            .map(|i| {
+                let angle = i as f32 * std::f32::consts::TAU / CYLINDER_SEGMENTS as f32;
+                basis * angle.cos() + other * angle.sin()
+            })
+            .collect();
+        let ring = |v: &SkeletonVertex, plane: Vector| -> Vec<Point> {
+            out.iter()
+                .map(|&d| {
+                    let off = d * v.radius;
+                    v.position + off - axis * (off.dot(plane) / axis.dot(plane))
+                })
+                .collect()
+        };
+        let (p, q) = (vertices[k], vertices[k + 1]);
+        let (a, b) = (ring(p, mitre(k, axis)), ring(q, mitre(k + 1, axis)));
+        for i in 0..CYLINDER_SEGMENTS {
+            let j = (i + 1) % CYLINDER_SEGMENTS;
+            face(mesh, &[a[i], a[j], b[j], b[i]], &fan(4), out[i] + out[j]);
+        }
+        if k == 0 {
+            face(mesh, &a, &fan(CYLINDER_SEGMENTS), axis * -1.0);
+        }
+        if k + 1 == axes.len() {
+            face(mesh, &b, &fan(CYLINDER_SEGMENTS), axis);
         }
     }
 }
