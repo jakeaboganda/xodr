@@ -220,6 +220,8 @@ surface.
   are cut into edges of about 25 cm. An `outer="false"` outline is a hole cut
   out of the outline round it. Under a `<repeat>` with a `distance`, the
   outline repeats at every step.
+- A `<skeleton>` becomes polylines with a radius at each vertex, which the
+  object mesh draws as frustums, such as a pole and the arm it carries.
 - A closed outline with `fillType="paint"` is an area of paint. It lies flat,
   5 mm above its corners, with no height. The spec says a border round it cuts
   the area back, and the crate does not.
@@ -430,10 +432,10 @@ below raises an `Ignored` warning, once for each road, junction, or the rest
 of the document, with how many times the file uses it.
 
 Elements it skips: `<vmsGroup>`, a header's `<license>` and
-`<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a junction's
-`<roadSection>`s, and an object's `<skeleton>`. It skips `<userData>` anywhere
-but directly on an object, which it reads. It also skips the `<validity>`,
-`<dependency>` and `<reference>` of a board sign.
+`<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, and a
+junction's `<roadSection>`s. It skips `<userData>` anywhere but directly on an
+object, which it reads. It also skips the `<validity>`, `<dependency>` and
+`<reference>` of a board sign.
 
 Uses of elements it reads that it ignores:
 

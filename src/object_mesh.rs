@@ -5,7 +5,7 @@ use std::ops::Range;
 use crate::coords::{Point, Vector};
 use crate::mesh::{Mesh, MIN_AREA};
 use crate::network::RoadNetwork;
-use crate::object::{orient, Corner, Extent, ObjectId, Section, Shape};
+use crate::object::{orient, Corner, Extent, ObjectId, Section, Shape, SkeletonVertex};
 
 /// Sides on a tessellated cylinder.
 const CYLINDER_SEGMENTS: usize = 16;
@@ -40,6 +40,8 @@ impl RoadNetwork {
     ///   walled facing into it.
     /// - A sweep is a wall up each side, a top, a floor and a cap at each end.
     ///   A round one is a 16-sided tube with a cap at each end.
+    /// - A skeleton is a 16-sided frustum along each segment of each
+    ///   polyline, with a cap at each end of the polyline.
     ///
     /// A face with no area is left out, so an object with no volume has no
     /// span: a solid with no extent, or a post given a height and no
@@ -98,6 +100,11 @@ impl RoadNetwork {
                     sections,
                     round: true,
                 } => round_sweep(&mut mesh, sections),
+                Shape::Skeleton { lines } => {
+                    for line in lines {
+                        skeleton(&mut mesh, line);
+                    }
+                }
             }
             if mesh.indices.len() as u32 > indices {
                 mesh.objects.push(ObjectSpan {
@@ -342,6 +349,53 @@ fn round_sweep(mesh: &mut Mesh, sections: &[Section]) {
     let (ring_first, ring_last) = (&rings[0].1, &rings[rings.len() - 1].1);
     face(mesh, ring_first, &fan(CYLINDER_SEGMENTS), start_out);
     face(mesh, ring_last, &fan(CYLINDER_SEGMENTS), end_out);
+}
+
+/// A skeleton polyline: a frustum of [`CYLINDER_SEGMENTS`] sides along each
+/// segment, from one vertex's radius to the next's, with its ends square to
+/// the segment. The polyline is capped at its two ends. A segment with no
+/// length is left out.
+fn skeleton(mesh: &mut Mesh, line: &[SkeletonVertex]) {
+    let ring = |centre: Point, axis: Vector, radius: f32| -> Vec<Point> {
+        let side = if axis.cross(Vector::Z).length() > 1e-3 {
+            Vector::Z
+        } else {
+            Vector::X
+        };
+        let a = axis.cross(side).normalize_or_zero();
+        let b = axis.cross(a);
+        (0..CYLINDER_SEGMENTS)
+            .map(|k| {
+                let angle = k as f32 * std::f32::consts::TAU / CYLINDER_SEGMENTS as f32;
+                centre + (a * angle.cos() + b * angle.sin()) * radius
+            })
+            .collect()
+    };
+    let segments: Vec<(&SkeletonVertex, &SkeletonVertex, Vector)> = line
+        .windows(2)
+        .filter_map(|w| {
+            let axis = (w[1].position - w[0].position).normalize_or_zero();
+            (axis != Vector::ZERO).then_some((&w[0], &w[1], axis))
+        })
+        .collect();
+    for &(p, q, axis) in &segments {
+        let (a, b) = (
+            ring(p.position, axis, p.radius),
+            ring(q.position, axis, q.radius),
+        );
+        for k in 0..CYLINDER_SEGMENTS {
+            let j = (k + 1) % CYLINDER_SEGMENTS;
+            let out = (a[k] - p.position) + (a[j] - p.position);
+            face(mesh, &[a[k], a[j], b[j], b[k]], &fan(4), out);
+        }
+    }
+    if let (Some(&(first, _, start)), Some(&(_, last, end))) = (segments.first(), segments.last()) {
+        let caps = [(first, start, start * -1.0), (last, end, end)];
+        for (vertex, axis, out) in caps {
+            let cap = ring(vertex.position, axis, vertex.radius);
+            face(mesh, &cap, &fan(CYLINDER_SEGMENTS), out);
+        }
+    }
 }
 
 /// The triangles of a convex polygon of `n` corners, fanned from the first.

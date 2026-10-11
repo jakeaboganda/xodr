@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='utf-8'?>
+<OpenDRIVE>
+    <header name="skeleton" revMajor="1" revMinor="5" date="2026-01-01T00:00:00" north="0.0" south="0.0" east="0.0" west="0.0" />
+    <road rule="RHT" id="1" junction="-1" length="60">
+        <link />
+        <planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="60">
+                <line />
+            </geometry>
+        </planView>
+        <elevationProfile>
+            <elevation s="0" a="1.0" b="0.02" c="0" d="0" />
+        </elevationProfile>
+        <lateralProfile />
+        <lanes>
+            <laneSection s="0">
+                <left>
+                    <lane id="1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="broken" weight="standard" color="standard" width="0.2">
+                            <type name="broken" width="0.2">
+                                <line length="3" space="9" tOffset="0" width="0.15" sOffset="0" />
+                            </type>
+                        </roadMark>
+                    </lane>
+                    <lane id="-2" type="driving" level="false">
+                        <link />
+                        <width a="3.0" b="0.0" c="-0.0" d="0.0" sOffset="0" />
+                        <roadMark sOffset="0" type="solid" weight="standard" color="standard" width="0.2" />
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+            <object id="1" s="25" t="-4" subtype="trafficLight" dynamic="no" zOffset="0" pitch="0" roll="0" width="3" height="4" name="Light" type="pole" orientation="none" hdg="0" length="0.3">
+                <skeleton>
+                    <polyline id="1">
+                        <vertexRoad id="1" s="25" t="-4" dz="0" radius="0.15" intersectionPoint="true" />
+                        <vertexRoad id="2" s="25" t="-4" dz="4" radius="0.1" />
+                    </polyline>
+                    <polyline id="2">
+                        <vertexRoad id="1" s="25" t="-4" dz="3" radius="0.15" />
+                        <vertexRoad id="2" s="25" t="-2.5" dz="3.25" radius="0.15" />
+                        <vertexRoad id="3" s="25" t="0" dz="3.25" radius="0.15" />
+                    </polyline>
+                </skeleton>
+            </object>
+            <object id="2" s="10" t="5" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" width="6" height="12" name="Tree" type="tree" orientation="none" hdg="0.5" length="6">
+                <skeleton>
+                    <polyline id="1">
+                        <vertexLocal id="1" u="-0.2" v="1" z="1.12" radius="0.15" intersectionPoint="true" />
+                        <vertexLocal id="2" u="-0.2" v="1" z="4.5" radius="0.12" />
+                    </polyline>
+                </skeleton>
+            </object>
+            <object id="3" s="40" t="-5" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" height="3" name="Stub" type="pole" orientation="none" hdg="0" radius="0.2">
+                <skeleton>
+                    <polyline id="1">
+                        <vertexRoad id="1" s="40" t="-5" dz="0" radius="0.2" />
+                    </polyline>
+                    <polyline id="2">
+                        <vertexRoad id="1" s="40" t="-5" dz="0" radius="0.2" intersectionPoint="true" />
+                        <vertexRoad id="2" s="40" t="-5" dz="3" radius="0.2" />
+                    </polyline>
+                </skeleton>
+            </object>
+            <object id="4" s="55" t="-5" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" height="3" name="Off" type="pole" orientation="none" hdg="0" radius="0.2">
+                <skeleton>
+                    <polyline id="1">
+                        <vertexRoad id="1" s="55" t="-5" dz="0" radius="0.2" />
+                        <vertexRoad id="2" s="80" t="-5" dz="3" radius="0.2" />
+                    </polyline>
+                </skeleton>
+            </object>
+            <object id="5" s="30" t="6" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" height="1" name="Post" type="pole" orientation="none" hdg="0" radius="0.1">
+                <repeat length="20" distance="10" s="30" tStart="6" tEnd="6" heightStart="1" heightEnd="1" zOffsetStart="0" zOffsetEnd="0" />
+                <skeleton>
+                    <polyline id="1">
+                        <vertexLocal id="1" u="0" v="0" z="0" radius="0.1" intersectionPoint="true" />
+                        <vertexLocal id="2" u="0" v="0" z="1" radius="0.05" />
+                    </polyline>
+                </skeleton>
+            </object>
+            <objectReference id="1" s="45" t="-5" zOffset="0" orientation="none" />
+        </objects>
+    </road>
+</OpenDRIVE>

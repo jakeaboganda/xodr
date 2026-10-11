@@ -24,7 +24,7 @@ use crate::{
     CrgSurface, Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneAdvisory, LaneId,
     LaneType, Layer, Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Polyline,
     Priority, RoadMarkId, RoadMarkWeight, RoadNeighbor, RoadNetwork, Section, Shape, Side,
-    SignalId, Structure, StructureId, StructureKind, UserData,
+    SignalId, SkeletonVertex, Structure, StructureId, StructureKind, UserData,
 };
 
 mod curve_local;
@@ -3014,10 +3014,14 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         });
     }
     let outlines = outline_nodes(node);
+    let skeleton = child(node, "skeleton");
+    let shaped = !outlines.is_empty() || skeleton.is_some();
     let outlined = |st: &Station| {
         let origin = road.on_road(st.s).then(|| frame(st));
         let shift = (at.shift.0 + st.s - base.s, at.shift.1 + st.t - base.t);
-        outline_parts(node, &outlines, origin.as_ref(), st, shift, road, &faults)
+        let mut parts = outline_parts(node, &outlines, origin.as_ref(), st, shift, road, &faults);
+        parts.extend(skeleton.and_then(|n| skeleton_part(n, origin.as_ref(), st, shift, road)));
+        parts
     };
     for repeat in &repeats {
         if repeat.distance > 0.0 {
@@ -3033,7 +3037,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 continue;
             }
             for st in stations {
-                if !outlines.is_empty() {
+                if shaped {
                     parts.extend(outlined(&st));
                 } else if road.on_road(st.s) {
                     parts.push(point(&st));
@@ -3044,7 +3048,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         }
     }
     if !repeats.iter().any(|r| r.distance > 0.0) {
-        if !outlines.is_empty() {
+        if shaped {
             parts.extend(outlined(&base));
         } else if repeats.is_empty() && road.on_road(base.s) {
             parts.push(point(&base));
@@ -3289,13 +3293,14 @@ struct Part {
 }
 
 impl Part {
-    /// How many corners its outline has, holes included. 0 for any other
-    /// shape.
+    /// How many corners its outline has, holes included, or vertices its
+    /// skeleton has. 0 for any other shape.
     fn corner_count(&self) -> usize {
         match &self.shape {
             Shape::Outline { corners, holes, .. } => {
                 corners.len() + holes.iter().map(Vec::len).sum::<usize>()
             }
+            Shape::Skeleton { lines } => lines.iter().map(Vec::len).sum(),
             _ => 0,
         }
     }
@@ -3693,6 +3698,64 @@ fn outline<'a>(
         stretch,
         gap,
     })
+}
+
+/// An object's `<skeleton>` placed at `st`, as one [`Part`] of every
+/// `<polyline>` it can place, or `None` if it can place none.
+///
+/// A `<vertexRoad>` is a road station `(s, t)`, moved by `shift`, raised
+/// `dz` straight up, as a `<cornerRoad>` is. A `<vertexLocal>` is
+/// `(u, v, z)` in the object's own frame, `frame`, which it needs. A
+/// polyline with a vertex that cannot be placed is dropped whole, as is one
+/// with fewer than two vertices. A missing `radius` is 0.
+///
+/// The stretch of road it spans runs from its first `<vertexRoad>` station
+/// to its last, taking in the object's own if it has a `<vertexLocal>`.
+fn skeleton_part(
+    node: roxmltree::Node,
+    frame: Option<&Frame>,
+    st: &Station,
+    (shift_s, shift_t): (f64, f64),
+    road: &Road,
+) -> Option<Part> {
+    let mut stretch = (f64::INFINITY, f64::NEG_INFINITY);
+    let mut spans = |s: f64| stretch = (stretch.0.min(s), stretch.1.max(s));
+    let mut vertex = |v: roxmltree::Node| -> Option<SkeletonVertex> {
+        let position = if v.has_tag_name("vertexRoad") {
+            let (s, t) = (attr_f64(v, "s")? + shift_s, attr_f64(v, "t")? + shift_t);
+            if !road.on_road(s) {
+                return None;
+            }
+            spans(s);
+            let (base, _) = road.surface(s, t);
+            base + Vector::Z * attr_f64(v, "dz").unwrap_or(0.0) as f32
+        } else {
+            spans(st.s);
+            let z = attr_f64(v, "z").unwrap_or(0.0);
+            frame?.point([attr_f64(v, "u")?, attr_f64(v, "v")?, z])
+        };
+        Some(SkeletonVertex {
+            position,
+            radius: attr_f64(v, "radius").unwrap_or(0.0) as f32,
+            ground: matches!(v.attribute("intersectionPoint"), Some("true" | "1")),
+        })
+    };
+    let lines: Vec<Vec<SkeletonVertex>> = node
+        .children()
+        .filter(|n| n.has_tag_name("polyline"))
+        .filter_map(|polyline| {
+            polyline
+                .children()
+                .filter(|n| n.has_tag_name("vertexRoad") || n.has_tag_name("vertexLocal"))
+                .map(&mut vertex)
+                .collect::<Option<Vec<_>>>()
+                .filter(|line| line.len() >= 2)
+        })
+        .collect();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(Part::new(Shape::Skeleton { lines }, st, stretch))
 }
 
 /// The z axis of `axes`, which [`road_axes`] and [`Frame`] give.

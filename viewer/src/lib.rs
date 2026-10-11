@@ -661,6 +661,21 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
                 .map(|h| h.iter().map(corner).collect::<Vec<_>>())
                 .collect::<Vec<_>>(),
         }),
+        Shape::Skeleton { lines } => json!({
+            "kind": "skeleton",
+            "lines": lines
+                .iter()
+                .map(|line| {
+                    line.iter()
+                        .map(|v| json!({
+                            "position": v.position.to_array(),
+                            "radius": v.radius,
+                            "ground": v.ground,
+                        }))
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
+        }),
         Shape::Sweep { sections, round } => json!({
             "kind": "sweep",
             "round": round,

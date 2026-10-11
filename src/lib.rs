@@ -160,6 +160,9 @@
 //! | `<outlines><outline>` | `id`, `closed`, `outer`, `fillType`, `laneType` |
 //! | `<cornerRoad>` | `id`, `s`, `t`, `dz`, `height` |
 //! | `<cornerLocal>` | `id`, `u`, `v`, `z`, `height` |
+//! | `<skeleton><polyline>` | none |
+//! | `<vertexRoad>` | `s`, `t`, `dz`, `radius`, `intersectionPoint` |
+//! | `<vertexLocal>` | `u`, `v`, `z`, `radius`, `intersectionPoint` |
 //! | `<curveLocal>` | `id`, `u`, `v`, `z`, `height`, `hdg`, `length`, and a `<line>`, `<arc>` or `<paramPoly3>` as in the plan view |
 //! | `<markings><marking>`, `<outline><markings><marking>` | `side`, `color`, `weight`, `width`, `zOffset`, `lineLength`, `spaceLength`, `startOffset`, `stopOffset` |
 //! | `<borders><border>` | `type`, `width`, `outlineId`, `useCompleteOutline` |
@@ -344,6 +347,16 @@
 //! - Each `<outline>` is a [`Shape::Outline`], and an object with outlines
 //!   has no solid of its own. `<outline>` is read under `<outlines>`, and
 //!   straight under `<object>` as OpenDRIVE 1.4 writes it.
+//! - A `<skeleton>` is a [`Shape::Skeleton`] of its `<polyline>`s, and an
+//!   object with one has no solid of its own either. A `<vertexRoad>` is
+//!   placed as a `<cornerRoad>` is, raised `dz` straight up, and a
+//!   `<vertexLocal>` as a `<cornerLocal>` is. Each vertex keeps its `radius`
+//!   and whether it is an `intersectionPoint`. [`RoadNetwork::object_mesh`]
+//!   makes each segment a frustum from one radius to the next. A polyline
+//!   with a vertex that cannot be placed, or with fewer than two, is
+//!   dropped. The spec's text describes a skeleton by a width and a height
+//!   at each vertex too, but its schema gives a vertex only a `radius`. The
+//!   crate reads the schema.
 //! - A `<curveLocal>` is a line, an arc or a paramPoly3 in the object's own
 //!   frame, from its `(u, v)` heading `hdg`. A line is one edge. An arc or a
 //!   paramPoly3 is cut into edges of about 25 cm, closer on a tight arc, and at
@@ -1116,9 +1129,9 @@
 //! the warnings for faults.
 //!
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
-//! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, a
-//! junction's `<roadSection>`s, and an object's `<skeleton>`.
-//! It skips `<userData>` anywhere but directly on an object, which it reads. It
+//! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, and a
+//! junction's `<roadSection>`s. It skips `<userData>` anywhere but directly
+//! on an object, which it reads. It
 //! skips the `validity`, `dependency` and `reference` of a board sign.
 //!
 //! It also ignores these uses of elements it reads:
@@ -1525,7 +1538,7 @@ pub use network::{
 };
 pub use object::{
     Border, Corner, Extent, Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Section,
-    Shape, UserData,
+    Shape, SkeletonVertex, UserData,
 };
 pub use object_mesh::ObjectSpan;
 /// The OpenCRG reader, for loading the files a [`RoadSurface`] evaluates.

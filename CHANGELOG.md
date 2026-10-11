@@ -96,6 +96,13 @@
   which the spec also turns it by. New `Warning::ObjectSurfaceDropped` for a
   surface on an object with no box, and `Warning::CrgHideIgnored` for one
   that hides a road CRG of a mode the spec does not let it hide.
+- Breaking: an object's `<skeleton>` is read, as new `Shape::Skeleton` of
+  `SkeletonVertex` polylines, each vertex with a radius. `object_mesh` makes
+  each segment a frustum. Match on `Shape` with an arm for it. The spec's
+  text also gives vertices a width and a height, which its schema does not,
+  and the crate reads the schema.
+- `tests/data/skeleton.xodr` has the spec's traffic light and tree, a
+  repeat, a reference and polylines that cannot be placed.
 - `tests/data/object_surface.xodr` has object CRGs on bare roads, over
   `attached` and `attached0` road CRGs, on repeats and in a junction.
 
