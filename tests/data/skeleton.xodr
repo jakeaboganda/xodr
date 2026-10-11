@@ -124,5 +124,10 @@
             </object>
             <objectReference id="1" s="45" t="-5" zOffset="0" orientation="none" />
         </objects>
+        <signals>
+            <signal id="s1" name="ArmLight" s="25" t="-1.2" zOffset="2.6" orientation="+" dynamic="no" country="DE" type="274" subtype="50" value="50" unit="km/h" width="0.4" height="0.4" />
+            <signal id="s2" name="PoleSign" s="25.3" t="-4" zOffset="2" orientation="+" dynamic="no" country="DE" type="274" subtype="50" value="50" unit="km/h" width="0.4" height="0.4" />
+            <signal id="s3" name="Lone" s="40" t="-9" zOffset="2" orientation="+" dynamic="no" country="DE" type="274" subtype="50" value="50" unit="km/h" width="0.4" height="0.4" />
+        </signals>
     </road>
 </OpenDRIVE>

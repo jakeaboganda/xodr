@@ -312,7 +312,8 @@ reference line, on an arc. Regenerate with
 
 `skeleton.xodr` comes from `skeleton.py`. It has objects described by
 `<skeleton>` polylines in road and local coordinates, repeated and
-referenced, and polylines that cannot be placed. Regenerate with
+referenced, polylines that cannot be placed, and signals on and under a
+skeleton pole. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/skeleton.py
 

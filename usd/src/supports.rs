@@ -11,7 +11,7 @@ use std::f32::consts::TAU;
 
 use xodr::{
     LaneType, Mesh, MeshSampler, ObjectType, Point, Provenance, Referenced, RoadId, RoadNetwork,
-    Shape, Signal, Vector,
+    Shape, Signal, SkeletonVertex, Vector,
 };
 
 use crate::signals::{back, two_faced, FALLBACK_SIZE};
@@ -601,7 +601,9 @@ fn ground(net: &RoadNetwork, signal: &Signal) -> f32 {
 }
 
 /// The prim of a pole object that holds `signal` up: one its `<reference>`s
-/// name, or else the nearest within [`NEAR`].
+/// name, or else the nearest within [`NEAR`]. A solid pole is as near as
+/// its base. A skeleton pole is as near as the nearest of its segments, less
+/// its radius there, so a board hung from its arm is near it too.
 fn pole_object(net: &RoadNetwork, paths: &Paths, signal: &Signal) -> Option<String> {
     let is_pole = |id| net.object(id).is_some_and(|o| o.kind == ObjectType::Pole);
     let referenced = signal.references.iter().find_map(|r| match r.to {
@@ -612,8 +614,9 @@ fn pole_object(net: &RoadNetwork, paths: &Paths, signal: &Signal) -> Option<Stri
         net.objects()
             .iter()
             .filter(|o| o.kind == ObjectType::Pole)
-            .filter_map(|o| match o.shape {
-                Shape::Solid { position, .. } => Some((across(position, signal.position), o.id)),
+            .filter_map(|o| match &o.shape {
+                Shape::Solid { position, .. } => Some((across(*position, signal.position), o.id)),
+                Shape::Skeleton { lines } => Some((skeleton_across(lines, signal.position), o.id)),
                 _ => None,
             })
             .filter(|(d, _)| *d <= NEAR)
@@ -621,6 +624,25 @@ fn pole_object(net: &RoadNetwork, paths: &Paths, signal: &Signal) -> Option<Stri
             .and_then(|(_, id)| paths.objects.get(&id))
     };
     referenced.or_else(near).cloned()
+}
+
+/// How far `p` is across the ground from the surface of the skeleton
+/// `lines`. Infinite for a skeleton with no vertex.
+fn skeleton_across(lines: &[Vec<SkeletonVertex>], p: Point) -> f32 {
+    let segments = lines.iter().flat_map(|line| line.windows(2));
+    let distances = segments.map(|w| {
+        let (a, b) = (w[0].position, w[1].position);
+        let ab = Vector::new(b.x - a.x, b.y - a.y, 0.0);
+        let ap = Vector::new(p.x - a.x, p.y - a.y, 0.0);
+        let f = (ap.dot(ab) / ab.length_squared()).clamp(0.0, 1.0);
+        let f = if f.is_finite() { f } else { 0.0 };
+        (ap - ab * f).length() - (w[0].radius + (w[1].radius - w[0].radius) * f)
+    });
+    let lone = lines
+        .iter()
+        .flatten()
+        .map(|v| across(v.position, p) - v.radius);
+    distances.chain(lone).fold(f32::INFINITY, f32::min)
 }
 
 /// The distance from `a` to `b` across the ground.
