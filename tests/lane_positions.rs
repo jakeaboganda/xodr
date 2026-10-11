@@ -248,3 +248,25 @@ fn a_point_where_no_lane_section_runs_has_no_lane_position() {
         .unwrap();
     assert_eq!(net.lane_position(point), None);
 }
+
+#[test]
+fn a_point_a_rounding_error_short_of_a_lane_section_has_a_lane_position() {
+    // The second section starts 5e-10 m past x = 50, which an f32 holds
+    // exactly, so the point's road s lands just short of it.
+    let section = |s: &str| {
+        format!(
+            r#"<laneSection s="{s}"><center><lane id="0" type="none"/></center><right>
+            <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+            </right></laneSection>"#
+        )
+    };
+    let net = load_str(&format!(
+        r#"<OpenDRIVE><road id="1" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes>{}{}</lanes></road></OpenDRIVE>"#,
+        section("0"),
+        section("50.0000000005")
+    ))
+    .unwrap();
+    assert!(net.lane_position(Point::new(50.0, -1.75, 0.0)).is_some());
+}

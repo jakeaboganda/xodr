@@ -242,6 +242,11 @@ fn lane_position_finds_the_temporary_lane_by_its_borders() {
         "P1:-1",
         "inside no temporary lane"
     );
+    assert_eq!(
+        at(-7.0, LayerPolicy::Both),
+        at(-7.0, LayerPolicy::PermanentOnly),
+        "past the outermost temporary lane"
+    );
 }
 
 #[test]
