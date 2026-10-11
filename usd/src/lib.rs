@@ -7,7 +7,7 @@ use std::io::{self, Write};
 
 use xodr::{
     JunctionArea, Lane, LaneId, LaneProvenance, LaneSpan, LaneType, Mesh, ObjectId, Point,
-    Provenance, RoadId, RoadNetwork, Vector, Warning,
+    Provenance, RoadId, RoadNetwork, Shape, SkeletonIds, SkeletonVertex, Vector, Warning,
 };
 
 mod area;
@@ -362,6 +362,9 @@ fn objects(
             } else {
                 tags.push(("junction", Tag::Text(p.junction_id.clone())));
             }
+            if let Shape::Skeleton { lines } = &object.shape {
+                tags.extend(skeleton_tags(lines, &p.skeleton_ids));
+            }
         }
         let vertices = span.vertices.start as usize..span.vertices.end as usize;
         let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
@@ -384,6 +387,39 @@ fn objects(
     }
     close(out, 1)?;
     Ok(paths)
+}
+
+/// A skeleton's polylines as flat arrays, as USD writes curves: the number
+/// of vertices in each polyline, then each vertex's point, radius and
+/// whether it meets the ground, and the polylines' and vertices' ids.
+fn skeleton_tags(lines: &[Vec<SkeletonVertex>], ids: &[SkeletonIds]) -> [(&'static str, Tag); 6] {
+    let vertices = || lines.iter().flatten();
+    [
+        (
+            "skeletonCounts",
+            Tag::Ints(lines.iter().map(|l| l.len() as i64).collect()),
+        ),
+        (
+            "skeletonPoints",
+            Tag::Points(vertices().map(|v| v.position).collect()),
+        ),
+        (
+            "skeletonRadii",
+            Tag::Floats(vertices().map(|v| v.radius).collect()),
+        ),
+        (
+            "skeletonGround",
+            Tag::Bools(vertices().map(|v| v.ground).collect()),
+        ),
+        (
+            "skeletonIds",
+            Tag::Texts(ids.iter().map(|i| i.polyline.clone()).collect()),
+        ),
+        (
+            "skeletonVertexIds",
+            Tag::Texts(ids.iter().flat_map(|i| i.vertices.clone()).collect()),
+        ),
+    ]
 }
 
 /// Dark grey for driving lanes, light for sidewalks and curbs, mid otherwise.
@@ -418,6 +454,9 @@ enum Tag {
     Double(f64),
     Bool(bool),
     Texts(Vec<String>),
+    Ints(Vec<i64>),
+    Floats(Vec<f32>),
+    Bools(Vec<bool>),
     Points(Vec<Point>),
     Targets(Vec<String>),
 }
@@ -514,6 +553,15 @@ fn open(
             Tag::Texts(v) => format!(
                 "custom string[] xodr:{key} = [{}]",
                 list(v.iter().map(|s| quote(s)))
+            ),
+            Tag::Ints(v) if v.is_empty() => continue,
+            Tag::Ints(v) => format!("custom int[] xodr:{key} = [{}]", list(v.iter())),
+            Tag::Floats(v) if v.is_empty() => continue,
+            Tag::Floats(v) => format!("custom float[] xodr:{key} = [{}]", list(v.iter())),
+            Tag::Bools(v) if v.is_empty() => continue,
+            Tag::Bools(v) => format!(
+                "custom bool[] xodr:{key} = [{}]",
+                list(v.iter().map(|b| u8::from(*b)))
             ),
             Tag::Points(v) if v.is_empty() => continue,
             Tag::Points(v) => format!(

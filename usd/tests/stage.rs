@@ -313,3 +313,28 @@ fn an_object_of_a_junction_names_its_junction_rather_than_a_road() {
     let junction = "custom string xodr:junction = \"100\"";
     assert!(reference.contains(junction), "{reference}");
 }
+
+#[test]
+fn a_skeleton_object_carries_its_polylines_as_flat_arrays() {
+    let stage = stage("skeleton");
+    let light = objects_with_id(&stage, "1")[0];
+    for line in [
+        "custom int[] xodr:skeletonCounts = [2, 3]",
+        "custom float[] xodr:skeletonRadii = [0.15, 0.1, 0.15, 0.15, 0.15]",
+        "custom bool[] xodr:skeletonGround = [1, 0, 0, 0, 0]",
+        "custom string[] xodr:skeletonIds = [\"1\", \"2\"]",
+        "custom string[] xodr:skeletonVertexIds = [\"1\", \"2\", \"1\", \"2\", \"3\"]",
+    ] {
+        assert!(light.contains(line), "{line} in {light}");
+    }
+    let points = light
+        .lines()
+        .find(|l| l.contains("xodr:skeletonPoints"))
+        .expect("the points");
+    assert_eq!(points.matches('(').count(), 5, "{points}");
+    let solid = objects_with_id(&stage, "4")[0];
+    assert!(
+        !solid.contains("xodr:skeleton"),
+        "a solid has none: {solid}"
+    );
+}

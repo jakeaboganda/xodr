@@ -7,6 +7,10 @@
 - A junction's object names its junction in `xodr:junction`, the attribute
   lanes and roads in a junction already use, instead of an empty
   `xodr:roadId`.
+- An object with a `<skeleton>` carries its polylines as flat arrays, as
+  USD writes curves: `xodr:skeletonCounts`, `xodr:skeletonPoints`,
+  `xodr:skeletonRadii`, `xodr:skeletonGround`, and the ids in
+  `xodr:skeletonIds` and `xodr:skeletonVertexIds`.
 
 ### Docs and viewer
 
