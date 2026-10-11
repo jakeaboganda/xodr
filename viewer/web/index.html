@@ -89,7 +89,7 @@
       <label><input type="checkbox" id="flag"> flag bad tris <span id="flagcount"></span></label>
     </div>
     <div id="walk"></div>
-    <div id="hint">drag: orbit · scroll: zoom · right-drag: pan · [w] cycles wireframe · [n] toggles normals · [o] toggles objects · [s] toggles signals · [m] toggles road marks · [c] toggles CRG heights · hover a lane, object, signal or road mark for coordinates · click a lane for a marker, [f] / [b] step it along the lanes, [Esc] clears it</div>
+    <div id="hint">drag: orbit · scroll: zoom · right-drag: pan · [w] cycles wireframe · [n] toggles normals · [o] toggles objects · [s] toggles signals · [m] toggles road marks · [c] toggles CRG heights · hover a lane, object, signal or road mark for coordinates · click a lane for a marker, [f] / [b] step it along the lanes, [Esc] clears it · [v] puts this view in the address</div>
     <div id="err"></div>
   </div>
 </div>
@@ -468,6 +468,7 @@ async function init() {
   buildSidebar();
   buildLegend();
   frameOn(roadMesh);
+  viewFromUrl();
 
   applyMode();
   for (const id of ['mode', 'flag', 'centerlines', 'boundaries', 'normals', 'objects', 'tunnels', 'bridges', 'junctions', 'signals', 'roadmarks', 'crg']) {
@@ -496,6 +497,8 @@ async function init() {
     } else if (e.key === 'Escape') {
       walkers = [];
       drawWalkers();
+    } else if (e.key === 'v') {
+      viewToUrl();
     } else if (['n', 'o', 's', 'm', 'c'].includes(e.key)) {
       const box = document.getElementById({ n: 'normals', o: 'objects', s: 'signals', m: 'roadmarks', c: 'crg' }[e.key]);
       box.checked = !box.checked;
@@ -2297,6 +2300,26 @@ function frameOn(mesh) {
 }
 
 function frameOnLane(lane) { frameOnPoints(lane.centerline); }
+
+// Look from and at the points the URL's `view=x,y,z,tx,ty,tz` gives, the
+// camera's position then its target, if it gives six numbers.
+function viewFromUrl() {
+  const v = new URLSearchParams(location.search).get('view')?.split(',').map(Number);
+  if (v?.length !== 6 || v.some(n => !Number.isFinite(n))) return;
+  camera.position.set(v[0], v[1], v[2]);
+  controls.target.set(v[3], v[4], v[5]);
+  controls.update();
+}
+
+// Write the camera's position and target into the URL as `view=`, so the
+// address reopens this view.
+function viewToUrl() {
+  const n = x => x.toFixed(2);
+  const { x, y, z } = camera.position, t = controls.target;
+  const params = new URLSearchParams(location.search);
+  params.set('view', [x, y, z, t.x, t.y, t.z].map(n).join(','));
+  history.replaceState(null, '', '?' + params.toString().replaceAll('%2C', ','));
+}
 
 // Frame the camera on `pts`, from no closer than `minRadius` metres.
 function frameOnPoints(pts, minRadius = 8) {
