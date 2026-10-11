@@ -240,6 +240,8 @@ readout shows:
   or sections it has, how many holes an outline has, and whether a sweep is
   round
 - for an outline, its `fillType` and `laneType`
+- for a skeleton, its polylines, each with the radius at each vertex and
+  whether it meets the ground
 
 ![Hovering a traffic island](objects.png)
 

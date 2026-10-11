@@ -1725,20 +1725,30 @@ function objectRows(o, p, border) {
   else {
     rows.push(`x ${p.x.toFixed(2)}   y ${p.y.toFixed(2)}   z ${p.z.toFixed(2)}`);
     const holes = o.holes?.length ? `, ${o.holes.length} hole${o.holes.length > 1 ? 's' : ''}` : '';
-    rows.push(o.kind === 'outline'
-      ? `outline, ${o.corners.length} corners, ${o.closed ? 'closed' : 'open'}${holes}` +
+    if (o.kind === 'outline') {
+      rows.push(`outline, ${o.corners.length} corners, ${o.closed ? 'closed' : 'open'}${holes}` +
         (o.fillType ? `, filled with ${escapeHtml(o.fillType)}` : '') +
-        (o.outlineLaneType ? `, as ${o.outlineLaneType}` : '')
-      : `sweep, ${o.sections.length} sections${o.round ? ', round' : ''}`);
+        (o.outlineLaneType ? `, as ${o.outlineLaneType}` : ''));
+    } else if (o.kind === 'skeleton') {
+      rows.push(`skeleton, ${o.lines.length} polyline${o.lines.length > 1 ? 's' : ''}`);
+      for (const line of o.lines) {
+        const radii = line.map(v => v.radius.toFixed(2)).join(' → ');
+        const ground = line.some(v => v.ground) ? ', meets the ground' : '';
+        rows.push(`  ${line.length} vertices, radius ${radii} m${ground}`);
+      }
+    } else {
+      rows.push(`sweep, ${o.sections.length} sections${o.round ? ', round' : ''}`);
+    }
   }
   return rows;
 }
 
-// The points that bound an object: a solid's base, or every corner of an
-// outline or a sweep.
+// The points that bound an object: a solid's base, every corner of an
+// outline or a sweep, or every vertex of a skeleton.
 function objectPoints(o) {
   if (o.kind === 'solid') return [o.position];
   if (o.kind === 'outline') return o.corners.flat();
+  if (o.kind === 'skeleton') return o.lines.flat().map(v => v.position);
   return o.sections.flatMap(s => [...s.left, ...s.right]);
 }
 
