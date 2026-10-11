@@ -547,3 +547,20 @@ fn numbers_with_surrounding_whitespace_are_read() {
     assert_eq!(net.lanes().len(), 1);
     assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
 }
+
+#[test]
+fn a_geometry_that_overflows_is_dropped_so_no_object_lands_at_nan() {
+    let xodr = r#"<OpenDRIVE><header/>
+        <road id="1" length="20" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes></road>
+        <road id="7" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="50" hdg="0" length="100"><spiral curvStart="0" curvEnd="1e308"/></geometry></planView>
+        <objects><object id="o" type="pole" s="50" t="2" radius="0.1" height="3"/></objects></road>
+        </OpenDRIVE>"#;
+    let (net, prov) = load_str_with_provenance(xodr).unwrap();
+    assert!(net.objects().is_empty());
+    assert_eq!(prov.warnings, [skipped("7", RoadSkipReason::NoGeometry)]);
+}

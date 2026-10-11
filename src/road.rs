@@ -493,6 +493,14 @@ impl GeomRec {
         }
     }
 
+    /// Whether every pose along the record is finite. A curvature or
+    /// coefficient near the limit of an `f64` can overflow to infinity.
+    pub fn is_finite(&self) -> bool {
+        let (x, y, h) = self.pose(self.s + self.length);
+        let samples = self.samples.iter().flat_map(|&(s, x, y, h)| [s, x, y, h]);
+        samples.chain([x, y, h]).all(f64::is_finite)
+    }
+
     /// Position `(x, y)` and heading at road arc-length `s` within this record.
     pub fn pose(&self, s: f64) -> (f64, f64, f64) {
         let ds = s - self.s;
@@ -600,16 +608,24 @@ fn bake_param_poly3(
     // ~0.25 m resolution, from the geometry length.
     let n = ((length / 0.25).ceil() as usize).max(8);
     let (mut px, mut py) = world(0.0);
-    let mut ds = 0.0;
-    let mut out = vec![(0.0, px, py, heading(0.0))];
+    let (mut ds, mut h) = (0.0, heading(0.0));
+    let mut out = vec![(0.0, px, py, h)];
     for k in 1..=n {
         let p = p_max * (k as f64) / (n as f64);
         let (x, y) = world(p);
         ds += ((x - px).powi(2) + (y - py).powi(2)).sqrt();
-        out.push((ds, x, y, heading(p)));
+        h += turn(heading(p) - h);
+        out.push((ds, x, y, h));
         (px, py) = (x, y);
     }
     out
+}
+
+/// `angle` wrapped into `[-π, π)`, so consecutive headings interpolate the
+/// short way round.
+fn turn(angle: f64) -> f64 {
+    use std::f64::consts::{PI, TAU};
+    (angle + PI).rem_euclid(TAU) - PI
 }
 
 pub(crate) fn geom_at(geoms: &[GeomRec], s: f64) -> &GeomRec {

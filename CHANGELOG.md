@@ -16,6 +16,12 @@
   vanished without a warning.
 - An `<objectReference>` can name an object of a junction. Its
   `referenced_from` is empty. Before, the reference was dropped.
+- A `<geometry>` whose poses overflow, such as a spiral with
+  `curvEnd="1e308"`, is dropped with `Warning::GeometryDropped`. Before, a
+  road with no lanes kept it and baked its objects at NaN.
+- A `<paramPoly3>` whose tangent turns past half a turn keeps its heading
+  continuous. Before, the last stretch of such a U-turn put its lanes on
+  the wrong side.
 
 ## 0.6.0 - 2026-10-11
 

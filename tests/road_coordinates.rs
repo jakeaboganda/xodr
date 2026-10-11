@@ -293,3 +293,30 @@ fn roads_that_do_not_match_the_lanes_answer_none_instead_of_panicking() {
     let reordered = RoadNetwork::new(net.lanes().to_vec()).with_roads(reversed);
     assert_eq!(reordered.road_position(point), None);
 }
+
+#[test]
+fn a_param_poly3_turning_past_half_a_turn_keeps_its_lanes_on_their_side() {
+    // A U-turn whose tangent ends at exactly +π in its own frame.
+    let net = xodr::load_str(
+        r#"<OpenDRIVE><header/><road id="1" length="24.9657" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="24.9657"><paramPoly3 pRange="normalized"
+          aU="0" bU="20" cU="-20" dU="0" aV="0" bV="0" cV="-61.8" dV="41.2"/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#,
+    )
+    .unwrap();
+    let road = net.roads()[0].id();
+    let length = net.roads()[0].length();
+    let at = |s: f64, t: f64| net.road_point(xodr::RoadPosition { road, s, t }).unwrap();
+    for k in 0..=40 {
+        let s = length - 0.5 + k as f64 * 0.0125;
+        let (behind, ahead) = (
+            at((s - 0.01).max(0.0), 0.0),
+            at((s + 0.01).min(length), 0.0),
+        );
+        let (along, across) = (ahead - behind, at(s, -3.5) - at(s, 0.0));
+        let cross = along.x * across.y - along.y * across.x;
+        assert!(cross < 0.0, "s = {s}: lane -1 is not on the right");
+    }
+}
