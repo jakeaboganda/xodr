@@ -58,7 +58,9 @@ cargo run --release -p xodr-viewer -- tests/data/town07.xodr
 ```
 
 The URL names a baked map as `?scene=town07.json`, so a link opens the same
-one. To bake to another path, give one map and the output:
+one. Press `v` to add the camera to it, as `&view=x,y,z,tx,ty,tz`: where the
+camera is, then the point it looks at. A link with a `view` opens on that
+view. To bake to another path, give one map and the output:
 
 ```sh
 cargo run --release -p xodr-viewer -- tests/data/objects.xodr /tmp/objects.json
@@ -99,6 +101,7 @@ viewer draws, so use it to try the features below.
 | click a lane | drop a marker there |
 | `f` / `b` | step the marker 5 m along the lanes, or back |
 | `Esc` | clear the marker |
+| `v` | put the current view in the address, as `view=` |
 | type in the filter box | filter lanes by road id, lane id or lane type, objects by type, subtype, name or id, signals by name, country, type, subtype or id, tunnels and bridges by name, kind or road, and warnings by their text |
 
 The `view` list draws the road solid, as a wireframe, or both. The
@@ -217,15 +220,14 @@ splits and steps each way.
 
 ## Objects
 
-Each object is drawn where the crate places it, coloured by type. An
-outline with a `fillType`, such as grass or cobble, takes its fill's colour
-instead, so the parts of a traffic island read apart. The legend lists the
-fills in their own group. Anything
-with an area comes from the crate's `object_mesh()`: boxes, cylinders,
-outlines and sweeps. So a hole in an outline shows as a gap. The mesh leaves
-out a post given only a height, which is drawn as a thin post, and a solid
-with no size, which is a small diamond. An object type the page has no
-colour for is cyan.
+Each object is drawn where the crate places it, coloured by type. An outline
+with a `fillType`, such as grass or cobble, takes its fill's colour instead,
+so the parts of a traffic island read apart. The legend lists the fills in
+their own group. Anything with an area comes from the crate's `object_mesh()`:
+boxes, cylinders, outlines, sweeps and skeletons. So a hole in an outline
+shows as a gap. The mesh leaves out a post given only a height, which is drawn
+as a thin post, and a solid with no size, which is a small diamond. An object
+type the page has no colour for is cyan.
 
 Hover an object to outline it and light up the lanes it applies to. The
 readout shows:
