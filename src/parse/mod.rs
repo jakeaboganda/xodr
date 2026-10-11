@@ -2709,6 +2709,8 @@ struct Faults {
     gap: Cell<f64>,
     /// Whether a `<skeleton>` `<polyline>` could not be placed.
     skeleton_dropped: Cell<bool>,
+    /// Whether an `<outline>` could not be placed.
+    outline_dropped: Cell<bool>,
     /// Whether a `<curveLocal>` set its `hdg` aside to join up.
     turned: Cell<bool>,
 }
@@ -3050,7 +3052,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             skeleton.and_then(|n| skeleton_part(n, origin.as_ref(), st, shift, road, &faults));
         match bones {
             Some(part) => parts.push(part),
-            None if outlines.is_empty() && road.on_road(st.s) => parts.push(point(st)),
+            None if parts.is_empty() && road.on_road(st.s) => parts.push(point(st)),
             None => {}
         }
         parts
@@ -3150,6 +3152,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     }
     if faults.turned.get() {
         out.warnings.push(Warning::CurveHeadingIgnored {
+            road_id: road.od_id.clone(),
+            junction_id: junction_id.clone(),
+            object_id: text("id"),
+        });
+    }
+    if faults.outline_dropped.get() {
+        out.warnings.push(Warning::OutlineDropped {
             road_id: road.od_id.clone(),
             junction_id: junction_id.clone(),
             object_id: text("id"),
@@ -3273,6 +3282,7 @@ fn outline_parts(
     let mut holes = Vec::new();
     for &outline_node in outlines {
         let Some(ring) = outline(outline_node, origin, st.s, shift, road) else {
+            faults.outline_dropped.set(true);
             continue;
         };
         faults.gap.set(faults.gap.get().max(ring.gap));
@@ -3292,6 +3302,9 @@ fn outline_parts(
             matches!(&p.shape, Shape::Outline { corners: outer, closed: true, .. }
                 if corners.len() >= 3 && corners.iter().all(|c| encloses(outer, c.base)))
         });
+        if owner.is_none() && !filled {
+            faults.outline_dropped.set(true);
+        }
         if let Some(owner) = owner {
             if !filled {
                 owner
@@ -6106,14 +6119,15 @@ mod tests {
     #[test]
     fn an_outline_with_a_corner_off_the_road_is_dropped_whole() {
         // Keeping the three corners that fit would bake a triangle where the
-        // file has a square.
+        // file has a square. The object keeps its box.
         let objects = objects_of(&banked_road_with(
             r#"<object id="1" s="5" t="0"><outlines><outline>
                  <cornerRoad s="18" t="0"/><cornerRoad s="22" t="0"/>
                  <cornerRoad s="22" t="2"/><cornerRoad s="18" t="2"/>
                </outline></outlines></object>"#,
         ));
-        assert!(objects.is_empty());
+        assert_eq!(objects.len(), 1);
+        assert!(matches!(objects[0].shape, Shape::Solid { .. }));
     }
 
     /// A road running along +X on level ground.

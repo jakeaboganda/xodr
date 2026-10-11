@@ -1128,3 +1128,23 @@ fn an_outline_reads_0_and_1_as_booleans() {
     assert!(*closed);
     assert_eq!(holes.len(), 1);
 }
+
+#[test]
+fn an_outline_off_the_road_is_dropped_with_a_warning_and_the_object_keeps_its_box() {
+    let shed = r#"<object id="shed" type="building" s="98" t="-10" length="2" width="2" height="3">
+        <outlines><outline id="0" closed="true">
+          <cornerRoad id="0" s="96" t="-10" dz="0" height="3"/><cornerRoad id="1" s="100.001" t="-10" dz="0" height="3"/>
+          <cornerRoad id="2" s="100.001" t="-12" dz="0" height="3"/><cornerRoad id="3" s="96" t="-12" dz="0" height="3"/>
+        </outline></outlines></object>"#;
+    let (net, prov) = xodr::load_str_with_provenance(&on_straight_road(shed)).unwrap();
+    assert_eq!(net.objects().len(), 1);
+    assert!(matches!(net.objects()[0].shape, Shape::Solid { .. }));
+    assert_eq!(
+        prov.warnings,
+        [xodr::Warning::OutlineDropped {
+            road_id: "1".into(),
+            junction_id: String::new(),
+            object_id: "shed".into(),
+        }]
+    );
+}
