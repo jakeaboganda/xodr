@@ -203,7 +203,8 @@ pub struct ObjectProvenance {
     /// stretch of road.
     pub valid_length: Option<f64>,
     /// `Some` if an `<objectReference>` on `road_id` or in `junction_id`
-    /// placed the object: the road its `<object>` is on. `s`, `t`, `orientation` and `valid_length`
+    /// placed the object: the road its `<object>` is on, empty if that is in
+    /// a junction. `s`, `t`, `orientation` and `valid_length`
     /// are then the reference's, and the shape is the `<object>`'s, moved to
     /// the reference's station.
     pub referenced_from: Option<String>,
@@ -2827,15 +2828,22 @@ fn junction_line(junction: roxmltree::Node) -> Option<Road> {
 }
 
 /// Every `<object>` in the document by its id, with the road it is on, for
-/// an `<objectReference>` to find. Ids are meant to be unique across the
-/// file. Where two objects share one, the first wins.
+/// an `<objectReference>` to find. The road is empty for an object of a
+/// junction. Ids are meant to be unique across the file. Where two objects
+/// share one, the first wins.
 type ObjectIndex<'a> = HashMap<&'a str, (&'a str, roxmltree::Node<'a, 'a>)>;
 
 fn object_index<'a>(root: roxmltree::Node<'a, 'a>) -> ObjectIndex<'a> {
     let mut index = ObjectIndex::new();
-    for road in root.children().filter(|n| n.has_tag_name("road")) {
-        let road_id = road.attribute("id").unwrap_or_default();
-        let Some(objects) = child(road, "objects") else {
+    for parent in root
+        .children()
+        .filter(|n| n.has_tag_name("road") || n.has_tag_name("junction"))
+    {
+        let road_id = match parent.has_tag_name("road") {
+            true => parent.attribute("id").unwrap_or_default(),
+            false => "",
+        };
+        let Some(objects) = child(parent, "objects") else {
             continue;
         };
         for object in objects.children().filter(|n| n.has_tag_name("object")) {
