@@ -321,8 +321,9 @@ pub(super) struct Placed {
 ///
 /// A road's type holds from its `s` to the next, or to the end of the road.
 /// A lane's `<speed>` holds from its `sOffset` to the next, or to the end of
-/// its lane section, and overrides the road's. Where the lane has none, the
-/// speed of its road's type holds. A lane's `<rule>`, `<access>` or
+/// its lane section, and overrides the road's. One the crate cannot read
+/// holds no limit. Where the lane has none, the speed of its road's type
+/// holds. A lane's `<rule>`, `<access>` or
 /// `<material>` holds from its `sOffset` to the next of its kind, or to the
 /// end of its lane section.
 pub(super) fn place<'a>(roads: impl Iterator<Item = &'a BakedRoad>, lanes: &[Lane]) -> Placed {
@@ -334,10 +335,10 @@ pub(super) fn place<'a>(roads: impl Iterator<Item = &'a BakedRoad>, lanes: &[Lan
                 let Some(def) = sec_def.lane(od_id) else {
                     continue;
                 };
-                let speeds: Vec<(f64, SpeedLimit)> = def
+                let speeds: Vec<(f64, Option<SpeedLimit>)> = def
                     .speeds
                     .iter()
-                    .filter_map(|l| Some((sec.start + l.s_offset, l.speed.limit()?)))
+                    .map(|l| (sec.start + l.s_offset, l.speed.limit()))
                     .collect();
                 let own = |s: f64| speeds.iter().rev().find(|(at, _)| *at <= s + 1e-9);
                 let type_starts = road.types.iter().map(|t| t.s);
@@ -349,11 +350,14 @@ pub(super) fn place<'a>(roads: impl Iterator<Item = &'a BakedRoad>, lanes: &[Lan
                         .filter(|c| !c.is_empty())
                 });
                 let limits = stretches(sec, type_starts.chain(speeds.iter().map(|l| l.0)), |s| {
-                    own(s).map(|l| l.1).or_else(|| {
-                        type_at(s)
-                            .and_then(|t| t.speed.as_ref())
-                            .and_then(SpeedDef::limit)
-                    })
+                    own(s).map_or_else(
+                        || {
+                            type_at(s)
+                                .and_then(|t| t.speed.as_ref())
+                                .and_then(SpeedDef::limit)
+                        },
+                        |l| l.1,
+                    )
                 });
                 out.road_types
                     .extend(on_lane(id, points, &sec.stations, kinds));

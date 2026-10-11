@@ -31,6 +31,8 @@
 - A road link with an `elementS` joins nothing on any road, as on a road in
   a virtual junction. Before, outside one it joined the start of the road
   it names.
+- A lane `<speed>` the crate cannot read ends the one before it and holds
+  no limit. Before, the limit before it ran on.
 
 ## 0.6.0 - 2026-10-11
 
