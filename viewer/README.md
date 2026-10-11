@@ -66,7 +66,9 @@ view. To bake to another path, give one map and the output:
 cargo run --release -p xodr-viewer -- tests/data/objects.xodr /tmp/objects.json
 ```
 
-`viewer_export` reads OpenCRG files from beside the `.xodr`. If a map fails
+`viewer_export` reads OpenCRG files from beside the `.xodr`, or from a
+folder under it. It refuses a path out of that folder, so a map from
+elsewhere can't read other files. If a map fails
 to load, `viewer_export` reports it, bakes the others, and exits with an
 error.
 
