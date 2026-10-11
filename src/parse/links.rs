@@ -68,8 +68,6 @@ pub(crate) struct RoadInfo {
     pub sections: Vec<SectionInfo>,
     /// How long the road is.
     pub length: f64,
-    /// The road's `junction`, if it is in one.
-    pub junction: Option<String>,
     pub predecessor: Option<LinkTarget>,
     pub successor: Option<LinkTarget>,
 }
@@ -471,8 +469,8 @@ pub(crate) fn lane_refs(lane: roxmltree::Node) -> (Vec<LaneRef>, Vec<LaneRef>) {
 /// gets it, with a warning. See [`missing_links`].
 ///
 /// A virtual junction's roads meet its main road part way along it, which
-/// the lane graph can't, so their links with an `elementS` are dropped from
-/// it, as are its connections from the main road and its deprecated
+/// the lane graph can't, so links with an `elementS` are dropped from it,
+/// on any road, as are its connections from the main road and its deprecated
 /// `type="virtual"` connections, and its incoming roads are not linked into
 /// it.
 pub(crate) fn junctions(
@@ -481,21 +479,10 @@ pub(crate) fn junctions(
 ) -> (HashMap<String, Vec<JunctionConn>>, Vec<Warning>) {
     let mut out = HashMap::new();
     let mut warnings = Vec::new();
-    let virtual_ids: Vec<&str> = root
-        .children()
-        .filter(|n| n.has_tag_name("junction") && n.attribute("type") == Some("virtual"))
-        .filter_map(|n| n.attribute("id"))
-        .collect();
     for road in roads.values_mut() {
-        if road
-            .junction
-            .as_deref()
-            .is_some_and(|j| virtual_ids.contains(&j))
-        {
-            for slot in [&mut road.predecessor, &mut road.successor] {
-                if slot.as_ref().is_some_and(|t| t.along) {
-                    *slot = None;
-                }
+        for slot in [&mut road.predecessor, &mut road.successor] {
+            if slot.as_ref().is_some_and(|t| t.along) {
+                *slot = None;
             }
         }
     }

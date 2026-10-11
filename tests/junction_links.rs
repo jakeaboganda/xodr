@@ -77,3 +77,28 @@ fn a_connecting_road_that_names_no_contact_point_leaves_the_road_unlinked() {
         .iter()
         .any(|w| matches!(w, Warning::JunctionLinkMissing { .. })));
 }
+
+#[test]
+fn a_link_part_way_along_a_road_outside_a_virtual_junction_joins_nothing() {
+    let road = |id: &str, y: f64, link: &str| {
+        format!(
+            r#"<road id="{id}" length="200" junction="-1">{link}<planView>
+            <geometry s="0" x="0" y="{y}" hdg="0" length="200"><line/></geometry></planView>
+            <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+            <lane id="-1" type="driving"><link><successor id="-1"/></link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+            </right></laneSection></lanes></road>"#
+        )
+    };
+    let xodr = format!(
+        "<OpenDRIVE><header/>{}{}</OpenDRIVE>",
+        road("1", 0.0, ""),
+        road(
+            "10",
+            20.0,
+            r#"<link><successor elementType="road" elementId="1" elementS="50" elementDir="+"/></link>"#
+        )
+    );
+    let net = xodr::load_str(&xodr).unwrap();
+    assert!(net.lanes().iter().all(|l| l.successors.is_empty()));
+}

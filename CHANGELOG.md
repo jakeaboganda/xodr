@@ -28,6 +28,9 @@
 - A `<marking>` under an object paints only the first outline that has
   every corner it names. Before, it painted every outline that reused
   those corner ids.
+- A road link with an `elementS` joins nothing on any road, as on a road in
+  a virtual junction. Before, outside one it joined the start of the road
+  it names.
 
 ## 0.6.0 - 2026-10-11
 
