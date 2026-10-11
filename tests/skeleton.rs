@@ -232,3 +232,23 @@ fn a_double_cone_meshes_two_frustums_wound_outward() {
         }
     }
 }
+
+#[test]
+fn the_ids_of_the_polylines_and_vertices_it_keeps_are_in_its_provenance() {
+    let (net, provenance) = load_file_with_provenance(FIXTURE).expect("import");
+    let ids = |name: &str| -> Vec<(String, Vec<String>)> {
+        let object = named(&net, name)[0];
+        provenance.objects[object.id.0]
+            .skeleton_ids
+            .iter()
+            .map(|i| (i.polyline.clone(), i.vertices.clone()))
+            .collect()
+    };
+    let owned = |p: &str, v: &[&str]| (p.to_string(), v.iter().map(|s| s.to_string()).collect());
+    assert_eq!(
+        ids("Light"),
+        [owned("1", &["1", "2"]), owned("2", &["1", "2", "3"])]
+    );
+    assert_eq!(ids("Stub"), [owned("2", &["1", "2"])]);
+    assert!(ids("Off").is_empty());
+}

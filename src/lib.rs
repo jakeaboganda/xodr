@@ -160,9 +160,9 @@
 //! | `<outlines><outline>` | `id`, `closed`, `outer`, `fillType`, `laneType` |
 //! | `<cornerRoad>` | `id`, `s`, `t`, `dz`, `height` |
 //! | `<cornerLocal>` | `id`, `u`, `v`, `z`, `height` |
-//! | `<skeleton><polyline>` | none |
-//! | `<vertexRoad>` | `s`, `t`, `dz`, `radius`, `intersectionPoint` |
-//! | `<vertexLocal>` | `u`, `v`, `z`, `radius`, `intersectionPoint` |
+//! | `<skeleton><polyline>` | `id` |
+//! | `<vertexRoad>` | `id`, `s`, `t`, `dz`, `radius`, `intersectionPoint` |
+//! | `<vertexLocal>` | `id`, `u`, `v`, `z`, `radius`, `intersectionPoint` |
 //! | `<curveLocal>` | `id`, `u`, `v`, `z`, `height`, `hdg`, `length`, and a `<line>`, `<arc>` or `<paramPoly3>` as in the plan view |
 //! | `<markings><marking>`, `<outline><markings><marking>` | `side`, `color`, `weight`, `width`, `zOffset`, `lineLength`, `spaceLength`, `startOffset`, `stopOffset` |
 //! | `<borders><border>` | `type`, `width`, `outlineId`, `useCompleteOutline` |
@@ -1167,7 +1167,8 @@
 //! - the center lane's `id`, `type`, `level` and `link`, in
 //!   [`Provenance::center_lanes`], as a [`CenterLaneProvenance`];
 //! - an object's `invalidated` and `temporary`, its markings' `weight`, its
-//!   materials' `roadMarkColor`, and its outline's `fillType` and `laneType`,
+//!   materials' `roadMarkColor`, its outline's `fillType` and `laneType`, and
+//!   the `id`s of its skeleton's polylines and vertices, as [`SkeletonIds`],
 //!   in [`ObjectProvenance`]. A `fillType` of `paint` also lays the outline
 //!   flat;
 //! - a sign's own attributes, in [`SignalProvenance::signs`], as a
@@ -1553,7 +1554,8 @@ pub use parse::{
     ControllerProvenance, CrossPathProvenance, ImportError, JunctionControllerProvenance,
     JunctionProvenance, LaneHeight, LaneLinkOverlap, LaneProvenance, ObjectProvenance, Orientation,
     PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance, RoadSkipReason, SignProvenance,
-    SignalProvenance, SignalReferenceProvenance, StructureProvenance, Warning, MAX_LENGTH,
+    SignalProvenance, SignalReferenceProvenance, SkeletonIds, StructureProvenance, Warning,
+    MAX_LENGTH,
 };
 pub use railway::{
     Partner, Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint,

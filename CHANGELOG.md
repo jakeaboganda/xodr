@@ -103,6 +103,10 @@
   and the crate reads the schema. A negative radius reads as 0. New
   `Warning::SkeletonDropped` for a polyline it cannot place. An object left
   with nothing keeps its box.
+- Breaking: `ObjectProvenance` has a new `skeleton_ids` field, of the new
+  `SkeletonIds`, with the `id`s of a skeleton's polylines and vertices. A
+  literal `ObjectProvenance` needs it. An older serialized one loads with it
+  empty.
 - `tests/data/skeleton.xodr` has the spec's traffic light and tree, a
   repeat, a reference and polylines that cannot be placed.
 - `tests/data/object_surface.xodr` has object CRGs on bare roads, over
