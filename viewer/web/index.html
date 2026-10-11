@@ -254,6 +254,7 @@ const ROAD_MARK_PICK = 0.05;
 const NORMAL_LENGTH = 0.6;
 
 let scene, camera, renderer, controls, raycaster;
+let mapRadius = 5;           // the road mesh's bounding radius, for the far plane
 let roadMesh, wireMesh, badMesh, highlight, highlightLine;
 let successorMesh, predecessorMesh; // tints over the hovered lane's successors and predecessors
 let travelArrow;             // the hovered lane's travel direction at the cursor
@@ -2295,8 +2296,18 @@ function frameOn(mesh) {
   const c = s.center, r = Math.max(s.radius, 5);
   controls.target.copy(c);
   camera.position.set(c.x, c.y - r * 1.2, c.z + r * 1.1);
-  camera.near = r / 200; camera.far = r * 20; camera.updateProjectionMatrix();
+  mapRadius = r;
   controls.update();
+}
+
+// Set the clipping planes from how far the camera is from what it looks at,
+// so a close look at a sign is not cut by a near plane sized for the map.
+function fitClipping() {
+  const d = camera.position.distanceTo(controls.target);
+  const near = Math.max(d / 200, 0.01);
+  const far = Math.max(d, mapRadius) * 20;
+  if (camera.near === near && camera.far === far) return;
+  camera.near = near; camera.far = far; camera.updateProjectionMatrix();
 }
 
 function frameOnLane(lane) { frameOnPoints(lane.centerline); }
@@ -2343,6 +2354,7 @@ function resize() {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+  fitClipping();
   renderer.render(scene, camera);
 }
 

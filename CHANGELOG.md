@@ -58,6 +58,9 @@
   `/dev/zero`.
 - `viewer_export --refresh` skips a `<CRG file=...>` it can't read instead
   of panicking on a non-ASCII character after `file=`.
+- The viewer sets its clipping planes from the camera's distance to what it
+  looks at. Before, they were sized once for the whole map, so on a large
+  map a close look at a sign or lane cut it away.
 
 ## 0.6.0 - 2026-10-11
 
