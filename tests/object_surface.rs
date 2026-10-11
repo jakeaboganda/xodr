@@ -221,7 +221,9 @@ fn an_object_crg_cannot_hide_a_road_crg_that_replaces_the_height() {
             _ => None,
         })
         .collect();
-    assert_eq!(clashes, ["clash"]);
+    // The grate stands along the junction's line, which measures `s` apart
+    // from the connecting road's CRG, so a shared lane is enough to warn.
+    assert_eq!(clashes, ["clash", "grate"]);
 }
 
 #[test]

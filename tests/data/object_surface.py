@@ -33,7 +33,8 @@ at s = 60, which does not.
 Junction 9 is a crossroads at (1000, 0) of roads 11 to 14, with connecting
 roads from 1000. Its reference line runs 40 m along +X from (980, 0), and
 carries a "Grate" with `plate.crg` at s = 20, t = 1, on the connecting road
-straight across.
+straight across. That road, 1000, has an `attached0` CRG over its first 5 m,
+which is away from the grate but on a lane the grate's CRG covers.
 
 scenariogeneration writes no <surface>, so the records are spliced into its
 XML. The header date is fixed, so the file is the same each run.
@@ -121,6 +122,10 @@ roads["3"].append(objects(
 ))
 roads["3"].append(road_crg("attached0"))
 
+roads["1000"].append(frag(
+    '<surface><CRG file="road.crg" sStart="0" sEnd="5" orientation="same" mode="attached0" '
+    'sOffset="0" tOffset="0"/></surface>'
+))
 junction = root.find("junction")
 junction.insert(0, frag(
     '<planView><geometry s="0" x="980" y="0" hdg="0" length="40"><line/></geometry></planView>'
