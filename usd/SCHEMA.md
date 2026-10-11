@@ -318,7 +318,8 @@ Every attribute this schema adds starts with `xodr:`.
 | object | `string xodr:subtype` | The object `subtype`. |
 | object | `string xodr:name` | The object `name`. |
 | object | `string xodr:objectId` | The `<object id>`. |
-| object | `string xodr:roadId` | The `<road id>` the object is on. |
+| object | `string xodr:roadId` | The `<road id>` the object is on. Not on an object of a junction. |
+| object | `string xodr:junction` | The `<junction id>` whose `<objects>` hold it. Only on an object of a junction, which stands along the junction's reference line. |
 | signal | `string xodr:signalId` | The `<signal id>`. |
 | signal | `string xodr:roadId` | The `<road id>` the signal is on. |
 | signal | `double xodr:s`, `xodr:t` | Where the signal is along and across its road. |

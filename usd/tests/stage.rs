@@ -280,3 +280,36 @@ fn a_lane_in_a_junction_is_a_prim_without_geometry() {
     }
     assert_eq!(meshes(&stage, "lane"), outside.len());
 }
+
+/// The object prims of a stage whose `xodr:objectId` is `id`.
+fn objects_with_id<'a>(stage: &'a str, id: &str) -> Vec<&'a str> {
+    let objects = prim(stage, "Objects");
+    let wanted = format!("custom string xodr:objectId = \"{id}\"");
+    (0..)
+        .map(|k| format!("object_{k}"))
+        .take_while(|name| stage.contains(&format!("\"{name}\"\n")))
+        .filter(|name| objects.contains(&format!("\"{name}\"\n")))
+        .map(|name| prim(objects, &name))
+        .filter(|object| object.contains(&wanted))
+        .collect()
+}
+
+#[test]
+fn an_object_of_a_junction_names_its_junction_rather_than_a_road() {
+    let stage = stage("junction_objects");
+    let [kerb] = objects_with_id(&stage, "j1")[..] else {
+        panic!("one kerbstone");
+    };
+    assert!(
+        kerb.contains("custom string xodr:junction = \"100\""),
+        "{kerb}"
+    );
+    assert!(!kerb.contains("xodr:roadId"), "{kerb}");
+    let [post, reference] = objects_with_id(&stage, "post")[..] else {
+        panic!("the post on road 1, and its reference in the junction");
+    };
+    assert!(post.contains("custom string xodr:roadId = \"1\""), "{post}");
+    assert!(!post.contains("xodr:junction"), "{post}");
+    let junction = "custom string xodr:junction = \"100\"";
+    assert!(reference.contains(junction), "{reference}");
+}

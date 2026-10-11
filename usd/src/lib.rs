@@ -357,7 +357,11 @@ fn objects(
         ];
         if let Some(p) = provenance.objects.iter().find(|p| p.object == object.id) {
             tags.push(("objectId", Tag::Text(p.od_id.clone())));
-            tags.push(("roadId", Tag::Text(p.road_id.clone())));
+            if p.junction_id.is_empty() {
+                tags.push(("roadId", Tag::Text(p.road_id.clone())));
+            } else {
+                tags.push(("junction", Tag::Text(p.junction_id.clone())));
+            }
         }
         let vertices = span.vertices.start as usize..span.vertices.end as usize;
         let indices = &mesh.indices[span.indices.start as usize..span.indices.end as usize];
