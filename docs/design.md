@@ -2,6 +2,13 @@
 
 How the baked network is laid out, and what the crate promises about it.
 
+![A .xodr and its CRG files go into load_file_with_provenance, which builds a
+RoadNetwork and its Provenance. Callers query the network, mesh it, and
+sample the road surface. The viewer and xodr-usd use the meshes.](data-flow.svg)
+
+`docs/data-flow.lini` is the diagram's source. Compile it with
+`lini docs/data-flow.lini -o docs/data-flow.svg`.
+
 ## Coordinate frame
 
 Baked geometry is OpenDRIVE's own frame: right-handed, Z-up, metres, with the
@@ -49,8 +56,8 @@ A road's temporary lane layer shares the permanent layer's surface, so
 `surface_mesh()` has the permanent lanes only. `temporary_mesh()` has the
 temporary ones, to draw over it.
 
-`object_mesh()` does the same for objects: every box, cylinder, outline and
-sweep turned into triangles in one mesh of outward-facing faces, with an `ObjectSpan`
+`object_mesh()` does the same for objects: every box, cylinder, outline,
+sweep and skeleton turned into triangles in one mesh of outward-facing faces, with an `ObjectSpan`
 per object.
 
 ## Serialization

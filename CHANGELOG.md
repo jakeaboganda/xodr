@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Docs and viewer
+
+- The README shows what the crate builds, in pictures of the test maps in
+  the viewer. `docs/support.md` puts each picture beside its feature, and
+  `docs/design.md` has a diagram of how a map flows through the crate.
+- `docs/images/shots.py` takes the pictures again from the test maps.
+- The viewer opens on the view a `view=` address parameter names, and `v`
+  writes the current view there, so a link opens an exact view.
+- The viewer colours an outline with a `fillType` by its fill, so the grass,
+  cobble and concrete of an island read apart. The legend lists the fills.
+- `tests/data/object_surface.py` writes the CRG files its map names, so the
+  viewer can show them. `tests/data/object_poses.xodr` has a plumb post and
+  a leaning one side by side.
+
 ### OpenUSD export
 
 - New `xodr-usd` tool exports a map as an OpenUSD stage. Run

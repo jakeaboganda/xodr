@@ -22,6 +22,7 @@ exclude = [
     "/.pi",
     "/ROADMAP*.md",
     "/benches",
+    "/docs/images",
     "/examples/crg_data.sh",
     "/rust-toolchain.toml",
     "/tests",
