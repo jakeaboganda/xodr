@@ -1404,9 +1404,9 @@
 //! - [`Warning::Ignored`] for a feature of the file the crate ignores. See
 //!   [What the importer ignores](#what-the-importer-ignores).
 //! - [`Warning::RoadSkipped`] for a road with no finite `length`, one over
-//!   [`MAX_LENGTH`], no `<planView>`, no `<geometry>` it can bake, or lanes
-//!   that land outside the range of an `f32`. The [`RoadSkipReason`]
-//!   says which.
+//!   [`MAX_LENGTH`], no `<planView>`, no `<geometry>` it can bake, lanes
+//!   that land outside the range of an `f32`, or lanes past
+//!   [`MAX_BAKED_LENGTH`] in the file. The [`RoadSkipReason`] says which.
 //! - [`Warning::GeometryDropped`] for a `<geometry>` it can't bake, such as
 //!   one whose `length` isn't above 0. The road keeps its other geometry.
 //! - [`Warning::RoadMarkLineDropped`] for a road mark line with too many
@@ -1565,7 +1565,7 @@ pub use parse::{
     JunctionProvenance, LaneHeight, LaneLinkOverlap, LaneProvenance, ObjectProvenance, Orientation,
     PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance, RoadSkipReason, SignProvenance,
     SignalProvenance, SignalReferenceProvenance, SkeletonIds, StructureProvenance, Warning,
-    MAX_LENGTH,
+    MAX_BAKED_LENGTH, MAX_LENGTH,
 };
 pub use railway::{
     Partner, Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint,

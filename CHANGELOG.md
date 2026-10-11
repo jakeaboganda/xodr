@@ -61,6 +61,12 @@
 - The viewer sets its clipping planes from the camera's distance to what it
   looks at. Before, they were sized once for the whole map, so on a large
   map a close look at a sign or lane cut it away.
+- One load bakes at most `MAX_BAKED_LENGTH`, 10,000 km, of lanes and road
+  CRG stretches, a metre of CRG counting as eight. A road past it is
+  skipped with `RoadSkipReason::MapTooLarge`, and a road CRG past it is
+  dropped. Before, an 84 KB file of one 100 km road with 1,000 lanes, or
+  one with hundreds of long `<CRG>` records, used gigabytes of memory.
+- A road `<CRG>` with no `file` is dropped, as its documentation said.
 
 ## 0.6.0 - 2026-10-11
 

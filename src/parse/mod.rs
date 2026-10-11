@@ -602,17 +602,31 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     let index = object_index(root);
     let mut roads = Vec::new();
     let mut warnings = Vec::new();
+    let mut length_left = MAX_BAKED_LENGTH;
     for road in root.children().filter(|n| n.has_tag_name("road")) {
-        match parse_road(
-            road,
-            &index,
-            &mut lanes,
-            &mut objects,
-            &mut structures,
-            &mut surfaces,
-            &mut topo,
-        ) {
+        let length = attr_f64(road, "length").unwrap_or(0.0).min(MAX_LENGTH);
+        let cost = lane_length(road, length);
+        let parsed = match cost > length_left {
+            true => Err(RoadSkipReason::MapTooLarge),
+            false => parse_road(
+                road,
+                &index,
+                &mut lanes,
+                &mut objects,
+                &mut structures,
+                &mut topo,
+            ),
+        };
+        match parsed {
             Ok(mut baked) => {
+                length_left -= cost;
+                for node in child(road, "surface")
+                    .into_iter()
+                    .flat_map(|n| n.children())
+                    .filter(|n| n.has_tag_name("CRG"))
+                {
+                    surfaces.extend(road_crg(node, &baked.road, &mut length_left));
+                }
                 baked.road.id = RoadId(roads.len());
                 if let Err(rule) = traffic_rule(road) {
                     warnings.push(Warning::UnknownTrafficRule {
@@ -1516,7 +1530,6 @@ fn parse_road(
     out: &mut Vec<Lane>,
     objects: &mut Objects,
     structures: &mut Structures,
-    surfaces: &mut Vec<CrgSurface>,
     topo: &mut Topology,
 ) -> Result<BakedRoad, RoadSkipReason> {
     let road_id = road.attribute("id").unwrap_or_default().to_string();
@@ -1612,13 +1625,6 @@ fn parse_road(
         place_objects(objects_node, index, &baked.road, None, objects);
         place_structures(objects_node, &baked.road, out, structures);
     }
-    for node in child(road, "surface")
-        .into_iter()
-        .flat_map(|n| n.children())
-        .filter(|n| n.has_tag_name("CRG"))
-    {
-        surfaces.extend(road_crg(node, &baked.road));
-    }
     Ok(baked)
 }
 
@@ -1688,6 +1694,48 @@ fn finite(lane: &Lane) -> bool {
     points.chain(tangents).flatten().all(f32::is_finite)
         && lane.width.is_finite()
         && lane.widths.iter().chain(&lane.bank).all(|v| v.is_finite())
+}
+
+/// The most lane and road CRG one load bakes, in metres: each lane's length
+/// and each road `<CRG>`'s stretch, at [`CRG_COST`], summed over the file. It is 10,000 km,
+/// about thirty times the lanes of the largest real map the crate is tried
+/// on. The crate samples each every few centimetres to metres, so a small
+/// broken file that repeats a long road's lanes or CRG records would
+/// otherwise need more memory than any machine has. A road past it is
+/// skipped, and a road CRG past it dropped.
+pub const MAX_BAKED_LENGTH: f64 = 10_000_000.0;
+
+/// The length of `road`'s lanes, `length` long, summed over its lane
+/// sections of both layers, from the `<lane>`s the file gives.
+fn lane_length(road: roxmltree::Node, length: f64) -> f64 {
+    let layers = road.children().filter(|n| n.has_tag_name("lanes"));
+    layers
+        .map(|lanes| {
+            let mut sections: Vec<(f64, usize)> = lanes
+                .children()
+                .filter(|n| n.has_tag_name("laneSection"))
+                .map(|section| {
+                    let sides = ["left", "right"]
+                        .into_iter()
+                        .filter_map(|side| child(section, side));
+                    let count = sides
+                        .map(|side| side.children().filter(|n| n.has_tag_name("lane")).count())
+                        .sum();
+                    (
+                        attr_f64(section, "s").unwrap_or(0.0).clamp(0.0, length),
+                        count,
+                    )
+                })
+                .collect();
+            sections.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let ends = sections.iter().skip(1).map(|&(s, _)| s).chain([length]);
+            sections
+                .iter()
+                .zip(ends)
+                .map(|(&(s, count), end)| (end - s) * count as f64)
+                .sum::<f64>()
+        })
+        .sum()
 }
 
 /// The longest road or geometry the crate bakes, in metres. The crate
@@ -1841,12 +1889,20 @@ fn offset_within(lane_offsets: &[Cubic], start: f64, end: f64) -> bool {
 /// 50 m radius over 50 m is off by under a micrometre.
 const CRG_STEP: f64 = 0.25;
 
+/// How many metres of [`MAX_BAKED_LENGTH`] a metre of road CRG takes. Its
+/// stations, every [`CRG_STEP`], hold about eight times what a lane holds
+/// in a metre.
+const CRG_COST: f64 = 8.0;
+
 /// A road `<CRG>`, or `None` if it lacks a file, a known mode, or a stretch
-/// of road to lie on.
-fn road_crg(node: roxmltree::Node, road: &Road) -> Option<CrgSurface> {
+/// of road to lie on, or if its stretch costs more than `length_left`,
+/// which it takes its [`CRG_COST`] from.
+fn road_crg(node: roxmltree::Node, road: &Road, length_left: &mut f64) -> Option<CrgSurface> {
+    node.attribute("file")?;
     let from = attr_f64(node, "sStart")?.max(0.0);
     let to = attr_f64(node, "sEnd")?.min(road.length);
-    if to <= from {
+    let cost = (to - from) * CRG_COST;
+    if to <= from || cost > *length_left {
         return None;
     }
     let offset = |name: &str| attr_f64(node, name).unwrap_or(0.0);
@@ -1873,6 +1929,7 @@ fn road_crg(node: roxmltree::Node, road: &Road) -> Option<CrgSurface> {
         "global" => global_crg(node),
         _ => return None,
     };
+    *length_left -= cost;
     let steps = ((to - from) / CRG_STEP).ceil().max(1.0) as usize;
     let stations = (0..=steps)
         .map(|k| road.station(from + (to - from) * k as f64 / steps as f64))
