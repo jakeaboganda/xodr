@@ -5,7 +5,10 @@
 //! Its road 1 is a straight from the origin heading +X at elevation
 //! `1 + 0.02 s`, so the road surface at `(s, t)` is `(s, t, 1 + 0.02 s)`.
 
-use xodr::{load_file, Object, Point, RoadNetwork, Shape, SkeletonVertex, Vector};
+use xodr::{
+    load_file, load_file_with_provenance, Extent, Object, Point, RoadNetwork, Shape,
+    SkeletonVertex, Vector, Warning,
+};
 
 const FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/skeleton.xodr");
 
@@ -89,18 +92,44 @@ fn a_skeleton_in_local_coordinates_turns_with_the_object() {
     );
 }
 
+/// The `<object id>` of each `SkeletonDropped` warning.
+fn dropped() -> Vec<String> {
+    let (_, provenance) = load_file_with_provenance(FIXTURE).expect("import");
+    provenance
+        .warnings
+        .into_iter()
+        .filter_map(|w| match w {
+            Warning::SkeletonDropped { object_id, .. } => Some(object_id),
+            _ => None,
+        })
+        .collect()
+}
+
 #[test]
-fn a_polyline_of_one_vertex_is_dropped() {
+fn a_polyline_of_one_vertex_is_dropped_with_a_warning() {
     let net = net();
     let [stub] = named(&net, "Stub")[..] else {
         panic!("one stub");
     };
     assert_eq!(lines(stub).len(), 1);
+    assert!(dropped().contains(&"3".to_string()), "{:?}", dropped());
 }
 
 #[test]
-fn a_skeleton_with_a_vertex_off_the_road_bakes_nothing() {
-    assert!(named(&net(), "Off").is_empty());
+fn an_object_whose_skeleton_cannot_be_placed_keeps_its_box() {
+    let net = net();
+    let [off] = named(&net, "Off")[..] else {
+        panic!("one off");
+    };
+    let Shape::Solid {
+        extent: Some(Extent::Cylinder { radius, height }),
+        ..
+    } = off.shape
+    else {
+        panic!("a cylinder: {:?}", off.shape);
+    };
+    assert_eq!((radius, height), (0.2, 3.0));
+    assert_eq!(dropped(), ["3", "4"]);
 }
 
 #[test]
@@ -172,4 +201,34 @@ fn a_reference_moves_a_road_coordinate_skeleton_with_it() {
         ],
         "moved pole",
     );
+}
+
+#[test]
+fn a_double_cone_meshes_two_frustums_wound_outward() {
+    let net = net();
+    let mesh = net.object_mesh();
+    let cone = named(&net, "Cone")[0];
+    let radii: Vec<f32> = lines(cone)[0].iter().map(|v| v.radius).collect();
+    assert_eq!(radii, [0.0, 0.0, 0.3, 0.0], "a negative radius reads as 0");
+    let span = mesh
+        .objects
+        .iter()
+        .find(|s| s.object == cone.id)
+        .expect("the cone is meshed");
+    // Two frustums of 16 quads, each with half its triangles at a point,
+    // and no area in the caps at the two points.
+    assert_eq!((span.indices.end - span.indices.start) / 3, 16 + 16);
+    for light in named(&net, "Light").into_iter().chain([cone]) {
+        let span = mesh.objects.iter().find(|s| s.object == light.id).unwrap();
+        for tri in mesh.indices[span.indices.start as usize..span.indices.end as usize].chunks(3) {
+            let [a, b, c] = [tri[0], tri[1], tri[2]].map(|i| i as usize);
+            let (p, q, r) = (mesh.vertices[a], mesh.vertices[b], mesh.vertices[c]);
+            let n = (q - p).cross(r - p);
+            assert!(
+                n.dot(mesh.normals[a]) > 0.0,
+                "{} wound against its normal",
+                light.name
+            );
+        }
+    }
 }

@@ -2685,6 +2685,8 @@ struct Faults {
     too_many: Cell<bool>,
     /// The widest gap between one `<curveLocal>` and the next, in metres.
     gap: Cell<f64>,
+    /// Whether a `<skeleton>` `<polyline>` could not be placed.
+    skeleton_dropped: Cell<bool>,
 }
 
 /// The structures baked so far, and the provenance of each, in step.
@@ -3020,7 +3022,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         let origin = road.on_road(st.s).then(|| frame(st));
         let shift = (at.shift.0 + st.s - base.s, at.shift.1 + st.t - base.t);
         let mut parts = outline_parts(node, &outlines, origin.as_ref(), st, shift, road, &faults);
-        parts.extend(skeleton.and_then(|n| skeleton_part(n, origin.as_ref(), st, shift, road)));
+        let bones =
+            skeleton.and_then(|n| skeleton_part(n, origin.as_ref(), st, shift, road, &faults));
+        match bones {
+            Some(part) => parts.push(part),
+            None if outlines.is_empty() && road.on_road(st.s) => parts.push(point(st)),
+            None => {}
+        }
         parts
     };
     for repeat in &repeats {
@@ -3113,6 +3121,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     if too_many.get() {
         out.warnings.push(Warning::TooManyCopies {
             road_id: road.od_id.clone(),
+            object_id: text("id"),
+        });
+    }
+    if faults.skeleton_dropped.get() {
+        out.warnings.push(Warning::SkeletonDropped {
+            road_id: road.od_id.clone(),
+            junction_id: junction_id.clone(),
             object_id: text("id"),
         });
     }
@@ -3707,51 +3722,61 @@ fn outline<'a>(
 /// `dz` straight up, as a `<cornerRoad>` is. A `<vertexLocal>` is
 /// `(u, v, z)` in the object's own frame, `frame`, which it needs. A
 /// polyline with a vertex that cannot be placed is dropped whole, as is one
-/// with fewer than two vertices. A missing `radius` is 0.
+/// with fewer than two vertices, and either sets `faults`. A missing or
+/// negative `radius` is 0.
 ///
-/// The stretch of road it spans runs from its first `<vertexRoad>` station
-/// to its last, taking in the object's own if it has a `<vertexLocal>`.
+/// The stretch of road it spans runs from the first `<vertexRoad>` station
+/// of the polylines it places to the last, taking in the object's own if
+/// one has a `<vertexLocal>`.
 fn skeleton_part(
     node: roxmltree::Node,
     frame: Option<&Frame>,
     st: &Station,
     (shift_s, shift_t): (f64, f64),
     road: &Road,
+    faults: &Faults,
 ) -> Option<Part> {
-    let mut stretch = (f64::INFINITY, f64::NEG_INFINITY);
-    let mut spans = |s: f64| stretch = (stretch.0.min(s), stretch.1.max(s));
-    let mut vertex = |v: roxmltree::Node| -> Option<SkeletonVertex> {
-        let position = if v.has_tag_name("vertexRoad") {
+    let vertex = |v: roxmltree::Node| -> Option<(SkeletonVertex, f64)> {
+        let (position, s) = if v.has_tag_name("vertexRoad") {
             let (s, t) = (attr_f64(v, "s")? + shift_s, attr_f64(v, "t")? + shift_t);
             if !road.on_road(s) {
                 return None;
             }
-            spans(s);
             let (base, _) = road.surface(s, t);
-            base + Vector::Z * attr_f64(v, "dz").unwrap_or(0.0) as f32
+            (
+                base + Vector::Z * attr_f64(v, "dz").unwrap_or(0.0) as f32,
+                s,
+            )
         } else {
-            spans(st.s);
             let z = attr_f64(v, "z").unwrap_or(0.0);
-            frame?.point([attr_f64(v, "u")?, attr_f64(v, "v")?, z])
+            let point = frame?.point([attr_f64(v, "u")?, attr_f64(v, "v")?, z]);
+            (point, st.s)
         };
-        Some(SkeletonVertex {
+        let vertex = SkeletonVertex {
             position,
-            radius: attr_f64(v, "radius").unwrap_or(0.0) as f32,
+            radius: attr_f64(v, "radius").unwrap_or(0.0).max(0.0) as f32,
             ground: matches!(v.attribute("intersectionPoint"), Some("true" | "1")),
-        })
+        };
+        Some((vertex, s))
     };
-    let lines: Vec<Vec<SkeletonVertex>> = node
-        .children()
-        .filter(|n| n.has_tag_name("polyline"))
-        .filter_map(|polyline| {
-            polyline
-                .children()
-                .filter(|n| n.has_tag_name("vertexRoad") || n.has_tag_name("vertexLocal"))
-                .map(&mut vertex)
-                .collect::<Option<Vec<_>>>()
-                .filter(|line| line.len() >= 2)
-        })
-        .collect();
+    let mut stretch = (f64::INFINITY, f64::NEG_INFINITY);
+    let mut lines = Vec::new();
+    for polyline in node.children().filter(|n| n.has_tag_name("polyline")) {
+        let placed = polyline
+            .children()
+            .filter(|n| n.has_tag_name("vertexRoad") || n.has_tag_name("vertexLocal"))
+            .map(vertex)
+            .collect::<Option<Vec<_>>>()
+            .filter(|line| line.len() >= 2);
+        let Some(line) = placed else {
+            faults.skeleton_dropped.set(true);
+            continue;
+        };
+        for &(_, s) in &line {
+            stretch = (stretch.0.min(s), stretch.1.max(s));
+        }
+        lines.push(line.into_iter().map(|(v, _)| v).collect());
+    }
     if lines.is_empty() {
         return None;
     }

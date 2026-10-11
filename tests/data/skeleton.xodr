@@ -94,6 +94,16 @@
                     </polyline>
                 </skeleton>
             </object>
+            <object id="6" s="15" t="-6" subtype="None" dynamic="no" zOffset="0" pitch="0" roll="0" height="2" name="Cone" type="obstacle" orientation="none" hdg="0" radius="0.3">
+                <skeleton>
+                    <polyline id="1">
+                        <vertexLocal id="1" u="0" v="0" z="0" radius="0" />
+                        <vertexLocal id="2" u="0" v="0" z="0" radius="0" />
+                        <vertexLocal id="3" u="0" v="0" z="2" radius="0.3" />
+                        <vertexLocal id="4" u="0" v="0" z="3" radius="-0.2" />
+                    </polyline>
+                </skeleton>
+            </object>
             <objectReference id="1" s="45" t="-5" zOffset="0" orientation="none" />
         </objects>
     </road>
