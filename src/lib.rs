@@ -356,8 +356,9 @@
 //!   be placed, or with fewer than two, is dropped with
 //!   [`Warning::SkeletonDropped`]. An object left with no polyline and no
 //!   outline keeps its box. A missing radius is 0, and so is a negative one,
-//!   which the schema does not allow. Where a polyline bends, the frustums of
-//!   its two segments meet square to each, so the bend shows a small wedge. The
+//!   which the schema does not allow. Where a polyline bends, its two segments
+//!   meet on the plane that halves the bend, without a gap. A bend too sharp
+//!   for that, more than about 140 degrees, ends each segment square. The
 //!   spec's text describes a skeleton by a width and a height at each vertex
 //!   too, but its schema gives a vertex only a `radius`. The crate reads the
 //!   schema.
