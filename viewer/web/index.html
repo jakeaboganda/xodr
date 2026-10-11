@@ -1731,11 +1731,14 @@ function objectRows(o, p, border) {
         (o.outlineLaneType ? `, as ${o.outlineLaneType}` : ''));
     } else if (o.kind === 'skeleton') {
       rows.push(`skeleton, ${o.lines.length} polyline${o.lines.length > 1 ? 's' : ''}`);
-      for (const line of o.lines) {
+      o.lines.forEach((line, i) => {
         const radii = line.map(v => v.radius.toFixed(2)).join(' → ');
         const ground = line.some(v => v.ground) ? ', meets the ground' : '';
-        rows.push(`  ${line.length} vertices, radius ${radii} m${ground}`);
-      }
+        const ids = o.skeletonIds?.[i];
+        const named = ids ? `polyline ${escapeHtml(ids.polyline || '?')} (vertices ` +
+          `${ids.vertices.map(v => escapeHtml(v || '?')).join(' ')}): ` : '';
+        rows.push(`  ${named}${line.length} vertices, radius ${radii} m${ground}`);
+      });
     } else {
       rows.push(`sweep, ${o.sections.length} sections${o.round ? ', round' : ''}`);
     }

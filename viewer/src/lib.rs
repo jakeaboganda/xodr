@@ -734,6 +734,12 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
         "validLength": prov.and_then(|p| p.valid_length),
         "referencedFrom": prov.and_then(|p| p.referenced_from.as_deref()),
         "fillType": prov.map(|p| p.fill_type.as_str()),
+        "skeletonIds": prov.map(|p| {
+            p.skeleton_ids
+                .iter()
+                .map(|i| json!({ "polyline": i.polyline, "vertices": i.vertices }))
+                .collect::<Vec<_>>()
+        }),
         "outlineLaneType": prov.and_then(|p| p.outline_lane_type).map(|t| t.as_str()),
         "shape": shape,
     })
