@@ -243,7 +243,8 @@ Each object has an id to look it up by, a subtype, and whether it moves.
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)`, orientation
 and valid length. It also says whether the object is invalidated or
 temporary, the `weight` of each marking, the `roadMarkColor` of each
-material, and the `fillType` and `laneType` of the outline it baked from.
+material, the `fillType` and `laneType` of the outline it baked from, and the
+ids of its skeleton's polylines and vertices.
 
 ## Tunnels and bridges
 
@@ -358,13 +359,13 @@ cargo run --release --example crg_profile -- target/crg/country_road.xodr > prof
 ## Kept for the caller
 
 The crate keeps some attributes it builds nothing from. It does not use them
-to read the map, and it applies none of them. The crate docs have a section
-on where each is. The header is in `RoadNetwork::header`, and a road's `name`
-in `Road::name`. A junction's `name`, a road mark's `material` and its type's
+to read the map, and it applies none of them. The crate docs have a section on
+where each is. The header is in `RoadNetwork::header`, and a road's `name` in
+`Road::name`. A junction's `name`, a road mark's `material` and its type's
 `name`, a lane's `advisory` and flags, the center lane's attributes, an
-object's outline `fillType` and `laneType`, and a junction `<laneLink>`'s
-`overlapZone` are in the provenance. A road type's `country` is in
-`RoadNetwork::road_countries`.
+object's outline `fillType` and `laneType`, its skeleton's polyline and vertex
+ids, and a junction `<laneLink>`'s `overlapZone` are in the provenance. A road
+type's `country` is in `RoadNetwork::road_countries`.
 
 ## Warnings
 

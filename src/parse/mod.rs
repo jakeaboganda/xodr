@@ -237,6 +237,21 @@ pub struct ObjectProvenance {
     /// is the lane type the outline's area is, if the outline gives one.
     #[cfg_attr(feature = "serde", serde(default))]
     pub outline_lane_type: Option<LaneType>,
+    /// The `id`s of a [`Shape::Skeleton`]'s polylines and their vertices, in
+    /// step with its lines. Empty for any other shape.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub skeleton_ids: Vec<SkeletonIds>,
+}
+
+/// The `id` of one `<skeleton>` `<polyline>` and of each of its vertices,
+/// in order. Each is empty where the map gives none.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SkeletonIds {
+    /// The `<polyline id>`.
+    pub polyline: String,
+    /// The `id` of each `<vertexRoad>` or `<vertexLocal>`.
+    pub vertices: Vec<String>,
 }
 
 /// Which direction of its road an object or a signal applies to, from its
@@ -3172,6 +3187,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             material_road_mark_colors: mark_colors.clone(),
             fill_type: part.fill_type,
             outline_lane_type: part.outline_lane_type,
+            skeleton_ids: part.skeleton_ids,
         });
     }
 }
@@ -3305,6 +3321,8 @@ struct Part {
     /// The `fillType` and `laneType` of the outline it came from.
     fill_type: String,
     outline_lane_type: Option<LaneType>,
+    /// The ids of the skeleton it came from.
+    skeleton_ids: Vec<SkeletonIds>,
 }
 
 impl Part {
@@ -3330,6 +3348,7 @@ impl Part {
             borders: Vec::new(),
             fill_type: String::new(),
             outline_lane_type: None,
+            skeleton_ids: Vec::new(),
         }
     }
 }
@@ -3759,13 +3778,18 @@ fn skeleton_part(
         };
         Some((vertex, s))
     };
+    let text = |n: roxmltree::Node| n.attribute("id").unwrap_or_default().to_string();
     let mut stretch = (f64::INFINITY, f64::NEG_INFINITY);
     let mut lines = Vec::new();
+    let mut ids = Vec::new();
     for polyline in node.children().filter(|n| n.has_tag_name("polyline")) {
-        let placed = polyline
+        let vertices: Vec<roxmltree::Node> = polyline
             .children()
             .filter(|n| n.has_tag_name("vertexRoad") || n.has_tag_name("vertexLocal"))
-            .map(vertex)
+            .collect();
+        let placed = vertices
+            .iter()
+            .map(|&v| vertex(v))
             .collect::<Option<Vec<_>>>()
             .filter(|line| line.len() >= 2);
         let Some(line) = placed else {
@@ -3776,11 +3800,17 @@ fn skeleton_part(
             stretch = (stretch.0.min(s), stretch.1.max(s));
         }
         lines.push(line.into_iter().map(|(v, _)| v).collect());
+        ids.push(SkeletonIds {
+            polyline: text(polyline),
+            vertices: vertices.into_iter().map(text).collect(),
+        });
     }
     if lines.is_empty() {
         return None;
     }
-    Some(Part::new(Shape::Skeleton { lines }, st, stretch))
+    let mut part = Part::new(Shape::Skeleton { lines }, st, stretch);
+    part.skeleton_ids = ids;
+    Some(part)
 }
 
 /// The z axis of `axes`, which [`road_axes`] and [`Frame`] give.
