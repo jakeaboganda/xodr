@@ -338,3 +338,29 @@ fn a_skeleton_object_carries_its_polylines_as_flat_arrays() {
         "a solid has none: {solid}"
     );
 }
+
+#[test]
+fn a_signal_on_a_skeleton_pole_or_under_its_arm_is_held_by_it() {
+    let stage = stage("skeleton");
+    let found = supports(&stage);
+    let support = |name: &str| {
+        found
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, s)| s.as_str())
+            .unwrap_or_else(|| panic!("{name} in {found:?}"))
+    };
+    assert_eq!(support("ArmLight"), "object");
+    assert_eq!(support("PoleSign"), "object");
+    assert_eq!(support("Lone"), "synthesized");
+    let light = prim(prim(&stage, "Objects"), "object_0");
+    assert!(
+        light.contains("xodr:skeletonCounts"),
+        "object_0 is the light"
+    );
+    let signals = prim(&stage, "Signals");
+    let held = signals
+        .matches("rel xodr:supportPrim = [</Map/Objects/object_0>]")
+        .count();
+    assert_eq!(held, 2, "both signals hang on the light");
+}

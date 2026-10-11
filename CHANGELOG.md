@@ -11,6 +11,11 @@
   USD writes curves: `xodr:skeletonCounts`, `xodr:skeletonPoints`,
   `xodr:skeletonRadii`, `xodr:skeletonGround`, and the ids in
   `xodr:skeletonIds` and `xodr:skeletonVertexIds`.
+- A signal on a skeleton pole, or hung under its arm, is held by that pole
+  rather than by a pole the exporter adds. Before, only a solid pole could
+  hold a signal it was not named by.
+- `tests/data/skeleton.xodr` has a light under the arm of its traffic light
+  pole, a sign on the pole, and a sign by no pole.
 
 ### Docs and viewer
 

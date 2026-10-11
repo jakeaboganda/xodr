@@ -164,7 +164,10 @@ The exporter takes the first rule that applies:
    gets `none`.
 2. A pole object that the signal's `<reference>`s name gets `object`.
 3. A pole object within 0.5 m of the board, across the ground, gets
-   `object`.
+   `object`. A solid pole is measured from its base. A pole with a
+   `<skeleton>` is measured from the surface of its nearest segment, so a
+   board hung under its arm, such as a traffic light over the road, gets it
+   too.
 4. Anything else gets `synthesized`.
 
 ### Which signals share one
