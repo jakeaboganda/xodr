@@ -321,6 +321,7 @@ Every attribute this schema adds starts with `xodr:`.
 | object | `string xodr:subtype` | The object `subtype`. |
 | object | `string xodr:name` | The object `name`. |
 | object | `string xodr:objectId` | The `<object id>`. |
+| object | `string xodr:fillType` | The `fillType` of the outline it came from, such as `grass` or `paint`. Only if the outline gives one. |
 | object | `string xodr:roadId` | The `<road id>` the object is on. Not on an object of a junction. |
 | object | `string xodr:junction` | The `<junction id>` whose `<objects>` hold it. Only on an object of a junction, which stands along the junction's reference line. |
 | object | `int[] xodr:skeletonCounts` | How many vertices each polyline of its `<skeleton>` has, in order. The arrays below list every vertex of every polyline, the first polyline's first. Only on an object with a skeleton. |
@@ -365,8 +366,9 @@ An empty array or relationship is left out.
 
 ## Colour
 
-Every mesh has a `primvars:displayColor` and no material. Lanes and wraps
-take the colour of their lane type: driving dark grey, sidewalks and curbs
-light grey, and other types mid grey. Paint
-uses the colour its line names, or white. Objects and signal boards are
-grey.
+Every mesh has a `primvars:displayColor` and no material. Lanes and wraps take
+the colour of their lane type: driving dark grey, sidewalks and curbs light
+grey, and other types mid grey. Paint uses the colour its line names, or
+white. Objects and signal boards are grey, except an area of paint, a closed
+outline of `fillType` `paint`. It takes the paint colour of the first
+`roadMarkColor` among the object's materials, or white.

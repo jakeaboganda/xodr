@@ -355,7 +355,15 @@ fn objects(
             ("subtype", Tag::Text(object.subtype.clone())),
             ("name", Tag::Text(object.name.clone())),
         ];
+        let mut color = [0.6, 0.6, 0.6];
         if let Some(p) = provenance.objects.iter().find(|p| p.object == object.id) {
+            if !p.fill_type.is_empty() {
+                tags.push(("fillType", Tag::Text(p.fill_type.clone())));
+            }
+            if p.fill_type == "paint" {
+                let named = p.material_road_mark_colors.iter().find(|c| !c.is_empty());
+                color = paint(named.map_or("white", String::as_str));
+            }
             tags.push(("objectId", Tag::Text(p.od_id.clone())));
             if p.junction_id.is_empty() {
                 tags.push(("roadId", Tag::Text(p.road_id.clone())));
@@ -380,7 +388,7 @@ fn objects(
                 normals: &mesh.normals[vertices],
                 face_size: 3,
                 indices: indices.iter().map(|i| i - span.vertices.start).collect(),
-                colors: vec![[0.6, 0.6, 0.6]],
+                colors: vec![color],
                 double_sided: true,
             },
         )?;

@@ -116,6 +116,7 @@
                         <cornerRoad s="40" t="-2" dz="0" height="0" id="3" />
                     </outline>
                 </outlines>
+                <material surface="paint" roadMarkColor="yellow" />
                 <borders>
                     <border width="0.2" type="paint" outlineId="0" useCompleteOutline="true" />
                 </borders>
