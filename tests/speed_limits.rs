@@ -199,3 +199,17 @@ fn a_stretch_with_a_nan_end_is_left_out_not_a_panic() {
     let net = RoadNetwork::new(Vec::new()).with_speed_limits(vec![stretch(f32::NAN), stretch(0.0)]);
     assert_eq!(net.speed_limits(), [stretch(0.0)]);
 }
+
+#[test]
+fn a_speed_the_crate_cannot_read_ends_the_one_before() {
+    let xodr = r#"<OpenDRIVE><header/><road id="1" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+        <speed sOffset="0" max="30"/><speed sOffset="40" max="fast"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    let net = xodr::load_str(xodr).unwrap();
+    let id = net.lanes()[0].id;
+    assert_eq!(net.speed_limit_at(id, 20.0), Some(SpeedLimit::Max(30.0)));
+    assert_eq!(net.speed_limit_at(id, 60.0), None);
+}
