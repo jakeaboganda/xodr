@@ -364,3 +364,27 @@ fn a_signal_on_a_skeleton_pole_or_under_its_arm_is_held_by_it() {
         .count();
     assert_eq!(held, 2, "both signals hang on the light");
 }
+
+#[test]
+fn an_area_of_paint_takes_the_colour_of_paint() {
+    let stage = stage("outline_markings");
+    let color = |id: &str| {
+        let object = objects_with_id(&stage, id)[0];
+        let line = object
+            .lines()
+            .find(|l| l.contains("primvars:displayColor"))
+            .expect("a colour");
+        let value = &line[line.find("= ").expect("a value") + 2..];
+        value[..=value.find(']').expect("a list")].to_string()
+    };
+    assert_eq!(color("2"), "[(0.9, 0.9, 0.9)]", "white by default");
+    assert_eq!(color("4"), "[(0.95, 0.75, 0.1)]", "its material's yellow");
+    assert_eq!(color("3"), "[(0.6, 0.6, 0.6)]", "grass is no paint");
+    let island = objects_with_id(&stage, "3")[0];
+    assert!(
+        island.contains("custom string xodr:fillType = \"grass\""),
+        "{island}"
+    );
+    let bay = objects_with_id(&stage, "1")[0];
+    assert!(!bay.contains("xodr:fillType"), "{bay}");
+}

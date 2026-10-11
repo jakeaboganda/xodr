@@ -299,8 +299,8 @@ Regenerate with
 
 `outline_markings.xodr` comes from `outline_markings.py`. It has markings
 inside outlines, beside one under its object, and closed and open areas of
-paint, one with a hole and one with a border, on a banked road. Regenerate
-with
+paint, one with a hole and one with a border and a yellow `roadMarkColor`,
+on a banked road. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/outline_markings.py
 

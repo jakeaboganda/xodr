@@ -18,7 +18,8 @@ objects:
 - 3, "Island": a grass outline in its own frame at s = 30, t = -3, 4 by 2 m
   and 0.15 m tall, with a marking along its first edge inside the outline.
 - 4, "Patch": a paint area in road coordinates, s = 40 to 44 and t = -1 to
-  -2, with a border round it.
+  -2, with a border round it, and a material whose `roadMarkColor` is
+  yellow.
 - 5, "Stripe": an open outline of paint in road coordinates along t = 2.5
   from s = 50 to 55, 0.1 m tall.
 - 6, "Kerb": an outline in road coordinates from s = 50 to 55 and t = -3 to
@@ -105,6 +106,7 @@ marking(outline("1"), [1, 2], line=1.0, space=0.5)
 marking(outline("2"), [0, 5])
 marking(outline("2"), [0, 1])
 marking(outline("3"), [0, 1])
+ET.SubElement(objects["4"], "material", {"surface": "paint", "roadMarkColor": "yellow"})
 ET.SubElement(objects["4"], "borders").append(ET.Element("border", {
     "width": "0.2", "type": "paint", "outlineId": "0", "useCompleteOutline": "true",
 }))
