@@ -1624,8 +1624,8 @@ fn parse_road(
 
 /// One `<planView><geometry>` record, or `None` for one the crate can't
 /// bake: one missing its `s`, `x`, `y`, `hdg` or `length`, one whose
-/// `length` isn't above 0 or is over [`MAX_LENGTH`], or one of a shape it
-/// doesn't know.
+/// `length` isn't above 0 or is over [`MAX_LENGTH`], one of a shape it
+/// doesn't know, or one whose poses overflow.
 fn geometry(g: roxmltree::Node) -> Option<GeomRec> {
     let (Some(s), Some(x), Some(y), Some(hdg), Some(length)) = (
         attr_f64(g, "s"),
@@ -1676,7 +1676,7 @@ fn geometry(g: roxmltree::Node) -> Option<GeomRec> {
     } else {
         return None;
     };
-    Some(GeomRec::new(s, x, y, hdg, length, shape))
+    Some(GeomRec::new(s, x, y, hdg, length, shape)).filter(GeomRec::is_finite)
 }
 
 /// Whether every number in `lane` is finite. A coefficient too large for an
