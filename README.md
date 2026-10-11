@@ -1,5 +1,8 @@
 # xodr
 
+[![CI](https://github.com/jakeaboganda/xodr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jakeaboganda/xodr/actions/workflows/ci.yml?query=branch%3Amain)
+[![MSRV 1.85](https://img.shields.io/badge/MSRV-1.85-blue)](https://github.com/jakeaboganda/xodr/blob/main/Cargo.toml)
+
 A pure-Rust OpenDRIVE (`.xodr`) importer. It reads a map once and turns it
 into lanes made of points, a lane graph in the direction traffic drives, and
 a triangle mesh of the road surface. It also reads the OpenCRG (`.crg`)
