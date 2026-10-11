@@ -587,6 +587,9 @@ pub enum RoadSkipReason {
     /// Its lanes land outside the range an `f32` holds, from a number such
     /// as an elevation or a lane width of `1e39`.
     OutOfRange,
+    /// Its lanes would take the file past
+    /// [`MAX_BAKED_LENGTH`](crate::MAX_BAKED_LENGTH), 10,000 km of lanes.
+    MapTooLarge,
 }
 
 impl Warning {
@@ -1045,6 +1048,7 @@ impl fmt::Display for RoadSkipReason {
             Self::NoGeometry => "no <geometry> it can bake",
             Self::TooLong => "a length over 100 km",
             Self::OutOfRange => "lanes too far out for an f32",
+            Self::MapTooLarge => "lanes past the 10,000 km one file may bake",
         })
     }
 }

@@ -399,7 +399,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `Warning` | Raised for |
 | --- | --- |
 | `Ignored` | a feature the crate ignores, once for each road, junction, or the rest of the document, with a count. See [What it ignores](#what-the-importer-ignores) |
-| `RoadSkipped` | a road with no finite `length`, one over 100 km, no `<planView>`, no geometry the importer can bake, or lanes that land outside the range of an `f32` |
+| `RoadSkipped` | a road with no finite `length`, one over 100 km, no `<planView>`, no geometry the importer can bake, lanes that land outside the range of an `f32`, or lanes that take the file past 10,000 km of lanes |
 | `GeometryDropped` | a `<geometry>` missing its pose or `length`, with a `length` that isn't above 0 or is over 100 km, or of a shape the crate doesn't know |
 | `RoadMarkLineDropped` | a road mark line with more dashes than the crate paints (100,000 on the line, or 1,000,000 in the whole file), or whose paint lands out of range |
 | `TooManyCopies` | an `<object>` whose `<repeat>` or dashed `<marking>` would make over 100,000 copies or dashes |

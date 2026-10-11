@@ -474,3 +474,19 @@ fn the_fixture_map_lays_its_bump_on_every_road() {
     let dry = at(&surface, (50.0, 2.0));
     assert_near(dry.friction.unwrap(), 0.9, 1e-3);
 }
+
+#[test]
+fn road_crg_records_past_the_budget_are_dropped_before_they_are_sampled() {
+    let records = r#"<CRG file="a.crg" sStart="0" sEnd="1e9" mode="attached"/>"#.repeat(200);
+    let xodr = format!(
+        r#"<OpenDRIVE><header/><road id="1" length="100000" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100000"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes><surface>{records}</surface></road></OpenDRIVE>"#
+    );
+    let start = std::time::Instant::now();
+    let net = xodr::load_str(&xodr).unwrap();
+    assert_eq!(net.lanes().len(), 1);
+    assert!(start.elapsed().as_secs() < 30, "took {:?}", start.elapsed());
+}

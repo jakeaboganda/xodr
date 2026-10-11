@@ -564,3 +564,25 @@ fn a_geometry_that_overflows_is_dropped_so_no_object_lands_at_nan() {
     assert!(net.objects().is_empty());
     assert_eq!(prov.warnings, [skipped("7", RoadSkipReason::NoGeometry)]);
 }
+
+#[test]
+fn a_file_whose_lanes_add_up_past_the_budget_skips_the_roads_past_it() {
+    let lanes: String = (1..=1000)
+        .map(|k| format!(r#"<lane id="-{k}" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>"#))
+        .collect();
+    let xodr = format!(
+        r#"<OpenDRIVE><header/>
+        <road id="1" length="20" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes></road>
+        <road id="2" length="100000" junction="-1"><planView>
+        <geometry s="0" x="0" y="50" hdg="0" length="100000"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>{lanes}</right>
+        </laneSection></lanes></road></OpenDRIVE>"#
+    );
+    let (net, prov) = load_str_with_provenance(&xodr).unwrap();
+    assert_eq!(net.lanes().len(), 1);
+    assert_eq!(prov.warnings, [skipped("2", RoadSkipReason::MapTooLarge)]);
+}
