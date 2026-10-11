@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- A number attribute with spaces round it, such as `length=" 100"`, is
+  read. The schema allows them. Before, the road, lane or record was
+  dropped.
+- `outer`, `closed` and `useCompleteOutline` read `0` and `1` as well as
+  `false` and `true`.
+- A `<repeat>` whose `length` is a whole number of steps keeps its last
+  copy when the division rounds down, as `0.7 / 0.1` does.
+- An `<outline>` the crate cannot place raises `Warning::OutlineDropped`,
+  and an object left with no outline keeps its box. Before, the object
+  vanished without a warning.
+
 ## 0.6.0 - 2026-10-11
 
 ### OpenUSD objects

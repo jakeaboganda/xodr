@@ -122,6 +122,19 @@ pub enum Warning {
         /// Its `<object id>`.
         object_id: String,
     },
+    /// An `<outline>` the crate cannot place: one with a `<cornerRoad>` off
+    /// the road or missing `s` or `t`, a `<cornerLocal>` or `<curveLocal>` on
+    /// an object whose origin is off the road, fewer than two corners, or an
+    /// unfilled hole no closed outline encloses. The crate drops it. An
+    /// object left with no outline keeps its box.
+    OutlineDropped {
+        /// The `<road id>` it is on. Empty for an object of a junction.
+        road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+    },
     /// A `<polyline>` of an object's `<skeleton>` the crate cannot place: one
     /// with a vertex past either end of the road, a `<vertexLocal>` on an
     /// object whose origin is off the road, or fewer than two vertices. The
@@ -596,6 +609,7 @@ impl Warning {
             | Self::OutlineGap { road_id, .. }
             | Self::ObjectSurfaceDropped { road_id, .. }
             | Self::SkeletonDropped { road_id, .. }
+            | Self::OutlineDropped { road_id, .. }
             | Self::CurveHeadingIgnored { road_id, .. }
             | Self::CrgHideIgnored { road_id, .. }
             | Self::RoadMarkLineDropped { road_id, .. }
@@ -777,6 +791,15 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "{}: object {object_id:?} has a <curveLocal> whose hdg leaves a gap, so it goes on from the curve before instead",
+                place(road_id, junction_id)
+            ),
+            Self::OutlineDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
+                f,
+                "{}: object {object_id:?} has an <outline> it can't place, so it was left out",
                 place(road_id, junction_id)
             ),
             Self::SkeletonDropped {

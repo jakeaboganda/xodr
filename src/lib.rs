@@ -1417,8 +1417,8 @@
 //! - [`Warning::RepeatEndMismatch`] for a repeat whose cubic `t` does not
 //!   end at its `tEnd`.
 //! - [`Warning::OutlineGap`] for an outline whose `<curveLocal>`s do not
-//!   join, and [`Warning::SkeletonDropped`] for a `<skeleton>` polyline it
-//!   cannot place.
+//!   join, [`Warning::OutlineDropped`] for an outline it cannot place, and
+//!   [`Warning::SkeletonDropped`] for a `<skeleton>` polyline it cannot place.
 //! - [`Warning::JunctionObjectsDropped`] for a junction's `<objects>` with no
 //!   reference line to stand along.
 //! - [`Warning::ObjectSurfaceDropped`] for an object's `<surface>` with no

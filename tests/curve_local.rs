@@ -191,8 +191,13 @@ fn curves_that_do_not_join_are_joined_straight_with_a_warning() {
 
 #[test]
 fn an_arc_length_param_poly3_with_no_length_drops_its_outline() {
-    let (net, _) = load();
-    assert!(named(&net, "Unsized").is_none());
+    let (net, provenance) = load();
+    let unsized_ = named(&net, "Unsized").expect("the object keeps its box");
+    assert!(matches!(unsized_.shape, Shape::Solid { .. }));
+    assert!(provenance
+        .warnings
+        .iter()
+        .any(|w| matches!(w, Warning::OutlineDropped { object_id, .. } if object_id == "5")));
 }
 
 #[test]
