@@ -388,6 +388,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `JunctionObjectsDropped` | a junction's `<objects>` with no `<planView>` geometry to stand along |
 | `ObjectSurfaceDropped` | an object's `<surface>` on an object with no box, such as a cylinder |
 | `CrgHideIgnored` | an object's `<surface>` with `hideRoadSurfaceCRG` over a road CRG that replaces the road's height, which the spec forbids. The road CRG stays |
+| `SkeletonDropped` | a `<skeleton>` `<polyline>` with a vertex off the road or fewer than two vertices. An object left with nothing keeps its box |
 | `OutlineGap` | an `<outline>` whose `<curveLocal>`s leave a gap over 1 cm. The crate joins it with a straight edge |
 | `RepeatEndMismatch` | a `<repeat>` whose cubic `t` ends more than a millimetre from its `tEnd`. The crate follows the cubic |
 | `LaneIdUnreadable` | a `<lane>` under `<left>` or `<right>` whose `id` isn't a whole number, or is 0 |

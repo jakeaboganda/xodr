@@ -110,6 +110,19 @@ pub enum Warning {
         /// Its `<junction id>`.
         junction_id: String,
     },
+    /// A `<polyline>` of an object's `<skeleton>` the crate cannot place: one
+    /// with a vertex past either end of the road, a `<vertexLocal>` on an
+    /// object whose origin is off the road, or fewer than two vertices. The
+    /// crate drops it. An object left with no polyline and no outline keeps
+    /// its box.
+    SkeletonDropped {
+        /// The `<road id>` it is on. Empty for an object of a junction.
+        road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+    },
     /// An object's `<surface>` the crate cannot place: on an object with no
     /// box, such as a cylinder, an outline or a continuous repeat. The spec
     /// allows a surface on a box only. The crate drops it.
@@ -570,6 +583,7 @@ impl Warning {
             | Self::RepeatEndMismatch { road_id, .. }
             | Self::OutlineGap { road_id, .. }
             | Self::ObjectSurfaceDropped { road_id, .. }
+            | Self::SkeletonDropped { road_id, .. }
             | Self::CrgHideIgnored { road_id, .. }
             | Self::RoadMarkLineDropped { road_id, .. }
             | Self::LaneDropped { road_id, .. }
@@ -742,6 +756,15 @@ impl fmt::Display for Warning {
             Self::JunctionObjectsDropped { junction_id } => write!(
                 f,
                 "junction {junction_id:?}: its objects have no reference line to stand along, so they were left out"
+            ),
+            Self::SkeletonDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
+                f,
+                "{}: object {object_id:?} has a <skeleton> polyline it can't place, so it was left out",
+                place(road_id, junction_id)
             ),
             Self::ObjectSurfaceDropped {
                 road_id,

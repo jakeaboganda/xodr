@@ -11,7 +11,11 @@ Road 1 is a 60 m straight from the origin heading +X, at elevation
 - 2, "Tree": the spec's tree at s = 10, t = 5, turned 0.5 rad, a trunk in
   its own frame from (-0.2, 1, 1.12) up to 4.5 m.
 - 3, "Stub": a polyline of one vertex, which is dropped, and a good one.
-- 4, "Off": a polyline with a vertex at s = 80, past the end of the road.
+- 4, "Off": a cylinder whose one polyline has a vertex at s = 80, past the
+  end of the road, so it keeps its cylinder.
+- 6, "Cone": at s = 15, t = -6, a polyline in its own frame that starts
+  with the same vertex twice, of radius 0, rises 2 m to radius 0.3, then
+  1 m more to a radius of -0.2, which the schema does not allow.
 - 5, "Post": a post in its own frame, repeated every 10 m over 20 m from
   s = 30 at t = 6.
 
@@ -43,6 +47,8 @@ post = xodr.Object(s=30, t=6, Type=xodr.ObjectType.pole, id="5", name="Post", ra
                    height=1)
 post.repeat(20, 10, sStart=30, tStart=6, tEnd=6, zOffsetStart=0, zOffsetEnd=0)
 road.add_object(post)
+road.add_object(xodr.Object(s=15, t=-6, Type=xodr.ObjectType.obstacle, id="6", name="Cone",
+                            radius=0.3, height=2))
 
 odr = xodr.OpenDrive("skeleton")
 odr.add_road(road)
@@ -92,6 +98,8 @@ skeleton(
 )
 skeleton("4", [road_vertex(55, -5, 0, 0.2), road_vertex(80, -5, 3, 0.2)])
 skeleton("5", [local_vertex(0, 0, 0, 0.1, ground=True), local_vertex(0, 0, 1, 0.05)])
+skeleton("6", [local_vertex(0, 0, 0, 0), local_vertex(0, 0, 0, 0), local_vertex(0, 0, 2, 0.3),
+               local_vertex(0, 0, 3, -0.2)])
 
 root.find("road/objects").append(ET.Element("objectReference", {
     "id": "1", "s": "45", "t": "-5", "zOffset": "0", "orientation": "none",

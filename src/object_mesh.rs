@@ -356,7 +356,7 @@ fn round_sweep(mesh: &mut Mesh, sections: &[Section]) {
 /// the segment. The polyline is capped at its two ends. A segment with no
 /// length is left out.
 fn skeleton(mesh: &mut Mesh, line: &[SkeletonVertex]) {
-    let ring = |centre: Point, axis: Vector, radius: f32| -> Vec<Point> {
+    let directions = |axis: Vector| -> Vec<Vector> {
         let side = if axis.cross(Vector::Z).length() > 1e-3 {
             Vector::Z
         } else {
@@ -367,8 +367,14 @@ fn skeleton(mesh: &mut Mesh, line: &[SkeletonVertex]) {
         (0..CYLINDER_SEGMENTS)
             .map(|k| {
                 let angle = k as f32 * std::f32::consts::TAU / CYLINDER_SEGMENTS as f32;
-                centre + (a * angle.cos() + b * angle.sin()) * radius
+                a * angle.cos() + b * angle.sin()
             })
+            .collect()
+    };
+    let ring = |centre: Point, axis: Vector, radius: f32| -> Vec<Point> {
+        directions(axis)
+            .into_iter()
+            .map(|d| centre + d * radius)
             .collect()
     };
     let segments: Vec<(&SkeletonVertex, &SkeletonVertex, Vector)> = line
@@ -383,10 +389,10 @@ fn skeleton(mesh: &mut Mesh, line: &[SkeletonVertex]) {
             ring(p.position, axis, p.radius),
             ring(q.position, axis, q.radius),
         );
+        let out = directions(axis);
         for k in 0..CYLINDER_SEGMENTS {
             let j = (k + 1) % CYLINDER_SEGMENTS;
-            let out = (a[k] - p.position) + (a[j] - p.position);
-            face(mesh, &[a[k], a[j], b[j], b[k]], &fan(4), out);
+            face(mesh, &[a[k], a[j], b[j], b[k]], &fan(4), out[k] + out[j]);
         }
     }
     if let (Some(&(first, _, start)), Some(&(_, last, end))) = (segments.first(), segments.last()) {

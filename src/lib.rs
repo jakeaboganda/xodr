@@ -348,15 +348,19 @@
 //!   has no solid of its own. `<outline>` is read under `<outlines>`, and
 //!   straight under `<object>` as OpenDRIVE 1.4 writes it.
 //! - A `<skeleton>` is a [`Shape::Skeleton`] of its `<polyline>`s, and an
-//!   object with one has no solid of its own either. A `<vertexRoad>` is
-//!   placed as a `<cornerRoad>` is, raised `dz` straight up, and a
-//!   `<vertexLocal>` as a `<cornerLocal>` is. Each vertex keeps its `radius`
-//!   and whether it is an `intersectionPoint`. [`RoadNetwork::object_mesh`]
-//!   makes each segment a frustum from one radius to the next. A polyline
-//!   with a vertex that cannot be placed, or with fewer than two, is
-//!   dropped. The spec's text describes a skeleton by a width and a height
-//!   at each vertex too, but its schema gives a vertex only a `radius`. The
-//!   crate reads the schema.
+//!   object with one has no solid of its own either. A `<vertexRoad>` is placed
+//!   as a `<cornerRoad>` is, raised `dz` straight up, and a `<vertexLocal>` as
+//!   a `<cornerLocal>` is. Each vertex keeps its `radius` and whether it is an
+//!   `intersectionPoint`. [`RoadNetwork::object_mesh`] makes each segment a
+//!   frustum from one radius to the next. A polyline with a vertex that cannot
+//!   be placed, or with fewer than two, is dropped with
+//!   [`Warning::SkeletonDropped`]. An object left with no polyline and no
+//!   outline keeps its box. A missing radius is 0, and so is a negative one,
+//!   which the schema does not allow. Where a polyline bends, the frustums of
+//!   its two segments meet square to each, so the bend shows a small wedge. The
+//!   spec's text describes a skeleton by a width and a height at each vertex
+//!   too, but its schema gives a vertex only a `radius`. The crate reads the
+//!   schema.
 //! - A `<curveLocal>` is a line, an arc or a paramPoly3 in the object's own
 //!   frame, from its `(u, v)` heading `hdg`. A line is one edge. An arc or a
 //!   paramPoly3 is cut into edges of about 25 cm, closer on a tight arc, and at
@@ -1402,7 +1406,8 @@
 //! - [`Warning::RepeatEndMismatch`] for a repeat whose cubic `t` does not
 //!   end at its `tEnd`.
 //! - [`Warning::OutlineGap`] for an outline whose `<curveLocal>`s do not
-//!   join.
+//!   join, and [`Warning::SkeletonDropped`] for a `<skeleton>` polyline it
+//!   cannot place.
 //! - [`Warning::JunctionObjectsDropped`] for a junction's `<objects>` with no
 //!   reference line to stand along.
 //! - [`Warning::ObjectSurfaceDropped`] for an object's `<surface>` with no

@@ -100,7 +100,9 @@
   `SkeletonVertex` polylines, each vertex with a radius. `object_mesh` makes
   each segment a frustum. Match on `Shape` with an arm for it. The spec's
   text also gives vertices a width and a height, which its schema does not,
-  and the crate reads the schema.
+  and the crate reads the schema. A negative radius reads as 0. New
+  `Warning::SkeletonDropped` for a polyline it cannot place. An object left
+  with nothing keeps its box.
 - `tests/data/skeleton.xodr` has the spec's traffic light and tree, a
   repeat, a reference and polylines that cannot be placed.
 - `tests/data/object_surface.xodr` has object CRGs on bare roads, over

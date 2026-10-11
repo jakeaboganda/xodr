@@ -210,7 +210,8 @@ pub enum Shape {
     /// frame. Each segment is a frustum from one vertex's radius to the
     /// next's, square to the segment.
     Skeleton {
-        /// The polylines, each of at least two vertices.
+        /// The polylines, each of at least two vertices, though they may
+        /// coincide.
         lines: Vec<Vec<SkeletonVertex>>,
     },
 }
