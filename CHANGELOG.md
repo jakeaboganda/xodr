@@ -53,6 +53,11 @@
   a nearer pole object with no prim no longer hides one with a prim, and a
   board whose width reaches over a lane counts as over traffic, so it gets
   an arm or a span rather than a roadside pole.
+- `viewer_export` reads a CRG file only from the map's folder or one under
+  it, and only a regular file. Before, a map could name any path, such as
+  `/dev/zero`.
+- `viewer_export --refresh` skips a `<CRG file=...>` it can't read instead
+  of panicking on a non-ASCII character after `file=`.
 
 ## 0.6.0 - 2026-10-11
 

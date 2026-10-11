@@ -23,7 +23,7 @@
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 
 use xodr::opencrg::CrgGrid;
@@ -126,7 +126,8 @@ fn export(input: &str, output: &str) -> Result<(), String> {
     let xodr = fs::read_to_string(input).map_err(|e| format!("reading {input}: {e}"))?;
     let dir = Path::new(input).parent().unwrap_or(Path::new("."));
     let scene = bake(&xodr, |file| {
-        CrgGrid::from_path(dir.join(file)).map_err(|e| e.to_string())
+        let path = crg_path(dir, file)?;
+        CrgGrid::from_path(path).map_err(|e| e.to_string())
     })?;
     for note in &scene.notes {
         eprintln!("warning: {input}: {note}");
@@ -251,6 +252,22 @@ fn stale_scenes(folder: &Path) -> (Vec<(String, String)>, Vec<String>) {
     (jobs, unknown)
 }
 
+/// Where a map in `dir` finds the CRG `file` it names: a regular file in
+/// `dir` or under it. A map from elsewhere may not read other files.
+fn crg_path(dir: &Path, file: &str) -> Result<PathBuf, String> {
+    let inside = Path::new(file)
+        .components()
+        .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
+    if !inside {
+        return Err("a CRG file must be in the map's folder".into());
+    }
+    let path = dir.join(file);
+    match path.is_file() {
+        true => Ok(path),
+        false => Err("not a file".into()),
+    }
+}
+
 /// The `file` of each `<CRG>` in `xodr`, found by a scan of its text rather
 /// than a full load, so a refresh stays quick.
 fn crg_files(xodr: &str) -> Vec<String> {
@@ -259,7 +276,10 @@ fn crg_files(xodr: &str) -> Vec<String> {
         .filter_map(|tag| {
             let tag = &tag[..tag.find('>')?];
             let at = tag.find("file=")? + "file=".len();
-            let quote = tag[at..].chars().next()?;
+            let quote = tag[at..]
+                .chars()
+                .next()
+                .filter(|c| matches!(c, '"' | '\''))?;
             let value = &tag[at + 1..];
             let value = &value[..value.find(quote)?];
             Some(
@@ -276,12 +296,32 @@ fn crg_files(xodr: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::crg_files;
+    use super::{crg_files, crg_path};
 
     #[test]
     fn the_crg_files_of_a_map_are_found_by_name() {
         let xodr = r#"<road><surface><CRG file="a.crg" mode="attached"/>
             <CRG mode="genuine" file='b &amp; c.crg'/></surface></road>"#;
         assert_eq!(crg_files(xodr), ["a.crg", "b & c.crg"]);
+    }
+
+    #[test]
+    fn an_unquoted_or_oddly_quoted_file_is_skipped_not_a_panic() {
+        assert!(crg_files("<CRG file=éx.crg/><CRG file=“a.crg”/>").is_empty());
+    }
+
+    #[test]
+    fn a_crg_file_must_be_a_file_in_the_map_s_folder() {
+        let dir = std::path::Path::new("../tests/data");
+        for file in [
+            "/etc/passwd",
+            "../Cargo.toml",
+            "/dev/zero",
+            "nested/../../x.crg",
+        ] {
+            assert!(crg_path(dir, file).is_err(), "{file}");
+        }
+        assert!(crg_path(dir, "objects.xodr").is_ok());
+        assert!(crg_path(dir, "data").is_err(), "not a file");
     }
 }
