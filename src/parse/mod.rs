@@ -2040,7 +2040,6 @@ fn bake_lanes(
                     end: s.end,
                 })
                 .collect(),
-            junction: baked.road.junction().map(String::from),
             length: baked.road.length,
             predecessor,
             successor,
