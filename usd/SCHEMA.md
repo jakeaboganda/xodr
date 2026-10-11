@@ -165,9 +165,11 @@ The exporter takes the first rule that applies:
 2. A pole object that the signal's `<reference>`s name gets `object`.
 3. A pole object within 0.5 m of the board, across the ground, gets
    `object`. A solid pole is measured from its base. A pole with a
-   `<skeleton>` is measured from the surface of its nearest segment, so a
-   board hung under its arm, such as a traffic light over the road, gets it
-   too.
+   `<skeleton>` counts where its surface comes within 0.5 m of the board, up
+   and down as well as across. So a board on its pole, or hung under its arm
+   such as a traffic light over the road, gets it, and a sign on the ground
+   under its arm does not. The nearest pole wins, by the distance across the
+   ground to its axis.
 4. Anything else gets `synthesized`.
 
 ### Which signals share one
@@ -369,9 +371,9 @@ An empty array or relationship is left out.
 Every mesh has a `primvars:displayColor` and no material. Lanes and wraps take
 the colour of their lane type: driving dark grey, sidewalks and curbs light
 grey, and other types mid grey. Paint uses the colour its line names, or
-white. Objects and signal boards are grey, except an area of paint, a closed
-outline of `fillType` `paint`. It takes the paint colour of the first
-`roadMarkColor` among the object's materials, or white.
+white. Objects and signal boards are grey, except an object from an outline
+of `fillType` `paint`. It takes the paint colour of the first `roadMarkColor`
+among the object's materials, or white.
 
 ## Not in the stage
 

@@ -23,10 +23,12 @@ Road 1 is a 60 m straight from the origin heading +X, at elevation
 - 5, "Post": a post in its own frame, repeated every 10 m over 20 m from
   s = 30 at t = 6.
 
-An <objectReference> places the light again at s = 45, t = -5. Two signals
+An <objectReference> places the light again at s = 45, t = -5. Three signals
 stand by the light: "ArmLight" hangs under the middle of its arm's last
-stretch, at s = 25, t = -1.2 and 2.6 m up, over a metre from any vertex, and "PoleSign" is on its pole, 2 m up. "Lone" stands
-at s = 40, t = -9, by no pole.
+stretch, at s = 25, t = -1.2 and 2.6 m up, over a metre from any vertex, and
+"PoleSign" is on its pole, 2 m up and 0.6 m from its axis, which only its
+0.15 m radius brings within reach. "Under" stands on the ground under the
+arm, 0.5 m up, and "Lone" at s = 40, t = -9, by no pole.
 
 scenariogeneration writes no <skeleton>, so the skeletons are spliced into
 its XML. The header date is fixed, so the file is the same each run.
@@ -121,7 +123,8 @@ root.find("road/objects").append(ET.Element("objectReference", {
 }))
 
 signals = ET.SubElement(root.find("road"), "signals")
-for id, name, s, t, z in [("s1", "ArmLight", 25, -1.2, 2.6), ("s2", "PoleSign", 25.3, -4, 2),
+for id, name, s, t, z in [("s1", "ArmLight", 25, -1.2, 2.6), ("s2", "PoleSign", 25.6, -4, 2),
+                          ("s4", "Under", 25, -1.2, 0.5),
                           ("s3", "Lone", 40, -9, 2)]:
     ET.SubElement(signals, "signal", {
         "id": id, "name": name, "s": str(s), "t": str(t), "zOffset": str(z),
