@@ -1148,3 +1148,25 @@ fn an_outline_off_the_road_is_dropped_with_a_warning_and_the_object_keeps_its_bo
         }]
     );
 }
+
+#[test]
+fn an_object_reference_finds_an_object_of_a_junction() {
+    let xodr = r#"<OpenDRIVE><header/><road id="1" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes>
+        <objects><objectReference id="cw" s="10" t="-5" orientation="none"/></objects></road>
+        <junction id="J1"><planView><geometry s="0" x="0" y="50" hdg="0" length="20"><line/></geometry></planView>
+        <objects><object id="cw" type="pole" s="5" t="0" radius="0.1" height="2"/></objects></junction>
+        </OpenDRIVE>"#;
+    let (net, prov) = xodr::load_str_with_provenance(xodr).unwrap();
+    assert_eq!(net.objects().len(), 2);
+    let referenced = prov
+        .objects
+        .iter()
+        .find(|p| p.referenced_from.is_some())
+        .expect("the reference places the junction's object");
+    assert_eq!(referenced.road_id, "1");
+    assert_eq!(referenced.referenced_from.as_deref(), Some(""));
+}

@@ -14,6 +14,8 @@
 - An `<outline>` the crate cannot place raises `Warning::OutlineDropped`,
   and an object left with no outline keeps its box. Before, the object
   vanished without a warning.
+- An `<objectReference>` can name an object of a junction. Its
+  `referenced_from` is empty. Before, the reference was dropped.
 
 ## 0.6.0 - 2026-10-11
 
