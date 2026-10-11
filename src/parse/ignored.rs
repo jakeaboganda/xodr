@@ -56,11 +56,6 @@ const FEATURES: &[Feature] = &[
         when: repeats_a_layer,
     },
     Feature {
-        name: "<object> <skeleton>",
-        path: "objects/object/skeleton",
-        when: always,
-    },
-    Feature {
         name: "<sign> <validity>",
         path: "signals/signal/staticBoard/sign/validity",
         when: always,

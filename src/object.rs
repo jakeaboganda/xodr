@@ -205,6 +205,27 @@ pub enum Shape {
         /// squares round it.
         round: bool,
     },
+    /// An object's `<skeleton>`: polylines with a radius at each vertex,
+    /// such as a pole and the arm it carries. Already in the network's
+    /// frame. Each segment is a frustum from one vertex's radius to the
+    /// next's, square to the segment.
+    Skeleton {
+        /// The polylines, each of at least two vertices.
+        lines: Vec<Vec<SkeletonVertex>>,
+    },
+}
+
+/// One vertex of a [`Shape::Skeleton`] polyline.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SkeletonVertex {
+    /// Where it is.
+    pub position: Point,
+    /// The object's radius there, in metres. 0 where the map gives none.
+    pub radius: f32,
+    /// Whether the map marks it as where the object meets the ground,
+    /// `intersectionPoint`.
+    pub ground: bool,
 }
 
 /// Paint on an object, such as the stripes of a crosswalk: a strip along

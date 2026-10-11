@@ -302,6 +302,12 @@ reference line, on an arc. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/repeats.py
 
+`skeleton.xodr` comes from `skeleton.py`. It has objects described by
+`<skeleton>` polylines in road and local coordinates, repeated and
+referenced, and polylines that cannot be placed. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/skeleton.py
+
 `single_side.xodr` comes from `single_side.py`. It has lane sections that give
 only the left or only the right side, with widths, heights, marks and links
 the other side carries on. Regenerate with
