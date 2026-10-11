@@ -263,9 +263,9 @@ temporary lanes. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/lane_layers.py
 
-`object_poses.xodr` comes from `object_poses.py`. It has a box and an
-outlined shelter on a graded, banked road, each standing upright and each
-following the road with `perpToRoad`. Regenerate with
+`object_poses.xodr` comes from `object_poses.py`. It has a box, an
+outlined shelter and a post on a graded, banked road, each standing upright
+and each following the road with `perpToRoad`. Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/object_poses.py
 
@@ -290,7 +290,9 @@ have no line to stand along. Regenerate with
 
 `object_surface.xodr` comes from `object_surface.py`. It has objects with a
 `<surface>` CRG on roads with no road CRG, an `attached` one and an
-`attached0` one, on a repeat and in a junction. The tests make the CRG files.
+`attached0` one, on a repeat and in a junction. The script also writes the
+CRG files it names, `plate.crg`, `small.crg` and `road.crg`, so the viewer
+can show them. The tests make their own copies.
 Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/object_surface.py
