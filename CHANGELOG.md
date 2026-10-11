@@ -22,6 +22,9 @@
 - A `<paramPoly3>` whose tangent turns past half a turn keeps its heading
   continuous. Before, the last stretch of such a U-turn put its lanes on
   the wrong side.
+- The `<line>`s of a road mark `<type>` with several lines no longer each
+  take the type's `width`, which spans all of them. A line with no width
+  of its own takes the mark's. A type of one line still lends it its width.
 
 ## 0.6.0 - 2026-10-11
 
