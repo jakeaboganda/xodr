@@ -1,7 +1,7 @@
 //! Junction boundaries, elevation grids and cross paths, placed once every
 //! road is baked.
 
-use super::{attr_f64, child, BakedRoad, Warning};
+use super::{attr_f64, attr_i32, child, BakedRoad, Warning};
 use crate::coords::Point;
 use crate::junction::{
     CrossPath, CrossPathEnd, ElevationGrid, GridRow, JunctionArea, JunctionGroup, JunctionGroupKind,
@@ -136,7 +136,7 @@ pub(super) fn cross_paths(
                     .filter(|s| at.on_road(*s))
                     .ok_or(at_id.unwrap_or_default())?;
                 let lane = |section: &RoadSection, name: &str| -> Option<LaneId> {
-                    let od_id = link.attribute(name)?.parse::<i32>().ok()?;
+                    let od_id = attr_i32(link, name)?;
                     section
                         .lanes
                         .iter()
@@ -336,6 +336,7 @@ fn station(road: &Road, value: Option<&str>) -> Option<f64> {
         "begin" | "start" => Some(0.0),
         "end" => Some(road.length),
         v => v
+            .trim()
             .parse::<f64>()
             .ok()
             .filter(|s| (-OFF_ROAD..=road.length + OFF_ROAD).contains(s))
@@ -358,7 +359,7 @@ fn border(road: &Road, od_id: i32, s: f64) -> Option<Point> {
 /// A `lane` segment: the outer border of its `boundaryLane`, from `sStart`
 /// to `sEnd`.
 fn along(road: &Road, node: roxmltree::Node) -> Option<Vec<Point>> {
-    let od_id = node.attribute("boundaryLane")?.parse::<i32>().ok()?;
+    let od_id = attr_i32(node, "boundaryLane")?;
     let from = station(road, node.attribute("sStart"))?;
     let to = station(road, node.attribute("sEnd"))?;
     let (low, high) = (from.min(to), from.max(to));
@@ -388,7 +389,7 @@ fn along(road: &Road, node: roxmltree::Node) -> Option<Vec<Point>> {
 fn across(road: &Road, node: roxmltree::Node) -> Option<Vec<Point>> {
     let s = station(road, node.attribute("contactPoint"))?;
     let section = road.section_at(s)?;
-    let lane = |name| node.attribute(name).and_then(|v| v.parse::<i32>().ok());
+    let lane = |name| attr_i32(node, name);
     let ids: Vec<i32> = section
         .right
         .iter()
