@@ -286,12 +286,22 @@ fn a_point_where_roads_overlap_is_found_on_the_road_asked_for() {
 fn roads_that_do_not_match_the_lanes_answer_none_instead_of_panicking() {
     let net = map("town07");
     let point = net.lanes()[5].center.points()[3];
+    let first = net.roads()[0].id();
+    let on_first = |n: &RoadNetwork| n.road_position_on(first, point);
     let truncated = RoadNetwork::new(net.lanes().to_vec()).with_roads(net.roads()[1..].to_vec());
-    assert_eq!(truncated.road_position(point), None);
+    assert_eq!(on_first(&truncated), None);
+    assert!(on_first(&net).is_some());
+}
+
+#[test]
+fn roads_in_any_order_are_found_by_id() {
+    let net = map("town07");
+    let point = net.lanes()[5].center.points()[3];
     let mut reversed = net.roads().to_vec();
     reversed.reverse();
     let reordered = RoadNetwork::new(net.lanes().to_vec()).with_roads(reversed);
-    assert_eq!(reordered.road_position(point), None);
+    assert_eq!(reordered.road_position(point), net.road_position(point));
+    assert!(reordered.road_position(point).is_some());
 }
 
 #[test]
@@ -319,4 +329,20 @@ fn a_param_poly3_turning_past_half_a_turn_keeps_its_lanes_on_their_side() {
         let cross = along.x * across.y - along.y * across.x;
         assert!(cross < 0.0, "s = {s}: lane -1 is not on the right");
     }
+}
+
+#[test]
+fn a_lane_profile_shorter_than_its_centerline_holds_its_last_value() {
+    let net = map("banked_sweeper");
+    let mut lane = net
+        .lanes()
+        .iter()
+        .find(|l| l.bank.len() > 2)
+        .expect("a banked lane")
+        .clone();
+    lane.bank.truncate(2);
+    lane.widths = vec![3.0, 4.0];
+    let end = lane.center.length();
+    assert_eq!(lane.bank_at(end), lane.bank[1]);
+    assert_eq!(lane.width_at(end), 4.0);
 }

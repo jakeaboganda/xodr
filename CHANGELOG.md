@@ -38,6 +38,11 @@
 - Under `LayerPolicy::Both`, `lane_position` takes a temporary lane only
   for a point between its borders, as documented. Before, a point past the
   outermost temporary lane was on it.
+- `RoadNetwork::road` finds a road given to `with_roads` out of order, as
+  `lane` and `object` already do. Before, every query through it returned
+  `None`.
+- `Lane::bank_at` and `Lane::width_at` hold the last value of a profile
+  shorter than the centerline. Before, they panicked.
 
 ## 0.6.0 - 2026-10-11
 

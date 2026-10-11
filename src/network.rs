@@ -316,8 +316,9 @@ pub struct Lane {
     pub width: f32,
     /// Per-centerline-vertex width (metres), parallel to `center.points()`.
     ///
-    /// Empty means a lane of constant `width`, which covers most of them. Any
-    /// non-empty profile must have exactly `center.points().len()` entries.
+    /// Empty means a lane of constant `width`, which covers most of them. A
+    /// non-empty profile has `center.points().len()` entries. A shorter one
+    /// holds its last value.
     /// A gore area at an off-ramp is what this exists for. It is 0 m wide
     /// where it begins and 5 m wide further along, and a single width put it
     /// at neither. Each is measured across the surface, as `width` is.
@@ -331,8 +332,8 @@ pub struct Lane {
     /// for a `Backward` lane is opposite its travel direction. Consumers deriving
     /// a surface normal must roll about `center.tangents()`, not travel, or a
     /// backward lane's normal disagrees with its own (correct) baked heights.
-    /// Empty means a flat lane (bank ≡ 0); any non-empty profile must have exactly
-    /// `center.points().len()` entries. The centerline points already carry the
+    /// Empty means a flat lane (bank ≡ 0); a non-empty profile has
+    /// `center.points().len()` entries, and a shorter one holds its last value. The centerline points already carry the
     /// banked *height* (reference-line pivot) and any lane height; this angle
     /// is the surface tilt that the mesh cant and [`Lane::sample_at`] read.
     pub bank: Vec<f32>,
@@ -682,6 +683,14 @@ fn horizontal_distance(a: Point, b: Point) -> f32 {
     (a.x - b.x).hypot(a.y - b.y)
 }
 
+/// A non-empty `profile`, one value per centerline vertex, at `t` of the
+/// way along segment `i`. A profile shorter than the centerline holds its
+/// last value.
+fn along_profile(profile: &[f32], (i, t): (usize, f32)) -> f32 {
+    let at = |k: usize| profile[k.min(profile.len() - 1)];
+    at(i) + (at(i + 1) - at(i)) * t
+}
+
 impl Lane {
     /// Superelevation angle (radians, signed) at arc length `s`, interpolated
     /// between vertices; zero everywhere on a flat lane. Positive raises the
@@ -690,13 +699,7 @@ impl Lane {
         if self.bank.is_empty() {
             return 0.0;
         }
-        debug_assert_eq!(
-            self.bank.len(),
-            self.center.points().len(),
-            "a non-empty bank profile must be parallel to the centerline"
-        );
-        let (i, t) = self.center.locate(s);
-        self.bank[i] + (self.bank[i + 1] - self.bank[i]) * t
+        along_profile(&self.bank, self.center.locate(s))
     }
 
     /// Lane width (metres) at arc length `s`, interpolated between vertices;
@@ -706,13 +709,7 @@ impl Lane {
         if self.widths.is_empty() {
             return self.width;
         }
-        debug_assert_eq!(
-            self.widths.len(),
-            self.center.points().len(),
-            "a non-empty width profile must be parallel to the centerline"
-        );
-        let (i, t) = self.center.locate(s);
-        self.widths[i] + (self.widths[i + 1] - self.widths[i]) * t
+        along_profile(&self.widths, self.center.locate(s))
     }
 
     /// The road surface at arc length `s` along this lane: the banked centerline
@@ -918,7 +915,10 @@ impl RoadNetwork {
 
     /// The road with this id.
     pub fn road(&self, id: RoadId) -> Option<&Road> {
-        self.roads.get(id.0).filter(|road| road.id == id)
+        match self.roads.get(id.0) {
+            Some(road) if road.id == id => Some(road),
+            _ => self.roads.iter().find(|r| r.id == id),
+        }
     }
 
     /// The first road whose `<road id>` is `od_id`. A scan of the roads.
