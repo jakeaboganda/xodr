@@ -1170,3 +1170,25 @@ fn an_object_reference_finds_an_object_of_a_junction() {
     assert_eq!(referenced.road_id, "1");
     assert_eq!(referenced.referenced_from.as_deref(), Some(""));
 }
+
+#[test]
+fn a_marking_of_the_object_paints_only_the_first_outline_with_its_corners() {
+    let ring = |id: u32, u0: f64| {
+        let c = |k, u, v| format!(r#"<cornerLocal id="{k}" u="{u}" v="{v}" height="0"/>"#);
+        format!(
+            r#"<outline id="{id}" closed="false">{}{}{}</outline>"#,
+            c(0, u0, 0.0),
+            c(1, u0 + 4.0, 0.0),
+            c(2, u0 + 4.0, 2.0)
+        )
+    };
+    let paint = format!(
+        r#"<object id="x" type="roadMark" s="50" t="-10"><outlines>{}{}</outlines>
+        <markings><marking width="0.1" color="white"><cornerReference id="0"/><cornerReference id="1"/></marking></markings></object>"#,
+        ring(0, 0.0),
+        ring(1, 10.0)
+    );
+    let net = xodr::load_str(&on_straight_road(&paint)).unwrap();
+    let painted: Vec<usize> = net.objects().iter().map(|o| o.markings.len()).collect();
+    assert_eq!(painted, [1, 0]);
+}
