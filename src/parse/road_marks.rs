@@ -59,7 +59,9 @@ struct LineDef {
 
 impl LineDef {
     /// A `<type><line>`, taking `type_width` if it gives no width of its
-    /// own. One with a `length` and `space` of 0 is continuous.
+    /// own. The caller passes `type_width` only for a type of one line, as
+    /// the type's width spans all its lines and the spaces between them.
+    /// One with a `length` and `space` of 0 is continuous.
     fn repeating(line: roxmltree::Node, type_width: Option<f64>) -> Self {
         let length = attr_f32(line, "length").map_or(0.0, f64::from);
         let space = attr_f32(line, "space").map_or(0.0, f64::from);
@@ -161,6 +163,7 @@ pub(super) fn parse<'a>(lane: roxmltree::Node<'a, 'a>) -> Vec<MarkDef> {
                     .flat_map(|n| n.children())
                     .filter(|n| n.has_tag_name("line"))
             };
+            let single = lines_of(kind).count() == 1;
             MarkDef {
                 s_offset: attr_f64(m, "sOffset").unwrap_or(0.0).max(0.0),
                 kind: mark_type(m.attribute("type")),
@@ -179,7 +182,7 @@ pub(super) fn parse<'a>(lane: roxmltree::Node<'a, 'a>) -> Vec<MarkDef> {
                 lane_change: lane_change(m.attribute("laneChange")),
                 type_width,
                 lines: lines_of(kind)
-                    .map(|l| LineDef::repeating(l, type_width))
+                    .map(|l| LineDef::repeating(l, type_width.filter(|_| single)))
                     .chain(lines_of(child(m, "explicit")).map(LineDef::explicit))
                     .collect(),
                 sways: cubics_in(m, "sway", "ds"),
@@ -667,6 +670,13 @@ mod tests {
         assert_eq!(width("0.3", "0", "0"), (0.3, 0.3));
         assert_eq!(width("0", "0.2", "0"), (0.2, 0.2));
         assert_eq!(width("0", "0", "0"), (0.25, 0.25));
+    }
+
+    #[test]
+    fn the_lines_of_a_type_of_several_do_not_each_take_its_whole_width() {
+        let lines = r#"<line length="0" space="0" tOffset="-0.1"/><line length="0" space="0" tOffset="0.1"/>"#;
+        let m = only(&road(0.0, &lane(-1, &with_line("0.1", "0.3", lines))));
+        assert_eq!((m.lines[0].width, m.lines[1].width), (0.1, 0.1));
     }
 
     #[test]
