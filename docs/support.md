@@ -135,6 +135,8 @@ layer. A further `<lanes>` of one layer is left out, with an `Ignored`
 warning. A road with only a temporary `<lanes>` bakes it as the permanent
 layer.
 
+![Temporary lanes, tinted amber, over a road's permanent lanes from where they start](images/lane-layers.png)
+
 - Both layers share the permanent layer's surface. `surface_mesh` and the
   road's heights are the permanent layer's. `temporary_mesh` has the
   temporary lanes, to draw over them, and is empty on a map with none. The
@@ -197,55 +199,67 @@ departs from the spec.
 ## Objects
 
 `RoadNetwork::objects` has every `<object>`, in world coordinates on the road
-surface.
+surface. Each picture shows a test map from `tests/data/` in the viewer.
 
 - A plain object is a box or a cylinder with a heading, pitch and roll. It
-  stands upright: its pitch and roll are against the horizontal, as the
-  schema says, so it stands level on a grade or a bank. With
-  `perpToRoad="true"` it follows the road surface under its origin and
-  ignores its pitch and roll. libOpenDRIVE places every object in the road's
-  axes too, but turns it by its pitch and roll there. Figure 20
-  of the spec places objects in the road's tilted frame instead, and the
-  crate follows the schema.
+  stands upright: its pitch and roll are against the horizontal, as the schema
+  says, so it stands level on a grade or a bank. With `perpToRoad="true"` it
+  follows the road surface under its origin and ignores its pitch and roll.
+  libOpenDRIVE places every object in the road's axes too, but turns it by its
+  pitch and roll there. Figure 20 of the spec places objects in the road's
+  tilted frame instead, and the crate follows the schema.
+
+  ![Two posts on a banked road, seen along it: the right one plumb, the left one leaning with the road](images/object-poses.png)
 - A `<repeat>` with a `distance` becomes one object per step, so a row of
   posts arrives as posts. A `<repeat>` with a `distance` of 0, such as a guard
   rail, becomes one shape swept along the road. With a radius it is a round
   pipe.
 - A `<repeat>`'s `t` runs straight from `tStart` to `tEnd`, or follows the
-  cubic its `bT`, `cT` and `dT` give. With `detachFromReferenceLine="true"`
-  it runs on the straight line between its two ends instead of along the
-  road.
+  cubic its `bT`, `cT` and `dT` give. With `detachFromReferenceLine="true"` it
+  runs on the straight line between its two ends instead of along the road.
+
+  ![Posts and walls along a curved road. Two run straight across the bend, detached from it](images/repeats.png)
 - An `<outline>`, in road or local coordinates, becomes a footprint polygon
   with a height at every corner. Its `<curveLocal>` arcs and paramPoly3 curves
-  are cut into edges of about 25 cm. An `outer="false"` outline is a hole cut
-  out of the outline round it. With a `fillType` or a `laneType` it is also an
-  area of its own, such as a cobbled path across a grass island. Under a
-  `<repeat>` with a `distance`, the outline repeats at every step.
-- A `<skeleton>` becomes polylines with a radius at each vertex, which the
-  object mesh draws as frustums, such as a pole and the arm it carries.
+  are cut into edges of about 25 cm. Under a `<repeat>` with a `distance`, the
+  outline repeats at every step.
+
+  ![Smooth islands, a circle and a wave, drawn from curves](images/curve-local.png)
+- An `outer="false"` outline is a hole cut out of the outline round it. With a
+  `fillType` or a `laneType` it is also an area of its own, such as a cobbled
+  path across a grass island.
+
+  ![A grass island with cobble and concrete areas inside it, and one plain hole](images/inner-outlines.png)
 - A closed outline with `fillType="paint"` is an area of paint. It lies flat,
   5 mm above its corners, with no height. The spec says a border round it cuts
   the area back, and the crate does not.
-- An `<objectReference>` places the object it names again, at the
-  reference's own station.
-- A junction's `<objects>` stand along its `<planView>` reference line, at
-  height 0 plus their `zOffset`, since the line has no elevation. Their
-  provenance names the junction.
 - A `<marking>`, such as a crosswalk's stripes, becomes painted quads along
   the outline edges it names, or along one side of the object's box if it
   names none. It is read inside an `<outline>`, as OpenDRIVE 1.9 writes it,
-  and under the object, as earlier versions do. A `<border>`, such as a kerb, becomes a band along outline
-  edges.
+  and under the object, as earlier versions do. A `<border>`, such as a kerb,
+  becomes a band along outline edges.
+
+  ![A blue parking bay with a solid and a dashed line, and a flat painted area with a hole](images/outline-markings.png)
+- A `<skeleton>` becomes polylines with a radius at each vertex, which the
+  object mesh draws as frustums, mitred where a polyline bends, such as a pole
+  and the arm it carries.
+
+  ![A traffic light pole with an arm over the road, drawn as tapered tubes](images/skeleton.png)
+- An `<objectReference>` places the object it names again, at the reference's
+  own station.
+- A junction's `<objects>` stand along its `<planView>` reference line, at
+  height 0 plus their `zOffset`, since the line has no elevation. Their
+  provenance names the junction.
 - `<validity>` picks the lanes an object applies to.
 - `<parkingSpace>`, `<material>` and `<userData>` are kept on the object as
   data.
 
 Each object has an id to look it up by, a subtype, and whether it moves.
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)`, orientation
-and valid length. It also says whether the object is invalidated or
-temporary, the `weight` of each marking, the `roadMarkColor` of each
-material, the `fillType` and `laneType` of the outline it baked from, and the
-ids of its skeleton's polylines and vertices.
+and valid length. It also says whether the object is invalidated or temporary,
+the `weight` of each marking, the `roadMarkColor` of each material, the
+`fillType` and `laneType` of the outline it baked from, and the ids of its
+skeleton's polylines and vertices.
 
 ## Tunnels and bridges
 
@@ -309,16 +323,18 @@ and stretch, and its `material` and its type's `name`.
 ## OpenCRG surfaces
 
 The importer keeps `<surface><CRG>` records on roads and junctions, in all
-four modes, and on objects, for elevation and friction. `RoadSurface` loads the OpenCRG files
-they name and gives a vehicle model the height, normal and friction under a
-point in `f64`. Off the CRG it answers from the surface mesh, which the CRG
-does not change. Where several records of one purpose cover a point, the
-last in the file wins. A junction's records win over its roads'.
+four modes, and on objects, for elevation and friction. `RoadSurface` loads
+the OpenCRG files they name and gives a vehicle model the height, normal and
+friction under a point in `f64`. Off the CRG it answers from the surface mesh,
+which the CRG does not change. Where several records of one purpose cover a
+point, the last in the file wins. A junction's records win over its roads'.
 
 An object's `<surface>` CRG adds to the height under it, inside the object's
 box and in its own frame, turned by its heading. Unless it says
 `hideRoadSurfaceCRG="false"`, it hides an `attached` road CRG there. The spec
 turns the file with the object's pitch and roll too, and the crate does not.
+
+![The height an object's CRG adds, as a heat map over a square turned with the object](images/object-surface.png)
 
 The crate parses CRG files with [`opencrg`](https://crates.io/crates/opencrg)
 and re-exports it, so `xodr::opencrg` also reads a `.crg` file on its

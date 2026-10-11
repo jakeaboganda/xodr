@@ -34,6 +34,30 @@ let mesh = net.surface_mesh();
 mesh.validate()?;
 ```
 
+## What it builds
+
+Each picture is a test map in the [viewer](viewer/README.md). Click one for
+what the crate does there.
+
+| | |
+| --- | --- |
+| [![Temporary lanes, tinted amber, over the permanent lanes of a road](docs/images/lane-layers.png)](docs/support.md#lane-layers) | [![Two posts on a banked road: one plumb, one leaning with the road](docs/images/object-poses.png)](docs/support.md#objects) |
+| **Lane layers.** A road's temporary lanes, amber, sit over its permanent ones from where they start. Traffic queries prefer them. | **Object poses.** An object stands plumb on a banked road. With `perpToRoad="true"` it leans with the road instead, as the left post does. |
+| [![A traffic light pole with an arm over the road, drawn as tapered tubes](docs/images/skeleton.png)](docs/support.md#objects) | [![Smooth traffic islands, a circle and a wave drawn from curves](docs/images/curve-local.png)](docs/support.md#objects) |
+| **Skeletons.** A traffic light pole and its arm, from `<skeleton>` polylines with a radius at each vertex. | **Curved outlines.** Islands drawn with `<curveLocal>` lines, arcs and paramPoly3 curves. |
+| [![A grass island with cobble and concrete areas inside it and one hole](docs/images/inner-outlines.png)](docs/support.md#objects) | [![A parking bay with a solid and a dashed line, and a painted arrow](docs/images/outline-markings.png)](docs/support.md#objects) |
+| **Areas inside an island.** Cobble and concrete inner outlines are areas of their own. The plain one is a hole. | **Paint.** A parking bay's lines, and a flat painted area with a hole in it. |
+| [![Rows of posts and walls along a curved road, two of them straight across it](docs/images/repeats.png)](docs/support.md#objects) | [![The height an object's CRG adds, as a heat map over a turned square](docs/images/object-surface.png)](docs/support.md#opencrg-surfaces) |
+| **Repeats.** Posts every few metres and continuous walls. Two run straight across the bend, detached from the road. | **Object surfaces.** The height an object's CRG adds to the road, inside its box, turned with it. |
+
+The viewer also lists what it read and what it left out. Here it lists the
+warnings of `tests/data/ignored.xodr`, a map that uses every feature the
+crate ignores:
+
+![The viewer's sidebar, listing warnings](docs/images/warnings.png)
+
+`docs/images/shots.py` takes these pictures again from the test maps.
+
 ## What it reads
 
 - Road geometry, elevation, superelevation, lateral shape and cross-section
@@ -48,7 +72,9 @@ mesh.validate()?;
 - Road neighbors.
 - Road types and speed limits along each lane.
 - Lane rules, access, materials and visibility along each lane.
-- Objects, with repeats, outlines, markings and borders.
+- Objects, standing upright or following the road, with repeats, outlines
+  made of corners or curves, markings, borders, skeletons and surface CRGs,
+  on roads and in junctions.
 - Signals, with their meaning and boards, and the controllers that group
   them.
 - Road marks.
@@ -97,6 +123,12 @@ road marks, objects and signals. It's a separate tool, not part of the crate.
 ```sh
 cargo run --release -p xodr-usd -- tests/data/town07.xodr
 ```
+
+## How it fits together
+
+![A .xodr and its CRG files go into load_file_with_provenance, which builds a
+RoadNetwork and its Provenance. Callers query the network, mesh it, and
+sample the road surface. The viewer and xodr-usd use the meshes.](docs/data-flow.svg)
 
 ## More
 

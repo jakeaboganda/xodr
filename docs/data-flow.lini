@@ -1,0 +1,45 @@
+// What the crate reads, what it builds, and what callers do with it.
+// Compile: lini docs/data-flow.lini -o docs/data-flow.svg
+{
+  layout: flow; direction: row; padding: 28; gap: 56;
+  |file::box| { fill: --amber-wash; stroke: --amber-deep; color: --amber-ink; }
+  |core::box| {
+    fill: --sky-wash; stroke: --sky-deep; color: --sky-ink; max-width: 210;
+  }
+  |use::box| {
+    fill: --teal-wash; stroke: --teal-deep; color: --teal-ink; max-width: 210;
+  }
+  |tool::box| {
+    fill: --purple-wash; stroke: --purple-deep; color: --purple-ink; max-width: 210;
+  }
+  |group| { direction: column; gap: 20; }
+}
+
+|group#input| "Input" [
+  |file#xodr| "map.xodr"
+  |file#crg| "OpenCRG files"
+]
+|core#load| "load_file_with_provenance" { max-width: 320; }
+|group#built| "What the crate builds" [
+  |core#net| "RoadNetwork: lanes, the lane graph, objects, signals, road marks"
+  |core#prov| "Provenance: OpenDRIVE ids, kept attributes, warnings"
+]
+|group#uses| "What a caller does with it" [
+  |use#query| "Queries: nearest_lane, road_position, route, advance"
+  |use#mesh| "Meshes: surface_mesh, temporary_mesh, object_mesh"
+  |use#surface| "RoadSurface: height, normal and friction under a wheel"
+]
+|group#tools| "Tools in this repository" [
+  |tool#viewer| "viewer: the map in a browser"
+  |tool#usd| "xodr-usd: an OpenUSD stage"
+]
+
+input.xodr -> load
+load -> built.net
+load -> built.prov
+built.net -> uses.query
+built.net -> uses.mesh
+uses.mesh -> uses.surface
+input.crg -> uses.surface
+uses.mesh -> tools.viewer
+uses.mesh -> tools.usd

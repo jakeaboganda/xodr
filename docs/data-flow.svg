@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-714.855 -232 1429.71 460.5" width="1429.71" height="460.5" class="lini lini-scope-f49e537a">
+  <style>
+    @layer lini.defaults {
+      :root, .lini-scope-f49e537a { color-scheme: light dark; --lini-amber-deep: light-dark(#9f6900, #dba200); --lini-amber-ink: light-dark(#6d3b00, #ffdf5c); --lini-amber-wash: light-dark(#feedca, #35280a); --lini-caption-color: light-dark(rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.55)); --lini-caption-font-weight: 400; --lini-fg: light-dark(black, #e8e8ea); --lini-fill: light-dark(white, #26262b); --lini-font-family: "Google Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; --lini-font-weight: 500; --lini-group-fill: light-dark(rgba(0, 0, 0, 0.03), rgba(255, 255, 255, 0.05)); --lini-group-stroke: light-dark(rgba(0, 0, 0, 0.4), rgba(255, 255, 255, 0.4)); --lini-link-font-weight: 400; --lini-purple-deep: light-dark(#6e62cc, #a39cff); --lini-purple-ink: light-dark(#443394, #ded9ff); --lini-purple-wash: light-dark(#eaebff, #282741); --lini-sky-deep: light-dark(#0085b3, #00c0f0); --lini-sky-ink: light-dark(#00547e, #5ffdff); --lini-sky-wash: light-dark(#cff6ff, #0a2f3a); --lini-stroke: light-dark(#444, #9aa0a6); --lini-teal-deep: light-dark(#008e85, #00cabe); --lini-teal-ink: light-dark(#005d56, #4ffffa); --lini-teal-wash: light-dark(#cdf9f4, #07312e); --lini-text-color: var(--lini-fg); }
+      .lini-scope-f49e537a[data-theme="dark"], [data-theme="dark"] .lini-scope-f49e537a { color-scheme: dark; }
+      .lini-scope-f49e537a[data-theme="light"], [data-theme="light"] .lini-scope-f49e537a { color-scheme: light; }
+    }
+    .lini-scope-f49e537a, .lini-scope-f49e537a text { font-family: var(--lini-font-family); }
+    .lini-scope-f49e537a { font-size: 15px; font-weight: var(--lini-font-weight); color: var(--lini-text-color); }
+    .lini-scope-f49e537a .lini-block { fill: none; stroke: none; stroke-width: 2; stroke-dasharray: none; }
+    .lini-scope-f49e537a .lini-text { fill: currentColor; stroke: none; text-anchor: middle; }
+    .lini-scope-f49e537a .lini-box { fill: var(--lini-fill); stroke: var(--lini-stroke); stroke-width: 2; }
+    .lini-scope-f49e537a .lini-group { fill: var(--lini-group-fill); stroke: var(--lini-group-stroke); stroke-width: 1; stroke-dasharray: 5,4; }
+    .lini-scope-f49e537a .lini-caption { color: var(--lini-caption-color); font-size: 12px; font-weight: var(--lini-caption-font-weight); }
+    .lini-scope-f49e537a .lini-file { fill: var(--lini-amber-wash); stroke: var(--lini-amber-deep); color: var(--lini-amber-ink); }
+    .lini-scope-f49e537a .lini-core { fill: var(--lini-sky-wash); stroke: var(--lini-sky-deep); color: var(--lini-sky-ink); }
+    .lini-scope-f49e537a .lini-use { fill: var(--lini-teal-wash); stroke: var(--lini-teal-deep); color: var(--lini-teal-ink); }
+    .lini-scope-f49e537a .lini-tool { fill: var(--lini-purple-wash); stroke: var(--lini-purple-deep); color: var(--lini-purple-ink); }
+    .lini-scope-f49e537a .lini-link { fill: none; stroke: var(--lini-stroke); stroke-width: 2; stroke-dasharray: none; }
+    .lini-scope-f49e537a .lini-marker { fill: var(--lini-stroke); stroke: none; }
+  </style>
+  <defs/>
+  <g class="lini-scene">
+    <g class="lini-node lini-group lini-block" data-id="input" transform="translate(-593.635,0)">
+      <rect x="-92.72" y="-87" width="185.44" height="174" rx="8" ry="8"/>
+      <g class="lini-node lini-file lini-box lini-block" data-id="xodr" transform="translate(0,-38.5)">
+        <rect x="-53.135" y="-27.5" width="106.27" height="55" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0" dy="0.358em">map.xodr</text>
+      </g>
+      <g class="lini-node lini-file lini-box lini-block" data-id="crg" transform="translate(0,38.5)">
+        <rect x="-71.72" y="-27.5" width="143.44" height="55" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0" dy="0.358em">OpenCRG files</text>
+      </g>
+      <g class="lini-node lini-caption lini-block" transform="translate(-78.77,-101)">
+        <rect x="-13.95" y="-6" width="27.9" height="12" rx="0" ry="0"/>
+        <text class="lini-text" x="0" y="0" dy="0.358em">Input</text>
+      </g>
+    </g>
+    <g class="lini-node lini-core lini-box lini-block" data-id="load" transform="translate(-330.2125,0)">
+      <rect x="-113.2025" y="-27.5" width="226.405" height="55" rx="8" ry="8"/>
+      <text class="lini-text" x="0" y="0" dy="0.358em">load_file_with_provenance</text>
+    </g>
+    <g class="lini-node lini-group lini-block" data-id="built" transform="translate(-36.8875,0)">
+      <rect x="-122.6225" y="-126" width="245.245" height="252" rx="8" ry="8"/>
+      <g class="lini-node lini-core lini-box lini-block" data-id="net" transform="translate(0,-58)">
+        <rect x="-101.6225" y="-47" width="203.245" height="94" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0"><tspan x="0" y="-12.63">RoadNetwork: lanes,</tspan><tspan x="0" dy="18">the lane graph, objects,</tspan><tspan x="0" dy="18">signals, road marks</tspan></text>
+      </g>
+      <g class="lini-node lini-core lini-box lini-block" data-id="prov" transform="translate(0,58)">
+        <rect x="-91.895" y="-47" width="183.79" height="94" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0"><tspan x="0" y="-12.63">Provenance:</tspan><tspan x="0" dy="18">OpenDRIVE ids, kept</tspan><tspan x="0" dy="18">attributes, warnings</tspan></text>
+      </g>
+      <g class="lini-node lini-caption lini-block" transform="translate(-65.0345,-140)">
+        <rect x="-57.588" y="-6" width="115.176" height="12" rx="0" ry="0"/>
+        <text class="lini-text" x="0" y="0" dy="0.358em">What the crate builds</text>
+      </g>
+    </g>
+    <g class="lini-node lini-group lini-block" data-id="uses" transform="translate(265.1625,0)">
+      <rect x="-122.4275" y="-184" width="244.855" height="368" rx="8" ry="8"/>
+      <g class="lini-node lini-use lini-box lini-block" data-id="query" transform="translate(0,-116)">
+        <rect x="-97.7975" y="-47" width="195.595" height="94" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0"><tspan x="0" y="-12.63">Queries: nearest_lane,</tspan><tspan x="0" dy="18">road_position, route,</tspan><tspan x="0" dy="18">advance</tspan></text>
+      </g>
+      <g class="lini-node lini-use lini-box lini-block" data-id="mesh" transform="translate(0,0)">
+        <rect x="-101.4275" y="-47" width="202.855" height="94" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0"><tspan x="0" y="-12.63">Meshes: surface_mesh,</tspan><tspan x="0" dy="18">temporary_mesh,</tspan><tspan x="0" dy="18">object_mesh</tspan></text>
+      </g>
+      <g class="lini-node lini-use lini-box lini-block" data-id="surface" transform="translate(0,116)">
+        <rect x="-92.615" y="-47" width="185.23" height="94" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0"><tspan x="0" y="-12.63">RoadSurface: height,</tspan><tspan x="0" dy="18">normal and friction</tspan><tspan x="0" dy="18">under a wheel</tspan></text>
+      </g>
+      <g class="lini-node lini-caption lini-block" transform="translate(-55.1015,-198)">
+        <rect x="-67.326" y="-6" width="134.652" height="12" rx="0" ry="0"/>
+        <text class="lini-text" x="0" y="0" dy="0.358em">What a caller does with it</text>
+      </g>
+    </g>
+    <g class="lini-node lini-group lini-block" data-id="tools" transform="translate(565.4725,0)">
+      <rect x="-120.8825" y="-108" width="241.765" height="216" rx="8" ry="8"/>
+      <g class="lini-node lini-tool lini-box lini-block" data-id="viewer" transform="translate(0,-49)">
+        <rect x="-89.405" y="-38" width="178.81" height="76" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0"><tspan x="0" y="-3.63">viewer: the map in a</tspan><tspan x="0" dy="18">browser</tspan></text>
+      </g>
+      <g class="lini-node lini-tool lini-box lini-block" data-id="usd" transform="translate(0,49)">
+        <rect x="-99.8825" y="-38" width="199.765" height="76" rx="8" ry="8"/>
+        <text class="lini-text" x="0" y="0"><tspan x="0" y="-3.63">xodr-usd: an OpenUSD</tspan><tspan x="0" dy="18">stage</tspan></text>
+      </g>
+      <g class="lini-node lini-caption lini-block" transform="translate(-60.2285,-122)">
+        <rect x="-60.654" y="-6" width="121.308" height="12" rx="0" ry="0"/>
+        <text class="lini-text" x="0" y="0" dy="0.358em">Tools in this repository</text>
+      </g>
+    </g>
+  </g>
+  <g class="lini-links">
+    <g class="lini-link" data-from="input.xodr" data-to="load">
+      <path d="M -539.5 -38.5 L -488.415 -38.5 A 16 16 0 0 1 -472.415 -22.5 L -472.415 -16 A 16 16 0 0 0 -456.415 0 L -447.915 0"/>
+      <polygon class="lini-marker lini-marker-arrow" points="-443.915,0 -452.915,4.5 -452.915,-4.5"/>
+    </g>
+    <g class="lini-link" data-from="load" data-to="built.net">
+      <path d="M -216.01 -8 L -204.01 -8 A 16 16 0 0 0 -188.01 -24 L -188.01 -42 A 16 16 0 0 1 -172.01 -58 L -143.01 -58"/>
+      <polygon class="lini-marker lini-marker-arrow" points="-139.01,-58 -148.01,-53.5 -148.01,-62.5"/>
+    </g>
+    <g class="lini-link" data-from="load" data-to="built.prov">
+      <path d="M -216.01 8 L -204.01 8 A 16 16 0 0 1 -188.01 24 L -188.01 42 A 16 16 0 0 0 -172.01 58 L -133.2825 58"/>
+      <polygon class="lini-marker lini-marker-arrow" points="-129.2825,58 -138.2825,62.5 -138.2825,53.5"/>
+    </g>
+    <g class="lini-link" data-from="built.net" data-to="uses.query">
+      <path d="M 65.735 -87 L 162.865 -87"/>
+      <polygon class="lini-marker lini-marker-arrow" points="166.865,-87 157.865,-82.5 157.865,-91.5"/>
+    </g>
+    <g class="lini-link" data-from="built.net" data-to="uses.mesh">
+      <path d="M 65.735 -29 L 159.235 -29"/>
+      <polygon class="lini-marker lini-marker-arrow" points="163.235,-29 154.235,-24.5 154.235,-33.5"/>
+    </g>
+    <g class="lini-link" data-from="uses.mesh" data-to="uses.surface">
+      <path d="M 367.59 0 L 367.59 0 A 16 16 0 0 1 383.59 16 L 383.59 100 A 16 16 0 0 1 367.59 116 L 362.2775 116"/>
+      <polygon class="lini-marker lini-marker-arrow" points="358.2775,116 367.2775,111.5 367.2775,120.5"/>
+    </g>
+    <g class="lini-link" data-from="input.crg" data-to="uses.surface">
+      <path d="M -593.635 67 L -593.635 184.5 A 16 16 0 0 0 -577.635 200.5 L 249.1625 200.5 A 16 16 0 0 0 265.1625 184.5 L 265.1625 167.5"/>
+      <polygon class="lini-marker lini-marker-arrow" points="265.1625,163.5 269.6625,172.5 260.6625,172.5"/>
+    </g>
+    <g class="lini-link" data-from="uses.mesh" data-to="tools.viewer">
+      <path d="M 367.59 -26 L 471.5675 -26"/>
+      <polygon class="lini-marker lini-marker-arrow" points="475.5675,-26 466.5675,-21.5 466.5675,-30.5"/>
+    </g>
+    <g class="lini-link" data-from="uses.mesh" data-to="tools.usd">
+      <path d="M 367.59 26 L 461.09 26"/>
+      <polygon class="lini-marker lini-marker-arrow" points="465.09,26 456.09,30.5 456.09,21.5"/>
+    </g>
+  </g>
+</svg>
