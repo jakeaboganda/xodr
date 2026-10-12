@@ -3305,7 +3305,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             let probe = stations.iter().find(|st| road.on_road(st.s)).map(copy_at);
             let one: Cost = probe.iter().flatten().map(Part::cost).sum();
             let corners: usize = probe.iter().flatten().map(Part::corner_count).sum();
-            let n = stations.len();
+            let n = stations.iter().filter(|st| road.on_road(st.s)).count();
             let guess = Cost {
                 objects: one.objects.saturating_mul(n),
                 pieces: (one.pieces + faults.painted.get() - saved.2).saturating_mul(n),
