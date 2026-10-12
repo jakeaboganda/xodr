@@ -268,5 +268,6 @@ fn a_point_a_rounding_error_short_of_a_lane_section_has_a_lane_position() {
         section("50.0000000005")
     ))
     .unwrap();
-    assert!(net.lane_position(Point::new(50.0, -1.75, 0.0)).is_some());
+    let at = net.lane_position(Point::new(50.0, -1.75, 0.0)).unwrap();
+    assert!(net.centerline_s(at).is_some());
 }
