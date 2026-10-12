@@ -6,7 +6,7 @@ use std::f64::consts::PI;
 use super::{
     attr_f32, attr_f64, child, orientation, validity, BakedRoad, ControllerProvenance,
     JunctionControllerProvenance, ObjectProvenance, Orientation, SignProvenance, SignalProvenance,
-    SignalReferenceProvenance,
+    SignalReferenceProvenance, Warning,
 };
 use crate::coords::{Point, Vector};
 use crate::object::orient;
@@ -25,6 +25,7 @@ pub(super) struct Signals {
     pub provenance: Vec<SignalProvenance>,
     pub controllers: Vec<Controller>,
     pub controller_provenance: Vec<ControllerProvenance>,
+    pub warnings: Vec<Warning>,
 }
 
 /// Bake every `<signal>` of every road, link each to the signals and
@@ -35,7 +36,8 @@ pub(super) struct Signals {
 ///
 /// Links, references and controls name a signal by its id. Where two
 /// signals share one, they name the first. One naming an id no signal has is
-/// skipped.
+/// skipped, with a [`Warning::SignalLinkDropped`], and so is a signal the
+/// crate can't place, with a [`Warning::SignalDropped`].
 pub(super) fn place(
     root: roxmltree::Node,
     roads: &[(roxmltree::Node, BakedRoad)],
@@ -61,6 +63,11 @@ pub(super) fn place(
     for (signal, road) in entries().filter(|(n, _)| n.has_tag_name("signal")) {
         if place_signal(signal, road, lanes, &road_by_id, &mut out) {
             nodes.push(signal);
+        } else {
+            out.warnings.push(Warning::SignalDropped {
+                road_id: road.od_id.clone(),
+                signal_id: signal.attribute("id").unwrap_or_default().to_string(),
+            });
         }
     }
     let mut placed = HashMap::new();
@@ -75,19 +82,29 @@ pub(super) fn place(
             .push(p.object);
     }
     for (i, node) in nodes.into_iter().enumerate() {
-        link(node, &placed, &baked_from, &mut out.baked[i]);
+        let road_id = out.provenance[i].road_id.clone();
+        for (element, id) in link(node, &placed, &baked_from, &mut out.baked[i]) {
+            out.warnings
+                .push(link_dropped(&road_id, element, id.unwrap_or_default()));
+        }
     }
     for (reference, road) in entries().filter(|(n, _)| n.has_tag_name("signalReference")) {
-        let Some(&SignalId(i)) = reference.attribute("id").and_then(|id| placed.get(id)) else {
-            continue;
-        };
-        apply_reference(
-            reference,
-            road,
-            lanes,
-            &mut out.baked[i],
-            &mut out.provenance[i],
-        );
+        let id = reference.attribute("id");
+        let applied = id
+            .and_then(|id| placed.get(id))
+            .is_some_and(|&SignalId(i)| {
+                apply_reference(
+                    reference,
+                    road,
+                    lanes,
+                    &mut out.baked[i],
+                    &mut out.provenance[i],
+                )
+            });
+        if !applied {
+            let dropped = link_dropped(&road.od_id, "signalReference", id.unwrap_or_default());
+            out.warnings.push(dropped);
+        }
     }
     place_controllers(root, &placed, &mut out);
     out
@@ -104,7 +121,10 @@ fn place_controllers(root: roxmltree::Node, placed: &HashMap<String, SignalId>, 
         let id = ControllerId(out.controllers.len());
         let mut signals = Vec::new();
         for control in node.children().filter(|n| n.has_tag_name("control")) {
-            let Some(&signal) = control.attribute("signalId").and_then(|s| placed.get(s)) else {
+            let named = control.attribute("signalId");
+            let Some(&signal) = named.and_then(|s| placed.get(s)) else {
+                let dropped = link_dropped("", "control", named.unwrap_or_default());
+                out.warnings.push(dropped);
                 continue;
             };
             signals.push(Control {
@@ -147,20 +167,20 @@ fn place_controllers(root: roxmltree::Node, placed: &HashMap<String, SignalId>, 
 }
 
 /// Apply `signal` where the `<signalReference>` `node` on `road` says too: add
-/// the lanes there and the point it names. One missing `s` or `t`, or off
-/// the ends of the road, is skipped.
+/// the lanes there and the point it names, and say whether it did. One
+/// missing `s` or `t`, or off the ends of the road, is skipped.
 fn apply_reference(
     node: roxmltree::Node,
     road: &Road,
     lanes: &[Lane],
     signal: &mut Signal,
     provenance: &mut SignalProvenance,
-) {
+) -> bool {
     let (Some(s), Some(t)) = (attr_f64(node, "s"), attr_f64(node, "t")) else {
-        return;
+        return false;
     };
     if !road.on_road(s) {
-        return;
+        return false;
     }
     let orientation = orientation(node);
     for lane in signal_lanes(road, lanes, s, orientation, validity(node)) {
@@ -175,6 +195,17 @@ fn apply_reference(
         t,
         orientation,
     });
+    true
+}
+
+/// The warning for a link of `element`, on `road_id`, naming `id`, which
+/// the crate drops.
+fn link_dropped(road_id: &str, element: &str, id: &str) -> Warning {
+    Warning::SignalLinkDropped {
+        road_id: road_id.to_string(),
+        element: element.to_string(),
+        id: id.to_string(),
+    }
 }
 
 /// Where a signal's board stands, and how it is turned.
@@ -293,20 +324,22 @@ fn signs(node: roxmltree::Node) -> Vec<SignProvenance> {
 /// Give `signal` the `<dependency>`s and `<reference>`s of its `<signal>`,
 /// `node`. `placed` finds a signal by its id, and `baked_from` the objects
 /// an `<object id>` baked to. A reference to an object names each of them.
-fn link(
-    node: roxmltree::Node,
+fn link<'a>(
+    node: roxmltree::Node<'a, 'a>,
     placed: &HashMap<String, SignalId>,
     baked_from: &HashMap<&str, Vec<ObjectId>>,
     signal: &mut Signal,
-) {
+) -> Vec<(&'static str, Option<&'a str>)> {
     let text = |node: roxmltree::Node, name| node.attribute(name).unwrap_or_default().to_string();
     let named = |id: Option<&str>| id.and_then(|id| placed.get(id)).copied();
+    let mut dropped = Vec::new();
     for dependency in node.children().filter(|n| n.has_tag_name("dependency")) {
-        if let Some(named) = named(dependency.attribute("id")) {
-            signal.dependencies.push(Dependency {
+        match named(dependency.attribute("id")) {
+            Some(named) => signal.dependencies.push(Dependency {
                 signal: named,
                 kind: text(dependency, "type"),
-            });
+            }),
+            None => dropped.push(("dependency", dependency.attribute("id"))),
         }
     }
     for reference in node.children().filter(|n| n.has_tag_name("reference")) {
@@ -321,12 +354,16 @@ fn link(
                 .collect(),
             _ => Vec::new(),
         };
+        if to.is_empty() {
+            dropped.push(("reference", id));
+        }
         let kind = text(reference, "type");
         signal.references.extend(to.into_iter().map(|to| Reference {
             to,
             kind: kind.clone(),
         }));
     }
+    dropped
 }
 
 /// A board standing `zOffset` straight above `road`'s surface at the `s` and

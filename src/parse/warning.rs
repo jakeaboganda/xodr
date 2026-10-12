@@ -568,6 +568,27 @@ pub enum Warning {
         /// Its `<lane id>`.
         lane: i32,
     },
+    /// A `<signal>` without a readable `s` or `t`, or off the ends of its
+    /// road. The crate drops it.
+    SignalDropped {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// Its `id`. Empty if it has none.
+        signal_id: String,
+    },
+    /// A signal's `<dependency>` or `<reference>`, a `<signalReference>`,
+    /// or a `<controller>`'s `<control>` naming a signal or object the load
+    /// didn't bake. Also a `<signalReference>` without a readable `s` or
+    /// `t`, or off the ends of its road. The crate drops it.
+    SignalLinkDropped {
+        /// The `<road id>` it is on. Empty for a `<control>`.
+        road_id: String,
+        /// Its element: `dependency`, `reference`, `signalReference` or
+        /// `control`.
+        element: String,
+        /// The id it names.
+        id: String,
+    },
     /// A road or junction `<CRG>` the crate can't lay: one without a `file`,
     /// a road one without a readable `sStart` or `sEnd`, with a `sEnd` not
     /// past its `sStart` on the road, or with a `mode` the crate doesn't
@@ -754,6 +775,8 @@ impl Warning {
             | Self::LaneSectionDropped { road_id, .. }
             | Self::ObjectDropped { road_id, .. }
             | Self::CrgDropped { road_id, .. }
+            | Self::SignalDropped { road_id, .. }
+            | Self::SignalLinkDropped { road_id, .. }
             | Self::RepeatDropped { road_id, .. }
             | Self::MarkingDropped { road_id, .. }
             | Self::StructureDropped { road_id, .. }
@@ -1145,6 +1168,21 @@ impl fmt::Display for Warning {
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} is outside a level lane but not level, held level"
             ),
+            Self::SignalDropped { road_id, signal_id } => write!(
+                f,
+                "road {road_id:?}: signal {signal_id:?} has no readable s or t on the road, dropped"
+            ),
+            Self::SignalLinkDropped {
+                road_id,
+                element,
+                id,
+            } => {
+                let at = match road_id.is_empty() {
+                    true => "a controller".to_string(),
+                    false => format!("road {road_id:?}"),
+                };
+                write!(f, "{at}: <{element}> to {id:?} names nothing the load baked, dropped")
+            }
             Self::CrgDropped {
                 road_id,
                 junction_id,

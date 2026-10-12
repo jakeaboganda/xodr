@@ -472,3 +472,41 @@ fn a_heading_just_over_minus_pi_stays_in_range() {
         "{heading}"
     );
 }
+
+#[test]
+fn signals_and_links_the_crate_drops_raise_warnings() {
+    let xodr = r#"<OpenDRIVE><header/><road id="1" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes><signals>
+        <signal id="ok" s="10" t="-5" zOffset="2" orientation="+" dynamic="no" type="206">
+          <dependency id="ghost" type="x"/><reference elementType="object" elementId="none" type="y"/></signal>
+        <signal id="off" s="150" t="-5" zOffset="2" orientation="+" dynamic="no" type="206"/>
+        <signal id="no-t" s="20" zOffset="2" orientation="+" dynamic="no" type="206"/>
+        <signalReference id="ok" s="200" t="-5" orientation="+"/>
+        </signals></road>
+        <controller id="c" name="c"><control signalId="missing" type="0"/></controller></OpenDRIVE>"#;
+    let (net, prov) = xodr::load_str_with_provenance(xodr).expect("the map loads");
+    assert_eq!(net.signals().len(), 1);
+    let link = |road: &str, element: &str, id: &str| xodr::Warning::SignalLinkDropped {
+        road_id: road.into(),
+        element: element.into(),
+        id: id.into(),
+    };
+    let signal = |id: &str| xodr::Warning::SignalDropped {
+        road_id: "1".into(),
+        signal_id: id.into(),
+    };
+    assert_eq!(
+        prov.warnings,
+        [
+            signal("off"),
+            signal("no-t"),
+            link("1", "dependency", "ghost"),
+            link("1", "reference", "none"),
+            link("1", "signalReference", "ok"),
+            link("", "control", "missing"),
+        ]
+    );
+}
