@@ -23,10 +23,11 @@
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::io;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use xodr::opencrg::CrgGrid;
+use xodr::opencrg::{CrgGrid, LoadOptions};
 use xodr_viewer::bake;
 
 /// Where scenes go without an output path, and the folder the viewer serves.
@@ -125,10 +126,7 @@ fn main() -> ExitCode {
 fn export(input: &str, output: &str) -> Result<(), String> {
     let xodr = fs::read_to_string(input).map_err(|e| format!("reading {input}: {e}"))?;
     let dir = Path::new(input).parent().unwrap_or(Path::new("."));
-    let scene = bake(&xodr, |file| {
-        let path = crg_path(dir, file)?;
-        CrgGrid::from_path(path).map_err(|e| e.to_string())
-    })?;
+    let scene = bake(&xodr, |file| load_crg(dir, file))?;
     for note in &scene.notes {
         eprintln!("warning: {input}: {note}");
     }
@@ -252,20 +250,38 @@ fn stale_scenes(folder: &Path) -> (Vec<(String, String)>, Vec<String>) {
     (jobs, unknown)
 }
 
-/// Where a map in `dir` finds the CRG `file` it names: a regular file in
-/// `dir` or under it. A map from elsewhere may not read other files.
-fn crg_path(dir: &Path, file: &str) -> Result<PathBuf, String> {
-    let inside = Path::new(file)
-        .components()
-        .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
-    if !inside {
-        return Err("a CRG file must be in the map's folder".into());
-    }
+/// The longest CRG file `viewer_export` reads, 1 GiB.
+const MAX_CRG_BYTES: u64 = 1 << 30;
+
+/// The CRG `file` a map in `dir` names, with the files it includes, each
+/// read by [`read_inside`] so a map from elsewhere can't read other files.
+/// An include is found beside `file`.
+fn load_crg(dir: &Path, file: &str) -> Result<CrgGrid, String> {
     let path = dir.join(file);
-    match path.is_file() {
-        true => Ok(path),
-        false => Err("not a file".into()),
+    let bytes = read_inside(dir, &path).map_err(|e| e.to_string())?;
+    let base = path.parent().unwrap_or(dir).to_path_buf();
+    CrgGrid::from_bytes_with(&bytes, &LoadOptions::default(), |name| {
+        read_inside(dir, &base.join(name))
+    })
+    .map_err(|e| e.to_string())
+}
+
+/// The bytes of the file at `path`, if it is a regular file in `dir` or
+/// under it once links are followed, and at most [`MAX_CRG_BYTES`] long.
+fn read_inside(dir: &Path, path: &Path) -> io::Result<Vec<u8>> {
+    let refuse = |why: &str| io::Error::new(io::ErrorKind::PermissionDenied, why);
+    let real = path.canonicalize()?;
+    if !real.starts_with(dir.canonicalize()?) {
+        return Err(refuse("a CRG file must be in the map's folder"));
     }
+    let meta = real.metadata()?;
+    if !meta.is_file() {
+        return Err(refuse("not a file"));
+    }
+    if meta.len() > MAX_CRG_BYTES {
+        return Err(refuse("over 1 GiB"));
+    }
+    fs::read(real)
 }
 
 /// The `file` of each `<CRG>` in `xodr`, found by a scan of its text rather
@@ -296,7 +312,9 @@ fn crg_files(xodr: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{crg_files, crg_path};
+    use std::fs;
+
+    use super::{crg_files, load_crg, read_inside};
 
     #[test]
     fn the_crg_files_of_a_map_are_found_by_name() {
@@ -312,16 +330,27 @@ mod tests {
 
     #[test]
     fn a_crg_file_must_be_a_file_in_the_map_s_folder() {
-        let dir = std::path::Path::new("../tests/data");
+        let root = std::env::temp_dir().join(format!("xodr-viewer-crg-{}", std::process::id()));
+        let map = root.join("map");
+        fs::create_dir_all(map.join("nested")).unwrap();
+        fs::write(root.join("secret.crg"), "outside").unwrap();
+        fs::write(map.join("nested/inside.crg"), "inside").unwrap();
+        std::os::unix::fs::symlink(root.join("secret.crg"), map.join("link.crg")).unwrap();
+        let read = |file: &str| read_inside(&map, &map.join(file));
+        assert_eq!(read("nested/inside.crg").unwrap(), b"inside");
         for file in [
+            "../secret.crg",
+            "link.crg",
             "/etc/passwd",
-            "../Cargo.toml",
             "/dev/zero",
-            "nested/../../x.crg",
+            "nested",
         ] {
-            assert!(crg_path(dir, file).is_err(), "{file}");
+            assert!(read(file).is_err(), "{file}");
         }
-        assert!(crg_path(dir, "objects.xodr").is_ok());
-        assert!(crg_path(dir, "data").is_err(), "not a file");
+        let include = "$ROAD_CRG_FILE\n../secret.crg\n$\n";
+        fs::write(map.join("include.crg"), include).unwrap();
+        let err = load_crg(&map, "include.crg").unwrap_err();
+        assert!(err.contains("folder"), "{err}");
+        fs::remove_dir_all(root).unwrap();
     }
 }
