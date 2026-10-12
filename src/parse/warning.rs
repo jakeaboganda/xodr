@@ -568,6 +568,18 @@ pub enum Warning {
         /// Its `<lane id>`.
         lane: i32,
     },
+    /// A `<laneSection>` that starts past the end of its road. The crate
+    /// drops it and its lanes. One under 1 mm long inside the road, which
+    /// exporters write where two sections meet, is dropped too, without a
+    /// warning, since links across it still join the sections either side.
+    LaneSectionDropped {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// The zero-based lane-section index, counted in order of `s`.
+        section: usize,
+        /// Where it starts, in metres along the reference line.
+        s: f64,
+    },
     /// A profile record the crate can't place: an `<elevation>`,
     /// `<superelevation>`, `<laneOffset>` or road `<type>` without a
     /// readable `s`, a `<shape>` without a readable `s` or `t`, or a lane
@@ -682,6 +694,7 @@ impl Warning {
             | Self::LinkGap { road_id, .. }
             | Self::LaneNotLevel { road_id, .. }
             | Self::RecordDropped { road_id, .. }
+            | Self::LaneSectionDropped { road_id, .. }
             | Self::RecordValueUnreadable { road_id, .. }
             | Self::RecordsOutOfOrder { road_id, .. }
             | Self::PriorityDropped { road_id, .. }
@@ -1069,6 +1082,14 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} is outside a level lane but not level, held level"
+            ),
+            Self::LaneSectionDropped {
+                road_id,
+                section,
+                s,
+            } => write!(
+                f,
+                "road {road_id:?}: lane section {section} at s {s:.3} m starts past the road's end, dropped"
             ),
             Self::RecordDropped {
                 road_id,
