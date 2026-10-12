@@ -131,12 +131,15 @@ fn export(input: &str, output: &str) -> Result<(), String> {
         eprintln!("warning: {input}: {note}");
     }
 
-    let bytes = serde_json::to_vec(&scene.json).expect("scene serializes");
-    fs::write(output, &bytes).map_err(|e| format!("writing {output}: {e}"))?;
+    let written = (|| {
+        let mut file = io::BufWriter::new(fs::File::create(output)?);
+        scene.write(&mut file)?;
+        io::Write::flush(&mut file)?;
+        fs::metadata(output).map(|m| m.len())
+    })();
+    let bytes = written.map_err(|e: io::Error| format!("writing {output}: {e}"))?;
 
     let count = |key: &str| scene.json[key].as_array().map_or(0, Vec::len);
-    let mesh = &scene.json["mesh"];
-    let length = |key: &str| mesh[key].as_array().map_or(0, Vec::len);
     let crg_files = scene.json["crg"]["surfaces"]
         .as_array()
         .into_iter()
@@ -151,10 +154,10 @@ fn export(input: &str, output: &str) -> Result<(), String> {
         count("objects"),
         count("signals"),
         count("roadMarks"),
-        length("positions") / 3,
-        length("indices") / 3,
+        scene.mesh.positions.len() / 3,
+        scene.mesh.indices.len() / 3,
         crg_files,
-        bytes.len() / 1024,
+        bytes / 1024,
     );
     Ok(())
 }

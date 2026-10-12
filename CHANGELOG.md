@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Viewer and OpenUSD
+
+- `viewer_export` keeps meshes as typed buffers, written with `f32`
+  digits, and finds each item's provenance by its id. The 60 km A9 test
+  field exports in 2.8 GB rather than 6.6 GB, in 27 s rather than 39 s,
+  and its scene is 689 MB rather than 842 MB. A map at the 100,000-object
+  cap takes 1.4 GB rather than 6.3 GB. The scene's keys and values are
+  unchanged.
+- `xodr_usd` finds each object's, signal's and controller's provenance by
+  its id rather than by a scan.
+
 ### Warnings
 
 - `Warning::ContactPointMissing` for a road-to-road link without the

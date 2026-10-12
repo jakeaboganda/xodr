@@ -16,6 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 xodr = { path = "..", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 
 # build.sh runs the wasm-bindgen CLI of this exact version.
