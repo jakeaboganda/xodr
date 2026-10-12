@@ -125,7 +125,7 @@ fn main() -> ExitCode {
 /// Bake one map and write its viewer scene to `output`.
 fn export(input: &str, output: &str) -> Result<(), String> {
     let xodr = fs::read_to_string(input).map_err(|e| format!("reading {input}: {e}"))?;
-    let dir = map_dir(input);
+    let dir = map_dir(Path::new(input));
     let scene = bake(&xodr, |file| load_crg(dir, file))?;
     for note in &scene.notes {
         eprintln!("warning: {input}: {note}");
@@ -232,7 +232,7 @@ fn stale_scenes(folder: &Path) -> (Vec<(String, String)>, Vec<String>) {
             unknown.push(name);
             continue;
         };
-        let dir = map_dir(source.to_str().unwrap_or_default());
+        let dir = map_dir(&source);
         let crg_times = fs::read_to_string(&source)
             .map(|xodr| crg_files(&xodr))
             .unwrap_or_default()
@@ -252,8 +252,8 @@ fn stale_scenes(folder: &Path) -> (Vec<(String, String)>, Vec<String>) {
 }
 
 /// The folder of the map at `input`, `.` for a bare file name.
-fn map_dir(input: &str) -> &Path {
-    Path::new(input)
+fn map_dir(input: &Path) -> &Path {
+    input
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."))
@@ -348,12 +348,10 @@ mod tests {
 
     #[test]
     fn a_bare_map_name_is_in_the_working_folder() {
-        assert_eq!(map_dir("crg.xodr"), std::path::Path::new("."));
-        assert_eq!(
-            map_dir("tests/data/crg.xodr"),
-            std::path::Path::new("tests/data")
-        );
-        assert!(read_inside(map_dir("Cargo.toml"), std::path::Path::new("Cargo.toml")).is_ok());
+        let path = std::path::Path::new;
+        assert_eq!(map_dir(path("crg.xodr")), path("."));
+        assert_eq!(map_dir(path("tests/data/crg.xodr")), path("tests/data"));
+        assert!(read_inside(map_dir(path("Cargo.toml")), path("Cargo.toml")).is_ok());
     }
 
     #[test]
