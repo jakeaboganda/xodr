@@ -154,6 +154,9 @@
 //! | `<controller><control>` | `signalId`, `type` |
 //! | `<junction><controller>` | `id`, `type`, `sequence` |
 //! | `<vmsGroup>` | `id` |
+//! | `<header><defaultRegulations>` | none |
+//! | `<defaultRegulations><roadRegulations>` | `type`, and its `<semantics>` as a signal's |
+//! | `<defaultRegulations><signalRegulations>` | `type`, `subtype`, and its `<semantics>` as a signal's |
 //! | `<vmsGroup><vmsBoardReference>` | `signalId`, `vmsIndex`, `groupIndex` |
 //! | `<validity>`, under `<object>`, `<objectReference>`, `<signal>`, `<signalReference>`, `<tunnel>` and `<bridge>` | `fromLane`, `toLane`, `layer` |
 //! | `<object><parkingSpace>` | `access`, `restrictions` |
@@ -1035,6 +1038,15 @@
 //! to the next, or to the end of its lane section, and overrides its road's. A
 //! `<speed>` without a `unit` is in m/s, as the spec says.
 //!
+//! A header's `<defaultRegulations>` are in [`Header::default_regulations`].
+//! The first `maximum` `<speed>` of a type's `<roadRegulations>` is the limit
+//! on a road of that type whose `<type>` gives no `<speed>`, where its lanes
+//! give none either, as the spec says road types have no limit "unless
+//! provided by `<defaultRegulations>`". A road with no `<type>` takes none.
+//! A `<signalRegulations>` is kept for the caller. The crate applies none of
+//! its rules. The spec's example writes its subtype `subType`, which the
+//! crate reads too, beside the schema's `subtype`.
+//!
 //! The limits come from `<speed>` records only. The spec says a speed limit
 //! sign takes precedence, but the crate does not read signs as limits. A
 //! caller that wants them can find the signs in [`RoadNetwork::signals`].
@@ -1200,8 +1212,8 @@
 //! times the file uses the feature. [`Warning::is_ignored`] tells these from
 //! the warnings for faults.
 //!
-//! The crate skips these elements: a header's `<license>` and
-//! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere. It
+//! The crate skips these elements: a header's `<license>`, and
+//! `<dataQuality>` and `<include>` anywhere. It
 //! skips `<userData>` anywhere but directly on an object, which it reads.
 //!
 //! It also ignores these uses of elements it reads:
@@ -1620,7 +1632,7 @@ pub use crg::{
 pub use geo::{GeoOffset, GeoReference};
 pub use geometry::TooFewPoints;
 pub use geometry::{Polyline, Pose, Projection, RoadSample};
-pub use header::Header;
+pub use header::{DefaultRegulations, Header, RoadRegulation, SignalRegulation};
 pub use junction::{
     CrossPath, CrossPathEnd, Crossing, CrossingSection, ElevationGrid, GridRow, JunctionArea,
     JunctionGroup, JunctionGroupKind, LinkPoint, MainRoad, VirtualJunction, VirtualLink,

@@ -107,6 +107,9 @@ files declaring 1.4, 1.6 and 1.7.
   `<speed>` with no unit is in m/s. One the crate can't read raises a
   warning. Speed limit signs don't set a limit. A road type's `country`
   is in `RoadNetwork::road_countries`. The crate applies none of its rules.
+  The header's `<defaultRegulations>` are in `Header::default_regulations`,
+  and a road type's default speed is the limit where the road's `<type>`
+  and lanes give none.
 - Lane `<rule>`s, `<access>`es and `<material>`s, as stretches along each
   lane: `RoadNetwork::lane_rules`, `lane_access` and `lane_materials`.
   Each holds to the next of its kind or the end of its lane section.
@@ -475,8 +478,8 @@ The importer skips what the sections above do not list as read. Each feature
 below raises an `Ignored` warning, once for each road, junction, or the rest
 of the document, with how many times the file uses it.
 
-Elements it skips: a header's `<license>` and
-`<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere. It skips
+Elements it skips: a header's `<license>`, and `<dataQuality>` and
+`<include>` anywhere. It skips
 `<userData>` anywhere but directly on an object, which it reads.
 
 Uses of elements it reads that it ignores:

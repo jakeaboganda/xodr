@@ -21,10 +21,11 @@ use crate::road::{
 };
 use crate::{
     Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgObject, CrgPose, CrgPurpose,
-    CrgSurface, Direction, Extent, GeoOffset, GeoReference, Header, Lane, LaneAdvisory, LaneId,
-    LaneType, Layer, Marking, Material, Object, ObjectId, ObjectType, ParkingSpace, Polyline,
-    Priority, RoadMarkId, RoadMarkWeight, RoadNeighbor, RoadNetwork, Section, Shape, Side,
-    SignalId, SkeletonVertex, Structure, StructureId, StructureKind, UserData,
+    CrgSurface, DefaultRegulations, Direction, Extent, GeoOffset, GeoReference, Header, Lane,
+    LaneAdvisory, LaneId, LaneType, Layer, Marking, Material, Object, ObjectId, ObjectType,
+    ParkingSpace, Polyline, Priority, RoadMarkId, RoadMarkWeight, RoadNeighbor, RoadNetwork,
+    RoadRegulation, Section, Shape, Side, SignalId, SignalRegulation, SkeletonVertex, Structure,
+    StructureId, StructureKind, UserData,
 };
 
 mod curve_local;
@@ -734,7 +735,12 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     warnings.append(&mut signals.warnings);
     let mut road_marks = road_marks::place(&mut roads);
     warnings.append(&mut road_marks.warnings);
-    let properties = properties::place(roads.iter().map(|(_, road)| road), &lanes);
+    let header = header(root);
+    let properties = properties::place(
+        roads.iter().map(|(_, road)| road),
+        &lanes,
+        &header.default_regulations,
+    );
     let (neighbors, dropped_neighbors) = road_neighbors(&roads);
     warnings.extend(dropped_neighbors);
     let (areas, area_warnings) = junction_areas::place(root, &roads);
@@ -835,7 +841,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             .with_lane_materials(properties.lane_materials)
             .with_lane_visibility(properties.lane_visibility)
             .with_geo_reference(geo_reference(root))
-            .with_header(header(root))
+            .with_header(header)
             .with_roads(roads.into_iter().map(|(_, baked)| baked.road).collect())
             .with_priorities(priorities)
             .with_road_neighbors(neighbors)
@@ -1636,6 +1642,36 @@ fn header(root: roxmltree::Node) -> Header {
         south: attr_f64(node, "south"),
         east: attr_f64(node, "east"),
         west: attr_f64(node, "west"),
+        default_regulations: child(node, "defaultRegulations")
+            .map(default_regulations)
+            .unwrap_or_default(),
+    }
+}
+
+/// A header's `<defaultRegulations>`. The spec's example spells a
+/// `<signalRegulations>`' `subtype` `subType`, which the crate reads too.
+fn default_regulations(node: roxmltree::Node) -> DefaultRegulations {
+    let rules = signals::semantics;
+    let text = |n: roxmltree::Node, names: &[&str]| {
+        let found = names.iter().find_map(|&name| n.attribute(name));
+        found.unwrap_or_default().to_string()
+    };
+    DefaultRegulations {
+        roads: (node.children())
+            .filter(|n| n.has_tag_name("roadRegulations"))
+            .map(|n| RoadRegulation {
+                road_type: properties::road_type(n.attribute("type")),
+                semantics: rules(n),
+            })
+            .collect(),
+        signals: (node.children())
+            .filter(|n| n.has_tag_name("signalRegulations"))
+            .map(|n| SignalRegulation {
+                kind: text(n, &["type"]),
+                subtype: text(n, &["subtype", "subType"]),
+                semantics: rules(n),
+            })
+            .collect(),
     }
 }
 
