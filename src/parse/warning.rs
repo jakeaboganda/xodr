@@ -72,8 +72,9 @@ pub enum Warning {
     /// `<repeat>` with a `distance` that short for its `length`, or a dashed
     /// `<marking>`. A broken file can give a distance a fraction of a
     /// millimetre. Also a repeat whose outlines would bake to over 1,000,000
-    /// corners. The crate leaves out the repeat's copies, or the marking's
-    /// paint.
+    /// corners, and an object whose copies, corners or sections would take
+    /// the file's objects past what one load bakes. The crate leaves out the
+    /// repeat's copies, the object, or the marking's paint.
     TooManyCopies {
         /// The `<road id>` it is on.
         road_id: String,
@@ -588,7 +589,7 @@ pub enum RoadSkipReason {
     /// as an elevation or a lane width of `1e39`.
     OutOfRange,
     /// Its lanes would take the file past
-    /// [`MAX_BAKED_LENGTH`](crate::MAX_BAKED_LENGTH), 10,000 km of lanes.
+    /// [`MAX_BAKED_LENGTH`](crate::MAX_BAKED_LENGTH), 2,000 km of lanes.
     MapTooLarge,
 }
 
@@ -1048,7 +1049,7 @@ impl fmt::Display for RoadSkipReason {
             Self::NoGeometry => "no <geometry> it can bake",
             Self::TooLong => "a length over 100 km",
             Self::OutOfRange => "lanes too far out for an f32",
-            Self::MapTooLarge => "lanes past the 10,000 km one file may bake",
+            Self::MapTooLarge => "lanes past the 2,000 km one file may bake",
         })
     }
 }

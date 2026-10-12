@@ -84,6 +84,18 @@ const MAX_REPEAT_INSTANCES: f64 = 100_000.0;
 /// well under [`MAX_REPEAT_INSTANCES`] could still bake a billion.
 const MAX_OUTLINE_CORNERS: usize = 1_000_000;
 
+/// The most one load may spend on its objects, counting [`OBJECT_COST`] for
+/// each object baked and one for each corner of an outline, vertex of a
+/// skeleton and section of a continuous repeat, an `<objectReference>`
+/// counting again. The largest real map the crate is tried on spends about
+/// 1,250,000. Many repeats or references to one object could otherwise ask
+/// for gigabytes from a few kilobytes of file.
+const MAX_OBJECT_COST: usize = 5_000_000;
+
+/// What one baked object counts toward [`MAX_OBJECT_COST`], for its own
+/// record and provenance.
+const OBJECT_COST: usize = 64;
+
 /// How far paint stands off the surface under it, in metres, where the map
 /// does not say: an object's `<marking>` with no `zOffset`, and a
 /// `fillType="paint"` area.
@@ -604,7 +616,9 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     let mut warnings = Vec::new();
     let mut length_left = MAX_BAKED_LENGTH;
     for road in root.children().filter(|n| n.has_tag_name("road")) {
-        let length = attr_f64(road, "length").unwrap_or(0.0).min(MAX_LENGTH);
+        let length = attr_f64(road, "length")
+            .unwrap_or(0.0)
+            .clamp(0.0, MAX_LENGTH);
         let cost = lane_length(road, length);
         let parsed = match cost > length_left {
             true => Err(RoadSkipReason::MapTooLarge),
@@ -1697,13 +1711,13 @@ fn finite(lane: &Lane) -> bool {
 }
 
 /// The most lane and road CRG one load bakes, in metres: each lane's length
-/// and each road `<CRG>`'s stretch, at [`CRG_COST`], summed over the file. It is 10,000 km,
-/// about thirty times the lanes of the largest real map the crate is tried
-/// on. The crate samples each every few centimetres to metres, so a small
+/// and each road `<CRG>`'s stretch, at [`CRG_COST`], summed over the file. It
+/// is 2,000 km, about six times the lanes of the largest real map the crate
+/// is tried on. The crate samples each every few centimetres to metres, so a small
 /// broken file that repeats a long road's lanes or CRG records would
 /// otherwise need more memory than any machine has. A road past it is
 /// skipped, and a road CRG past it dropped.
-pub const MAX_BAKED_LENGTH: f64 = 10_000_000.0;
+pub const MAX_BAKED_LENGTH: f64 = 2_000_000.0;
 
 /// The length of `road`'s lanes, `length` long, summed over its lane
 /// sections of both layers, from the `<lane>`s the file gives.
@@ -2660,9 +2674,28 @@ struct Objects {
     baked: Vec<Object>,
     provenance: Vec<ObjectProvenance>,
     warnings: Vec<Warning>,
+    /// What placing them has spent of [`MAX_OBJECT_COST`].
+    cost: usize,
     /// The `<surface>` CRG of each object that has one, for each solid it
     /// bakes to.
     surfaces: Vec<ObjectCrg>,
+}
+
+impl Objects {
+    /// Whether `cost` is no more than is left of [`MAX_OBJECT_COST`].
+    fn affords(&self, cost: usize) -> bool {
+        self.cost.saturating_add(cost) <= MAX_OBJECT_COST
+    }
+
+    /// Spend `cost` of [`MAX_OBJECT_COST`], or `false`, spending nothing,
+    /// if that is more than is left.
+    fn spend(&mut self, cost: usize) -> bool {
+        let fits = self.affords(cost);
+        if fits {
+            self.cost += cost;
+        }
+        fits
+    }
 }
 
 /// One object's `<surface>` CRG, with what its warnings name.
@@ -3122,7 +3155,9 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         parts
     };
     for repeat in &repeats {
-        if repeat.distance > 0.0 {
+        if !out.affords(repeat.least_cost()) {
+            too_many.set(true);
+        } else if repeat.distance > 0.0 {
             let Some(stations) = repeat.stations(&base) else {
                 too_many.set(true);
                 continue;
@@ -3130,7 +3165,9 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             let corners = stations.first().map_or(0, |st| {
                 outlined(st).iter().map(Part::corner_count).sum::<usize>()
             });
-            if corners.saturating_mul(stations.len()) > MAX_OUTLINE_CORNERS {
+            if corners.saturating_mul(stations.len()) > MAX_OUTLINE_CORNERS
+                || !out.spend(stations.len() * (OBJECT_COST + corners))
+            {
                 too_many.set(true);
                 continue;
             }
@@ -3141,15 +3178,29 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                     parts.push(point(&st));
                 }
             }
-        } else if let Some((shape, start, end)) = sweep(repeat, &base, road) {
-            parts.push(Part::new(shape, &start, (start.s, end)));
+        } else {
+            let most = MAX_OBJECT_COST.saturating_sub(out.cost + OBJECT_COST);
+            match sweep(repeat, &base, road, most) {
+                Ok(Some((shape, start, end))) => {
+                    let part = Part::new(shape, &start, (start.s, end));
+                    out.spend(part.cost());
+                    parts.push(part);
+                }
+                Ok(None) => {}
+                Err(TooMany) => too_many.set(true),
+            }
         }
     }
     if !repeats.iter().any(|r| r.distance > 0.0) {
+        let mut own = Vec::new();
         if shaped {
-            parts.extend(outlined(&base));
+            own.extend(outlined(&base));
         } else if repeats.is_empty() && road.on_road(base.s) {
-            parts.push(point(&base));
+            own.push(point(&base));
+        }
+        match out.spend(own.iter().map(Part::cost).sum()) {
+            true => parts.extend(own),
+            false => too_many.set(true),
         }
     }
 
@@ -3451,6 +3502,15 @@ struct Part {
 impl Part {
     /// How many corners its outline has, holes included, or vertices its
     /// skeleton has. 0 for any other shape.
+    /// What it counts toward [`MAX_OBJECT_COST`].
+    fn cost(&self) -> usize {
+        let sections = match &self.shape {
+            Shape::Sweep { sections, .. } => sections.len(),
+            _ => 0,
+        };
+        OBJECT_COST + self.corner_count() + sections
+    }
+
     fn corner_count(&self) -> usize {
         match &self.shape {
             Shape::Outline { corners, holes, .. } => {
@@ -3581,6 +3641,17 @@ impl<'a> Repeat<'a> {
         }
     }
 
+    /// The least it can count toward [`MAX_OBJECT_COST`], known before it is
+    /// baked: an object per station, or for a continuous repeat, one object
+    /// and a section every [`SWEEP_MAX_STEP`].
+    fn least_cost(&self) -> usize {
+        let count = match self.distance > 0.0 {
+            true => (self.length / self.distance) * OBJECT_COST as f64,
+            false => OBJECT_COST as f64 + self.length / SWEEP_MAX_STEP,
+        };
+        count.min(usize::MAX as f64) as usize
+    }
+
     /// One station every `distance` metres, both ends included, or `None` if
     /// that is more than [`MAX_REPEAT_INSTANCES`].
     fn stations(&self, base: &Station) -> Option<Vec<Station>> {
@@ -3592,7 +3663,7 @@ impl<'a> Repeat<'a> {
             .map(|k| {
                 let along = k as f64 * self.distance;
                 let f = if self.length > 0.0 {
-                    along / self.length
+                    (along / self.length).min(1.0)
                 } else {
                     0.0
                 };
@@ -3610,13 +3681,18 @@ impl<'a> Repeat<'a> {
 /// resting on `zOffset`, and `width` and `height` play no part. A detached
 /// repeat's sections lie level and square to its line, or across the road
 /// where its ends meet in plan. Also returns the station the sections start
-/// at, and the `s` they end at. `None` if less
-/// than a millimetre of it is on the road.
-fn sweep(repeat: &Repeat, base: &Station, road: &Road) -> Option<(Shape, Station, f64)> {
+/// at, and the `s` they end at. `None` if less than a millimetre of it is on
+/// the road, and [`TooMany`] if it would take more than `most` sections.
+fn sweep(
+    repeat: &Repeat,
+    base: &Station,
+    road: &Road,
+    most: usize,
+) -> Result<Option<(Shape, Station, f64)>, TooMany> {
     let start = repeat.start.max(0.0);
     let end = (repeat.start + repeat.length).min(road.length);
     if end - start < 1e-3 {
-        return None;
+        return Ok(None);
     }
     let first = repeat.at(base, (start - repeat.start) / repeat.length);
     let round = first.radius.is_some();
@@ -3649,27 +3725,40 @@ fn sweep(repeat: &Repeat, base: &Station, road: &Road) -> Option<(Shape, Station
             right: corner(-1.0),
         }
     };
-    let sections = sweep_stations(start, end, |a, b, f| {
+    let sections = sweep_stations(start, end, most, |a, b, f| {
         let (a, b, at) = (section(a), section(b), section(a + (b - a) * f));
         let strays = |a: Corner, b: Corner, at: Corner| {
             a.base.lerp(b.base, f as f32).distance_to(at.base) > SWEEP_TOLERANCE
         };
         strays(a.left, b.left, at.left) || strays(a.right, b.right, at.right)
     })
+    .ok_or(TooMany)?
     .into_iter()
     .map(section)
     .collect();
-    Some((Shape::Sweep { sections, round }, first, end))
+    Ok(Some((Shape::Sweep { sections, round }, first, end)))
 }
+
+/// A sweep with more sections than it may have.
+struct TooMany;
 
 /// The stations of a sweep's sections over `[start, end]`: at most
 /// [`SWEEP_MAX_STEP`] apart, and closer where the sweep bends. `bends(a, b,
 /// f)` says whether the sweep a fraction `f` of the way from `a` to `b`
 /// strays from the straight line between its sections there. An interval
 /// halves while it does at a quarter, half or three quarters of the way,
-/// down to [`SWEEP_MIN_STEP`].
-fn sweep_stations(start: f64, end: f64, bends: impl Fn(f64, f64, f64) -> bool) -> Vec<f64> {
-    let seeds = ((end - start) / SWEEP_MAX_STEP).ceil().max(1.0) as usize;
+/// down to [`SWEEP_MIN_STEP`]. `None` once there would be more than `most`.
+fn sweep_stations(
+    start: f64,
+    end: f64,
+    most: usize,
+    bends: impl Fn(f64, f64, f64) -> bool,
+) -> Option<Vec<f64>> {
+    let seeds = ((end - start) / SWEEP_MAX_STEP).ceil().max(1.0);
+    if seeds >= most as f64 {
+        return None;
+    }
+    let seeds = seeds as usize;
     let mut done = vec![start];
     let mut todo: Vec<f64> = (1..=seeds)
         .rev()
@@ -3677,6 +3766,9 @@ fn sweep_stations(start: f64, end: f64, bends: impl Fn(f64, f64, f64) -> bool) -
         .collect();
     while let Some(&b) = todo.last() {
         let a = *done.last().expect("starts with start");
+        if done.len() + todo.len() > most {
+            return None;
+        }
         if b - a > 2.0 * SWEEP_MIN_STEP && [0.25, 0.5, 0.75].iter().any(|&f| bends(a, b, f)) {
             todo.push((a + b) / 2.0);
         } else {
@@ -3684,7 +3776,7 @@ fn sweep_stations(start: f64, end: f64, bends: impl Fn(f64, f64, f64) -> bool) -
             todo.pop();
         }
     }
-    done
+    Some(done)
 }
 
 /// An object's `<outline>`s: under `<outlines>` since OpenDRIVE 1.5, and
