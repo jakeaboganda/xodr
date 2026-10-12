@@ -136,7 +136,9 @@ to clear it.
 Under the map's name, the sidebar shows its `<geoReference>` PROJ string
 and `<offset>` as the file gives them. A map without either shows neither.
 Hover the map list for the `<header>`: its name, OpenDRIVE revision,
-version, date, vendor and bounds.
+version, date, vendor and bounds, and its default regulations for each road
+type and sign type. A lane's speed limit is the one a speed sign sets where
+there is one.
 
 ## Lanes
 
