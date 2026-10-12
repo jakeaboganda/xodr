@@ -568,6 +568,15 @@ pub enum Warning {
         /// Its `<lane id>`.
         lane: i32,
     },
+    /// A road `<predecessor>` or `<successor>` naming a road without the
+    /// `contactPoint` the spec requires there. The crate joins the start of
+    /// that road, as libOpenDRIVE does.
+    ContactPointMissing {
+        /// The `<road id>` whose link it is.
+        road_id: String,
+        /// The end of the road the link leaves from.
+        end: RoadEnd,
+    },
     /// A `<roadMark>` whose `sOffset` is the same as the next one's on its
     /// lane, so the next one replaces it before it paints anything. The
     /// crate drops it. One at or past the end of its lane section goes
@@ -792,6 +801,7 @@ impl Warning {
             | Self::CrgDropped { road_id, .. }
             | Self::SignalDropped { road_id, .. }
             | Self::RoadMarkDropped { road_id, .. }
+            | Self::ContactPointMissing { road_id, .. }
             | Self::SignalLinkDropped { road_id, .. }
             | Self::RepeatDropped { road_id, .. }
             | Self::MarkingDropped { road_id, .. }
@@ -1183,6 +1193,10 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} is outside a level lane but not level, held level"
+            ),
+            Self::ContactPointMissing { road_id, end } => write!(
+                f,
+                "road {road_id:?}: the link at its {end} names a road without a contactPoint, joined at that road's start"
             ),
             Self::RoadMarkDropped {
                 road_id,

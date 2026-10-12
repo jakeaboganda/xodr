@@ -4,6 +4,8 @@
 
 ### Warnings
 
+- `Warning::ContactPointMissing` for a road-to-road link without the
+  `contactPoint` the spec requires. The crate still joins the start.
 - `Warning::RoadMarkDropped` for a `<roadMark>` at the same `sOffset` as
   the next on its lane, which replaces it.
 - `Warning::SignalDropped` for a `<signal>` the crate can't place, and

@@ -102,3 +102,36 @@ fn a_link_part_way_along_a_road_outside_a_virtual_junction_joins_nothing() {
     let net = xodr::load_str(&xodr).unwrap();
     assert!(net.lanes().iter().all(|l| l.successors.is_empty()));
 }
+
+#[test]
+fn a_road_link_without_a_contact_point_warns_and_joins_the_start() {
+    let road = |id: &str, x: f64, link: &str| {
+        format!(
+            r#"<road id="{id}" length="50" junction="-1">{link}<planView>
+            <geometry s="0" x="{x}" y="0" hdg="0" length="50"><line/></geometry></planView>
+            <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+            <lane id="-1" type="driving"><link><successor id="-1"/></link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+            </right></laneSection></lanes></road>"#
+        )
+    };
+    let xodr = format!(
+        "<OpenDRIVE><header/>{}{}</OpenDRIVE>",
+        road(
+            "1",
+            0.0,
+            r#"<link><successor elementType="road" elementId="2"/></link>"#
+        ),
+        road("2", 50.0, "")
+    );
+    let (net, prov) = load_str_with_provenance(&xodr).unwrap();
+    assert_eq!(
+        prov.warnings,
+        [Warning::ContactPointMissing {
+            road_id: "1".into(),
+            end: RoadEnd::End,
+        }]
+    );
+    let into = net.lane(lane(&prov, "1", -1)).unwrap();
+    assert_eq!(into.successors, [lane(&prov, "2", -1)]);
+}
