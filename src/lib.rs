@@ -83,6 +83,7 @@
 //! | `<elevationProfile><elevation>` | `s`, `a`, `b`, `c`, `d` |
 //! | `<lateralProfile><superelevation>` | `s`, `a`, `b`, `c`, `d` |
 //! | `<lateralProfile><shape>` | `s`, `t`, `a`, `b`, `c`, `d` |
+//! | `<lateralProfile><crossfall>`, from 1.4 | `s`, `side`, `a`, `b`, `c`, `d` |
 //! | `<lateralProfile><crossSectionSurface>` | none |
 //! | `<crossSectionSurface><tOffset>` | none |
 //! | `<crossSectionSurface><surfaceStrips>` | none |
@@ -827,6 +828,14 @@
 //! - The spec requires `s`, `t`, `a`, `b`, `c` and `d`. A shape without `s`
 //!   or `t` is skipped, and a missing `a`, `b`, `c` or `d` is 0, as for
 //!   superelevation. Shapes out of order are sorted rather than dropped.
+//!
+//! A `<crossfall>` from OpenDRIVE 1.4, which later versions replaced with
+//! shapes, folds into the lane heights as a shape does. From its `s` on, the
+//! road falls away from its reference line at an angle in radians, a cubic
+//! in `s`, on the `side` it names, `left`, `right` or `both`. Its height at
+//! `t` is `-tan(angle) * |t|`, as libOpenDRIVE reads it. One whose `side`
+//! is neither left nor right applies to both. A road with both a crossfall
+//! and shapes takes the sum. CARLA parses crossfalls and stores none.
 //!
 //! # Cross-section surfaces
 //!

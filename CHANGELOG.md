@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Older files
+
+- `<crossfall>` from OpenDRIVE 1.4, which libOpenDRIVE and CARLA read: the
+  road falls away from its reference line at an angle, on one side or
+  both. It folds into the lane heights as a `<shape>` does.
+
 ### Additional data
 
 - **Breaking:** `Provenance::additional` keeps every `<userData>` and

@@ -245,6 +245,22 @@ pub(crate) struct Lateral {
     pub surface: Option<CrossSection>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub ground: Option<Box<Ground>>,
+    /// Its `<crossfall>`s from OpenDRIVE 1.4, in order of `s`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub crossfall: Vec<Crossfall>,
+}
+
+/// A `<crossfall>` from OpenDRIVE 1.4: from `s` on, the road falls away
+/// from its reference line at an angle, a cubic in `s` in radians, on the
+/// side it names. Its height at `t` is `-tan(angle) * |t|`, as libOpenDRIVE
+/// reads it.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub(crate) struct Crossfall {
+    pub angle: Cubic,
+    /// Whether it applies left of the reference line, and right of it.
+    pub left: bool,
+    pub right: bool,
 }
 
 /// The ground a road of a junction with an `<elevationGrid>` stands on: the
@@ -402,11 +418,34 @@ impl Lateral {
                 .as_ref()
                 .map_or(0.0, |c| c.height(s, t, toward))
             + self.ground.as_ref().map_or(0.0, |g| g.height(s, t))
+            + self.crossfall_height(s, t, toward)
+    }
+
+    /// The crossfall's height at `(s, t)`: from the last `<crossfall>` to
+    /// start at or before `s`, 0 on a side it doesn't name. On the
+    /// reference line, the side `toward` points to.
+    fn crossfall_height(&self, s: f64, t: f64, toward: f64) -> f64 {
+        let Some(c) = self
+            .crossfall
+            .iter()
+            .rev()
+            .find(|c| c.angle.start <= s + 1e-9)
+        else {
+            return 0.0;
+        };
+        let left = if t == 0.0 { toward > 0.0 } else { t > 0.0 };
+        match (left && c.left) || (!left && c.right) {
+            true => -c.angle.eval(s).tan() * t.abs(),
+            false => 0.0,
+        }
     }
 
     /// Whether the road is flat across.
     pub fn is_empty(&self) -> bool {
-        self.profiles.is_empty() && self.surface.is_none() && self.ground.is_none()
+        self.profiles.is_empty()
+            && self.surface.is_none()
+            && self.ground.is_none()
+            && self.crossfall.is_empty()
     }
 
     /// Where along the road the height changes pace: each profile's `s`, each
@@ -417,6 +456,7 @@ impl Lateral {
             .map(|p| p.s)
             .chain(self.surface.iter().flat_map(CrossSection::knots))
             .chain(self.ground.iter().flat_map(|g| g.knots()))
+            .chain(self.crossfall.iter().map(|c| c.angle.start))
     }
 }
 

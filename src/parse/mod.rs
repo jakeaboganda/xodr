@@ -15,9 +15,9 @@ use crate::coords::{Point, Vector};
 use crate::crg::Stretch;
 use crate::object::orient;
 use crate::road::{
-    active, along, height_at, is_valid, side_borders, side_heights, CrossSection, Cubic, GeomRec,
-    GeomShape, Ground, HeightDef, LaneBorders, LaneExtent, LaneGeom, Lateral, Road, RoadId,
-    RoadSection, ShapeProfile, Strip, TrafficRule, Validity,
+    active, along, height_at, is_valid, side_borders, side_heights, CrossSection, Crossfall, Cubic,
+    GeomRec, GeomShape, Ground, HeightDef, LaneBorders, LaneExtent, LaneGeom, Lateral, Road,
+    RoadId, RoadSection, ShapeProfile, Strip, TrafficRule, Validity,
 };
 use crate::{
     Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgObject, CrgPose, CrgPurpose,
@@ -1257,6 +1257,38 @@ impl LaneDirection {
     }
 }
 
+/// A `<lateralProfile>`'s `<crossfall>`s, from OpenDRIVE 1.4, in order of
+/// `s`. One without `s` is skipped, a missing `a`, `b`, `c` or `d` is 0,
+/// a negative `s` is 0, and one whose `side` is neither `left` nor `right`
+/// applies to both sides, as libOpenDRIVE reads them.
+fn crossfalls(lateral: roxmltree::Node) -> Vec<Crossfall> {
+    let mut out: Vec<Crossfall> = lateral
+        .children()
+        .filter(|n| n.has_tag_name("crossfall"))
+        .filter_map(|n| {
+            let coeff = |name| attr_f64(n, name).unwrap_or(0.0);
+            let (left, right) = match n.attribute("side") {
+                Some("left") => (true, false),
+                Some("right") => (false, true),
+                _ => (true, true),
+            };
+            Some(Crossfall {
+                angle: Cubic {
+                    start: attr_f64(n, "s")?.max(0.0),
+                    a: coeff("a"),
+                    b: coeff("b"),
+                    c: coeff("c"),
+                    d: coeff("d"),
+                },
+                left,
+                right,
+            })
+        })
+        .collect();
+    out.sort_by(|a, b| a.angle.start.total_cmp(&b.angle.start));
+    out
+}
+
 /// A `<lateralProfile>`'s `<shape>`s, grouped into profiles by `s`, in
 /// ascending `s`, each sorted by `t`.
 ///
@@ -1808,6 +1840,9 @@ fn parse_road(
             .and_then(|n| child(n, "crossSectionSurface"))
             .map(|n| cross_section(n, &road_id, &mut warnings)),
         ground: None,
+        crossfall: child(road, "lateralProfile")
+            .map(crossfalls)
+            .unwrap_or_default(),
     };
     if lateral.surface.is_some() && (!lateral.profiles.is_empty() || !superelevations.is_empty()) {
         warnings.push(Warning::CrossSectionWithShape {
