@@ -39,9 +39,9 @@ pub(crate) fn sorted<T>(mut list: Vec<Along<T>>) -> Vec<Along<T>> {
 
 /// The fastest traffic may drive on a lane.
 ///
-/// An OpenDRIVE import reads it from the map's `<speed>`s, not its signs.
-/// It drops a `<speed>` whose `max` or `unit` the spec doesn't allow, with
-/// a warning.
+/// An OpenDRIVE import reads it from the map's `<speed>`s and its speed
+/// limit signs, which take priority. It drops a `<speed>` whose `max` or
+/// `unit` the spec doesn't allow, with a warning.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SpeedLimit {

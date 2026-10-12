@@ -4,6 +4,15 @@
 
 ### Regulations
 
+- **Breaking:** speed limit signs set the limit, over the `<speed>`
+  records, as the spec says signals take preference. A `<speed>` semantic
+  of type `maximum` or `zone` sets one, and `maximumEnd` or `zoneEnd` ends
+  it. The limit runs along each lane the sign applies to, in its direction
+  of travel, to the next speed sign or the end of the road. The spec
+  leaves the reach open. The crate stops at the road's end, and reads no
+  limit from catalogue codes, so a sign before OpenDRIVE 1.8 sets none.
+  `Warning::SpeedLimitDisagrees` names a sign whose limit differs from the
+  record it overrides.
 - `Header::default_regulations` gives the header's `<defaultRegulations>`:
   each `RoadRegulation` and `SignalRegulation`, with its semantics. A
   road type's default `maximum` speed is the limit where neither the

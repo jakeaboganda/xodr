@@ -105,7 +105,9 @@ files declaring 1.4, 1.6 and 1.7.
   `RoadNetwork::road_types` and `RoadNetwork::speed_limits`, in m/s. A
   lane's `<speed>` overrides its road's to the end of its lane section. A
   `<speed>` with no unit is in m/s. One the crate can't read raises a
-  warning. Speed limit signs don't set a limit. A road type's `country`
+  warning. A speed limit sign's `<speed>` semantic sets the limit over
+  them, to the next speed sign on the lane or the end of the road, with a
+  warning where the two differ. A road type's `country`
   is in `RoadNetwork::road_countries`. The crate applies none of its rules.
   The header's `<defaultRegulations>` are in `Header::default_regulations`,
   and a road type's default speed is the limit where the road's `<type>`
@@ -455,6 +457,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `VirtualLaneDropped` | a lane pair of a virtual link that names a lane its road doesn't have there |
 | `NeighborDropped` | a road `<neighbor>` the crate can't read |
 | `RailwayDropped` | a railway `<switch>` or platform `<segment>` the crate can't place |
+| `SpeedLimitDisagrees` | a speed limit sign whose limit differs from the `<speed>` record it overrides |
 | `SpeedLimitDropped` | a `<speed>` whose `max` or `unit` the crate can't read, or whose limit is too large for an `f32` |
 | `AccessDropped` | an `<access>` whose `rule` is neither `allow` nor `deny` |
 | `VisibilityDropped` | a `<visibility>` with a distance the crate can't read |

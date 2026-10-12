@@ -36,6 +36,7 @@ mod links;
 mod properties;
 mod railway;
 mod records;
+mod regulations;
 mod road_marks;
 mod signals;
 mod single_side;
@@ -763,6 +764,9 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     let (priorities, priority_provenance, dropped_priorities) = priorities(root, &roads);
     warnings.extend(dropped_priorities);
     links::resolve(&mut lanes, &topo);
+    let (speed_limits, sign_warnings) =
+        regulations::signs_over(properties.speed_limits, &roads, &lanes, &signals);
+    warnings.extend(sign_warnings);
     let (virtual_junctions, virtual_warnings) = virtual_junctions::place(root, &roads, &topo);
     warnings.extend(virtual_warnings);
     warnings.extend(gaps::link_gaps(&lanes, &topo.metas));
@@ -833,7 +837,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             .with_vms_groups(signals.vms_groups)
             .with_road_marks(road_marks.baked)
             .with_crg_surfaces(surfaces)
-            .with_speed_limits(properties.speed_limits)
+            .with_speed_limits(speed_limits)
             .with_road_types(properties.road_types)
             .with_road_countries(properties.road_countries)
             .with_lane_rules(properties.lane_rules)

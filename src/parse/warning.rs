@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use crate::SpeedLimit;
+
 /// One thing a load dropped, or read against a rule of the OpenDRIVE spec,
 /// in [`Provenance::warnings`](crate::Provenance::warnings).
 ///
@@ -537,6 +539,21 @@ pub enum Warning {
         /// Its `unit`, as the file writes it. Empty if it has none.
         unit: String,
     },
+    /// A speed limit sign whose limit differs from the `<speed>` record, the
+    /// lane's or its road type's, on a lane where it applies. The sign's
+    /// limit holds there, as the spec says signals take priority.
+    SpeedLimitDisagrees {
+        /// The `<road id>` the sign is on.
+        road_id: String,
+        /// Where the sign stands, in metres along the reference line.
+        s: f64,
+        /// The `<lane id>` it applies to where they differ.
+        lane: i32,
+        /// The limit the sign sets.
+        sign: SpeedLimit,
+        /// The limit the record sets.
+        record: SpeedLimit,
+    },
     /// A lane `<access>` whose `rule` is neither `allow` nor `deny`, so it
     /// says nothing about who may use the lane. The lane is open to
     /// everyone from its `sOffset` to the next `<access>`.
@@ -800,6 +817,7 @@ impl Warning {
             | Self::UnknownTrafficRule { road_id, .. }
             | Self::UnknownLaneDirection { road_id, .. }
             | Self::SpeedLimitDropped { road_id, .. }
+            | Self::SpeedLimitDisagrees { road_id, .. }
             | Self::AccessDropped { road_id, .. }
             | Self::VisibilityDropped { road_id, .. }
             | Self::JunctionLinkMissing { road_id, .. }
@@ -935,6 +953,18 @@ impl fmt::Display for Warning {
                     "road {road_id:?}: {whose} <speed> at s {s:.2} m dropped, max {max:?} unit {unit:?} is not a speed"
                 )
             }
+            Self::SpeedLimitDisagrees {
+                road_id,
+                s,
+                lane,
+                sign,
+                record,
+            } => write!(
+                f,
+                "road {road_id:?}: lane {lane}'s speed sign at s {s:.2} m sets {}, where a <speed> sets {}; the sign holds",
+                limit_text(*sign),
+                limit_text(*record)
+            ),
             Self::AccessDropped {
                 road_id,
                 s,
@@ -1366,6 +1396,14 @@ impl fmt::Display for RoadSkipReason {
             Self::OutOfRange => "lanes too far out for an f32",
             Self::MapTooLarge => "lanes past the 2,000 km one file may bake",
         })
+    }
+}
+
+/// A speed limit in km/h, or `no limit`.
+fn limit_text(limit: SpeedLimit) -> String {
+    match limit {
+        SpeedLimit::Max(v) => format!("{:.0} km/h", f64::from(v) * 3.6),
+        SpeedLimit::Unlimited => "no limit".into(),
     }
 }
 

@@ -236,3 +236,65 @@ fn a_road_type_without_a_speed_takes_the_default_regulation() {
     assert_eq!((rules.roads.len(), rules.signals.len()), (1, 1));
     assert_eq!(rules.signals[0].subtype, "-1");
 }
+
+/// Two lane sections, split at s = 40. Lane -1 runs along +s, with a
+/// `<speed>` of 50 km/h, and lane 1 against it. A sign at s = 30 limits
+/// lane -1 to 70 km/h, a sign at s = 60 ends it, and a sign at s = 80
+/// facing the other way limits lane 1 to 30 km/h.
+const SIGNED: &str = r#"<OpenDRIVE><header/><road id="1" length="100" junction="-1"><planView>
+    <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+    <lanes>
+    <laneSection s="0"><left><lane id="1" type="driving"><link><successor id="1"/></link><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane></left>
+    <center><lane id="0" type="none"/></center><right>
+    <lane id="-1" type="driving"><link><successor id="-1"/></link><width sOffset="0" a="3.5" b="0" c="0" d="0"/><speed sOffset="0" max="50" unit="km/h"/></lane></right></laneSection>
+    <laneSection s="40"><left><lane id="1" type="driving"><link><predecessor id="1"/></link><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane></left>
+    <center><lane id="0" type="none"/></center><right>
+    <lane id="-1" type="driving"><link><predecessor id="-1"/></link><width sOffset="0" a="3.5" b="0" c="0" d="0"/><speed sOffset="0" max="50" unit="km/h"/></lane></right></laneSection>
+    </lanes><signals>
+    <signal id="70" s="30" t="-5" zOffset="2" orientation="+" dynamic="no" country="DE" type="274" subtype="57">
+      <semantics><speed type="maximum" value="70" unit="km/h"/></semantics></signal>
+    <signal id="end" s="60" t="-5" zOffset="2" orientation="+" dynamic="no" country="DE" type="278" subtype="57">
+      <semantics><speed type="maximumEnd" value="0" unit="km/h"/></semantics></signal>
+    <signal id="30" s="80" t="5" zOffset="2" orientation="-" dynamic="no" country="DE" type="274" subtype="53">
+      <semantics><speed type="maximum" value="30" unit="km/h"/></semantics></signal>
+    </signals></road></OpenDRIVE>"#;
+
+#[test]
+fn a_speed_sign_sets_the_limit_to_the_next_sign_and_overrides_the_records() {
+    let (net, prov) = xodr::load_str_with_provenance(SIGNED).unwrap();
+    let kmh = |od: i32, s: f64| {
+        let p = prov
+            .lanes
+            .iter()
+            .find(|p| p.od_id == od && (p.section == 0) == (s < 40.0))
+            .unwrap();
+        let lane = net.lane(p.lane).unwrap();
+        let start = if s < 40.0 { 0.0 } else { 40.0 };
+        match net.speed_limit_at(lane.id, (s - start) as f32) {
+            Some(SpeedLimit::Max(v)) => Some((v * 3.6).round()),
+            Some(SpeedLimit::Unlimited) => panic!("unlimited"),
+            None => None,
+        }
+    };
+    let right: Vec<_> = [10.0, 35.0, 50.0, 70.0]
+        .iter()
+        .map(|&s| kmh(-1, s))
+        .collect();
+    assert_eq!(right, [Some(50.0), Some(70.0), Some(70.0), Some(50.0)]);
+    let left: Vec<_> = [90.0, 70.0, 20.0].iter().map(|&s| kmh(1, s)).collect();
+    assert_eq!(
+        left,
+        [None, Some(30.0), Some(30.0)],
+        "it runs against +s, across the sections"
+    );
+    let disagree: Vec<_> = prov
+        .warnings
+        .iter()
+        .filter(|w| matches!(w, Warning::SpeedLimitDisagrees { .. }))
+        .collect();
+    assert_eq!(disagree.len(), 1, "lane 1 has no record: {disagree:?}");
+    assert_eq!(
+        disagree[0].to_string(),
+        r#"road "1": lane -1's speed sign at s 30.00 m sets 70 km/h, where a <speed> sets 50 km/h; the sign holds"#
+    );
+}
