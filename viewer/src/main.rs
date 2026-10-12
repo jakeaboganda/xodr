@@ -232,12 +232,13 @@ fn stale_scenes(folder: &Path) -> (Vec<(String, String)>, Vec<String>) {
             unknown.push(name);
             continue;
         };
-        let dir = source.parent().unwrap_or(Path::new("."));
+        let dir = map_dir(source.to_str().unwrap_or_default());
         let crg_times = fs::read_to_string(&source)
             .map(|xodr| crg_files(&xodr))
             .unwrap_or_default()
             .into_iter()
-            .filter_map(|file| modified(&dir.join(file)));
+            .filter_map(|file| inside(dir, &dir.join(file)).ok())
+            .filter_map(|path| modified(&path));
         let newest = crg_times.fold(source_time, |a, b| a.max(b));
         let scene_time = modified(&scene);
         if scene_time < Some(newest) || scene_time < exporter {
@@ -256,6 +257,18 @@ fn map_dir(input: &str) -> &Path {
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."))
+}
+
+/// `path` with links followed, if that is in `dir` or under it.
+fn inside(dir: &Path, path: &Path) -> io::Result<PathBuf> {
+    let real = path.canonicalize()?;
+    match real.starts_with(dir.canonicalize()?) {
+        true => Ok(real),
+        false => Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "a CRG file must be in the map's folder",
+        )),
+    }
 }
 
 /// The longest CRG file `viewer_export` reads, 1 GiB.
@@ -278,10 +291,7 @@ fn load_crg(dir: &Path, file: &str) -> Result<CrgGrid, String> {
 /// under it once links are followed, and at most [`MAX_CRG_BYTES`] long.
 fn read_inside(dir: &Path, path: &Path) -> io::Result<Vec<u8>> {
     let refuse = |why: &str| io::Error::new(io::ErrorKind::PermissionDenied, why);
-    let real = path.canonicalize()?;
-    if !real.starts_with(dir.canonicalize()?) {
-        return Err(refuse("a CRG file must be in the map's folder"));
-    }
+    let real = inside(dir, path)?;
     let meta = real.metadata()?;
     if !meta.is_file() {
         return Err(refuse("not a file"));
