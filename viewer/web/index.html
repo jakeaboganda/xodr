@@ -390,9 +390,21 @@ function headerText(h) {
     : '';
   const revision = h.rev_major != null || h.rev_minor != null
     ? `OpenDRIVE ${h.rev_major ?? '?'}.${h.rev_minor ?? '?'}` : '';
+  const rules = h.default_regulations ?? {};
+  const said = semantics => semantics.map(sem => {
+    const [kind, body] = Object.entries(sem)[0] ?? ['?', {}];
+    const units = { KilometrePerHour: 'km/h', MilePerHour: 'mph', MetrePerSecond: 'm/s' };
+    const unit = units[body?.unit] ?? body?.unit;
+    const what = [body?.kind, body?.value, unit].filter(v => v != null && v !== '').join(' ');
+    return what ? `${kind.toLowerCase()} ${what}` : kind.toLowerCase();
+  }).join('; ');
+  const defaults = [
+    ...(rules.roads ?? []).map(r => `default on ${r.road_type.toLowerCase()} roads: ${said(r.semantics)}`),
+    ...(rules.signals ?? []).map(r => `default for sign ${r.kind} ${r.subtype}: ${said(r.semantics)}`),
+  ];
   return [
     h.name && `name ${h.name}`, revision, h.version && `version ${h.version}`,
-    h.date && `date ${h.date}`, h.vendor && `vendor ${h.vendor}`, bounds,
+    h.date && `date ${h.date}`, h.vendor && `vendor ${h.vendor}`, bounds, ...defaults,
   ].filter(Boolean).join('\n');
 }
 
