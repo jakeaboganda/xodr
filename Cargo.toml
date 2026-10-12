@@ -19,6 +19,7 @@ documentation = "https://docs.rs/xodr"
 exclude = [
     "/.github",
     "/.gitignore",
+    "/.ignore",
     "/.pi",
     "/ROADMAP*.md",
     "/benches",
