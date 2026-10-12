@@ -4,6 +4,10 @@
 
 ### Warnings
 
+- `Warning::SignalDropped` for a `<signal>` the crate can't place, and
+  `Warning::SignalLinkDropped` for a `<dependency>`, `<reference>`,
+  `<signalReference>` or `<control>` naming a signal or object the load
+  didn't bake.
 - `Warning::CrgDropped` for a road or junction `<CRG>` the crate drops. A
   `<CRG>` whose `purpose` is neither `elevation` nor `friction` is now
   dropped too. Before, it was read as an elevation.

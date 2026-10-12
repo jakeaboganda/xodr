@@ -722,7 +722,8 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     let placed = std::mem::take(&mut objects.surfaces);
     let object_surfaces = object_crgs(root, &topo, &surfaces, placed, &mut warnings);
     surfaces.extend(object_surfaces);
-    let signals = signals::place(root, &roads, &lanes, &objects.provenance);
+    let mut signals = signals::place(root, &roads, &lanes, &objects.provenance);
+    warnings.append(&mut signals.warnings);
     let mut road_marks = road_marks::place(&mut roads);
     warnings.append(&mut road_marks.warnings);
     let properties = properties::place(roads.iter().map(|(_, road)| road), &lanes);

@@ -1486,6 +1486,9 @@
 //! - [`Warning::VisibilityDropped`] for a `<visibility>` with a distance it
 //!   can't read. See [Lane visibility](#lane-visibility).
 //! - [`Warning::CrgDropped`] for a road or junction `<CRG>` it can't lay.
+//! - [`Warning::SignalDropped`] for a signal it can't place, and
+//!   [`Warning::SignalLinkDropped`] for a link, reference or control naming
+//!   a signal or object the load didn't bake.
 //! - [`Warning::ObjectDropped`], [`Warning::RepeatDropped`],
 //!   [`Warning::MarkingDropped`] and [`Warning::StructureDropped`] for an
 //!   object, a repeat, a marking or a tunnel or bridge it can't place.
