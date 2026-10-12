@@ -181,6 +181,8 @@ readout shows:
 - the cross paths a crossing road's lane carries, from which lane and `s`
   to which, or on a lane a cross path joins, where it joins and the lane it
   crosses on
+- the crossing the point is in, by its junction id and name, and the
+  stretch of the road it covers, where the map gives a crossing junction
 - the roads the lane's road names beside it, on which side and which way
   they run, where the map gives `<neighbor>`s
 - whether the road mark on each side lets a vehicle change into the lane
