@@ -31,6 +31,7 @@ use crate::{
 mod curve_local;
 mod gaps;
 mod ignored;
+mod include;
 mod junction_areas;
 mod links;
 mod properties;
@@ -42,9 +43,10 @@ mod signals;
 mod single_side;
 mod virtual_junctions;
 mod warning;
+pub use include::MAX_INCLUDED_BYTES;
 use links::{LaneMeta, RoadInfo, Topology};
 use road_marks::MarkDef;
-pub use warning::{RoadEnd, RoadSkipReason, Warning};
+pub use warning::{IncludeProblem, RoadEnd, RoadSkipReason, Warning};
 
 /// The furthest apart, in metres, a lane's centerline samples get, on
 /// straight or gently curving road.
@@ -620,18 +622,52 @@ pub fn load_str(xml: &str) -> Result<RoadNetwork, ImportError> {
 /// Like [`load_file`], but also returns the OpenDRIVE [`Provenance`] of
 /// every baked lane, object, structure, signal, controller and road mark, for a viewer
 /// or editor that must name the road and original id each one came from.
+///
+/// An `<include>` reads the file it names from the map's folder, or a folder
+/// under it. See [`load_str_with`].
 pub fn load_file_with_provenance(
     path: impl AsRef<std::path::Path>,
 ) -> Result<(RoadNetwork, Provenance), ImportError> {
     let xml = std::fs::read_to_string(path.as_ref())
         .map_err(|e| ImportError::Malformed(format!("reading {:?}: {e}", path.as_ref())))?;
-    load_str_with_provenance(&xml)
+    load_str_with(&xml, include::beside(path.as_ref()))
 }
 
 /// Like [`load_str`], but also returns the OpenDRIVE [`Provenance`] of
 /// every baked lane, object, structure, signal, controller and road mark. Each record
 /// carries the id of what it describes.
+///
+/// A document read from a string has no folder to read an `<include>` from,
+/// so each raises a [`Warning::IncludeDropped`]. See [`load_str_with`].
 pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), ImportError> {
+    load_str_with(xml, |_| {
+        Err("a document read from a string has no folder to read it from".into())
+    })
+}
+
+/// Like [`load_str_with_provenance`], reading each file an `<include>`
+/// names with `read`, which returns its text or why it can't. `read` gets
+/// the file's path as the `<include>` writes it, joined to the folder of the
+/// file that includes it, so a nested include names a path from the
+/// document's own folder.
+///
+/// The included file's contents stand where its `<include>` stood: what its
+/// root holds, which must be the element the `<include>` is in, as the spec
+/// says. Includes nest at most 8 deep, and read in at most
+/// [`MAX_INCLUDED_BYTES`] all told. One that can't be read, names a file that
+/// includes it back, nests too deep, reads too much, isn't well-formed XML
+/// or has the wrong root is left out, with a [`Warning::IncludeDropped`].
+pub fn load_str_with(
+    xml: &str,
+    mut read: impl FnMut(&str) -> Result<String, String>,
+) -> Result<(RoadNetwork, Provenance), ImportError> {
+    let mut warnings = Vec::new();
+    let expanded = include::expand(&sanitize(xml), &mut read, &mut warnings);
+    bake(&expanded, warnings)
+}
+
+/// Bake a document with its includes read in, `warnings` already raised.
+fn bake(xml: &str, mut warnings: Vec<Warning>) -> Result<(RoadNetwork, Provenance), ImportError> {
     let cleaned = sanitize(xml);
     if deeper_than(&cleaned, MAX_DEPTH) {
         return Err(ImportError::Malformed(format!(
@@ -648,7 +684,6 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     let index = object_index(root);
     let grids = junction_grids(root);
     let mut roads = Vec::new();
-    let mut warnings = Vec::new();
     let mut length_left = MAX_BAKED_LENGTH;
     for road in root.children().filter(|n| n.has_tag_name("road")) {
         let length = attr_f64(road, "length")

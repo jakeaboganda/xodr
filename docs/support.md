@@ -78,6 +78,9 @@ files declaring 1.4, 1.6 and 1.7.
   gives the way back itself.
 - A road's `<neighbor>`s, from OpenDRIVE 1.4, as
   `RoadNetwork::road_neighbors`: the road beside it, and which way it runs.
+- `<include>`s, read in where they stand. `load_file` reads them from the
+  map's folder, `load_str_with` with a function the caller gives, and
+  `load_str` not at all, with a warning.
 - Junction `<boundary>`s and `<elevationGrid>`s, as
   `RoadNetwork::junction_areas`: the ring round a junction's ground, and
   the height of that ground, with a mesh of it. The junction's roads stand
@@ -463,6 +466,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `VisibilityDropped` | a `<visibility>` with a distance the crate can't read |
 | `ContactPointMissing` | a road `<predecessor>` or `<successor>` naming a road without a `contactPoint`. The crate joins that road's start |
 | `RoadMarkDropped` | a `<roadMark>` at the same `sOffset` as the next on its lane, which replaces it. One at or past its section's end goes without a warning |
+| `IncludeDropped` | an `<include>` naming no file, one that can't be read, one that includes itself, nests over 8 deep, reads past 256 MiB, isn't XML or has the wrong root |
 | `SignalDropped` | a `<signal>` without a readable `s` or `t`, or off the ends of its road |
 | `SignalLinkDropped` | a signal's `<dependency>` or `<reference>`, a `<signalReference>` or a `<control>` naming a signal or object the load didn't bake, or a `<signalReference>` off its road |
 | `CrgDropped` | a road or junction `<CRG>` without a `file`, a stretch on the road, a `mode` the crate knows (`global` for a junction's), or a `purpose` of `elevation` or `friction`, or a road one past the 2,000 km budget |
@@ -481,8 +485,7 @@ The importer skips what the sections above do not list as read. Each feature
 below raises an `Ignored` warning, once for each road, junction, or the rest
 of the document, with how many times the file uses it.
 
-Elements it skips: a header's `<license>`, and `<dataQuality>` and
-`<include>` anywhere. It skips
+Elements it skips: a header's `<license>`, and `<dataQuality>` anywhere. It skips
 `<userData>` anywhere but directly on an object, which it reads.
 
 Uses of elements it reads that it ignores:

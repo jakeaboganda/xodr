@@ -63,6 +63,7 @@
 //! | `<header>` | `revMajor`, `revMinor`, `name`, `version`, `date`, `vendor`, `north`, `south`, `east`, `west` |
 //! | `<header><geoReference>` | its text |
 //! | `<header><offset>` | `x`, `y`, `z`, `hdg` |
+//! | `<include>`, anywhere | `file` |
 //! | `<road>` | `id`, `name`, `length`, `junction`, `rule` |
 //! | `<road><link>` | `elementType`, `elementId`, `contactPoint`, `elementS`, `elementDir` |
 //! | `<link><neighbor>` | `side`, `elementId`, `direction` |
@@ -1225,6 +1226,20 @@
 //! - The spec allows a surface on a box only. One on any other object, such
 //!   as a cylinder, raises [`Warning::ObjectSurfaceDropped`].
 //!
+//! # Included files
+//!
+//! An `<include>` reads in the file it names where it stands, as the spec
+//! says readers "shall immediately start reading the file": what the
+//! included file's root holds takes the `<include>`'s place, and the file's
+//! own includes are read in too. The root must be the element the
+//! `<include>` is in. [`load_file`] reads an included file from the map's
+//! folder, or a folder under it, and refuses one out of it, links followed,
+//! so a map from elsewhere can't read other files. [`load_str_with`] reads
+//! each with a function the caller gives, and [`load_str`] reads none.
+//! Includes nest at most 8 deep and read in at most [`MAX_INCLUDED_BYTES`]
+//! all told. One that can't be read in is left out, with a
+//! [`Warning::IncludeDropped`] whose [`IncludeProblem`] says why.
+//!
 //! # What the importer ignores
 //!
 //! The crate skips what the sections above do not list as read. It raises one
@@ -1234,8 +1249,8 @@
 //! the warnings for faults.
 //!
 //! The crate skips these elements: a header's `<license>`, and
-//! `<dataQuality>` and `<include>` anywhere. It
-//! skips `<userData>` anywhere but directly on an object, which it reads.
+//! `<dataQuality>` anywhere. It skips `<userData>` anywhere but directly on
+//! an object, which it reads.
 //!
 //! It also ignores these uses of elements it reads:
 //!
@@ -1581,6 +1596,7 @@
 //!   `contactPoint`, which it joins at the start.
 //! - [`Warning::RoadMarkDropped`] for a road mark the next replaces before
 //!   it paints anything.
+//! - [`Warning::IncludeDropped`] for an `<include>` it can't read in.
 //! - [`Warning::SignalDropped`] for a signal it can't place, and
 //!   [`Warning::SignalLinkDropped`] for a link, reference or control naming
 //!   a signal or object the load didn't bake.
@@ -1672,12 +1688,12 @@ pub use object_mesh::ObjectSpan;
 /// The OpenCRG reader, for loading the files a [`RoadSurface`] evaluates.
 pub use opencrg;
 pub use parse::{
-    load_file, load_file_with_provenance, load_str, load_str_with_provenance, CenterLaneProvenance,
-    ControllerProvenance, CrossPathProvenance, ImportError, JunctionControllerProvenance,
-    JunctionProvenance, LaneHeight, LaneLinkOverlap, LaneProvenance, ObjectProvenance, Orientation,
-    PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance, RoadSkipReason, SignProvenance,
-    SignalProvenance, SignalReferenceProvenance, SkeletonIds, StructureProvenance, Warning,
-    MAX_BAKED_LENGTH, MAX_LENGTH,
+    load_file, load_file_with_provenance, load_str, load_str_with, load_str_with_provenance,
+    CenterLaneProvenance, ControllerProvenance, CrossPathProvenance, ImportError, IncludeProblem,
+    JunctionControllerProvenance, JunctionProvenance, LaneHeight, LaneLinkOverlap, LaneProvenance,
+    ObjectProvenance, Orientation, PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance,
+    RoadSkipReason, SignProvenance, SignalProvenance, SignalReferenceProvenance, SkeletonIds,
+    StructureProvenance, Warning, MAX_BAKED_LENGTH, MAX_INCLUDED_BYTES, MAX_LENGTH,
 };
 pub use railway::{
     Partner, Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint,

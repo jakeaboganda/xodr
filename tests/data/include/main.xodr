@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A road whose plan view and lanes come from included files. -->
+<OpenDRIVE>
+  <header revMajor="1" revMinor="9" name="include"/>
+  <road name="" length="100" id="1" junction="-1">
+    <planView>
+      <include file="parts/planview.xml"/>
+    </planView>
+    <lanes>
+      <include file="parts/lanes.xml"/>
+    </lanes>
+    <objects>
+      <include file="missing.xml"/>
+      <include file="parts/wrong_root.xml"/>
+      <include file="../include/main.xodr"/>
+      <include file="parts/cycle.xml"/>
+    </objects>
+  </road>
+</OpenDRIVE>

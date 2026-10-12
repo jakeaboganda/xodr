@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Additional data
+
+- `<include>` reads in the file it names where it stands, as the spec
+  says. `load_file` reads included files from the map's folder or one
+  under it, `load_str_with` with a function you give, and `load_str`
+  none. Includes nest at most 8 deep and read at most
+  `MAX_INCLUDED_BYTES`. `Warning::IncludeDropped` and its
+  `IncludeProblem` name one the crate can't read in. `<include>` leaves
+  the `Ignored` list.
+
 ### Regulations
 
 - **Breaking:** speed limit signs set the limit, over the `<speed>`
