@@ -596,3 +596,13 @@ fn a_negative_road_length_is_skipped_not_a_panic() {
         </right></laneSection></lanes></road></OpenDRIVE>"#;
     assert!(load_str(xodr).is_err());
 }
+
+#[test]
+fn elements_nested_tens_of_thousands_deep_are_an_error_not_a_stack_overflow() {
+    let deep = format!(
+        "<OpenDRIVE><header/><userData>{}{}</userData></OpenDRIVE>",
+        "<a>".repeat(20_000),
+        "</a>".repeat(20_000)
+    );
+    assert!(load_str(&deep).is_err());
+}
