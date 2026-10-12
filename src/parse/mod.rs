@@ -2770,6 +2770,10 @@ struct Objects {
     warnings: Vec<Warning>,
     /// What placing them has cost so far.
     cost: Cost,
+    /// The pieces built to size a repeat, or for one then refused, which
+    /// count toward [`MAX_OBJECT_PIECES`] on their own, so refusing stays
+    /// cheap.
+    wasted: usize,
     /// The `<surface>` CRG of each object that has one, for each solid it
     /// bakes to.
     surfaces: Vec<ObjectCrg>,
@@ -2780,7 +2784,9 @@ impl Objects {
     /// [`MAX_OBJECT_PIECES`].
     fn affords(&self, cost: Cost) -> bool {
         let total = self.cost + cost;
-        total.objects <= MAX_OBJECTS && total.pieces <= MAX_OBJECT_PIECES
+        total.objects <= MAX_OBJECTS
+            && total.pieces <= MAX_OBJECT_PIECES
+            && self.wasted <= MAX_OBJECT_PIECES
     }
 
     /// Spend `cost`, or `false`, spending nothing, if it is more than the
@@ -3284,21 +3290,41 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 continue;
             };
             let saved = (out.cost, faults.pieces_left.get(), faults.painted.get());
+            let restore = |out: &mut Objects| {
+                let built = out.cost.pieces - saved.0.pieces + faults.painted.get() - saved.2;
+                out.wasted = out.wasted.saturating_add(built);
+                out.cost = saved.0;
+                faults.pieces_left.set(saved.1);
+                faults.painted.set(saved.2);
+            };
+            let copy_at = |st: &Station| match (shaped, road.on_road(st.s)) {
+                (true, _) => outlined(st),
+                (false, true) => vec![point(st)],
+                (false, false) => Vec::new(),
+            };
+            let probe = stations.iter().find(|st| road.on_road(st.s)).map(copy_at);
+            let one: Cost = probe.iter().flatten().map(Part::cost).sum();
+            let corners: usize = probe.iter().flatten().map(Part::corner_count).sum();
+            let n = stations.len();
+            let guess = Cost {
+                objects: one.objects.saturating_mul(n),
+                pieces: (one.pieces + faults.painted.get() - saved.2).saturating_mul(n),
+            };
+            restore(out);
+            out.wasted = out.wasted.saturating_add(one.pieces);
+            if corners.saturating_mul(n) > MAX_OUTLINE_CORNERS || !faults.affords(out, guess) {
+                too_many.set(true);
+                continue;
+            }
             let mut copies = Vec::new();
             let mut corners = 0;
             for st in stations {
-                let copy = match (shaped, road.on_road(st.s)) {
-                    (true, _) => outlined(&st),
-                    (false, true) => vec![point(&st)],
-                    (false, false) => Vec::new(),
-                };
+                let copy = copy_at(&st);
                 corners += copy.iter().map(Part::corner_count).sum::<usize>();
                 if corners > MAX_OUTLINE_CORNERS
                     || !faults.spend(out, copy.iter().map(Part::cost).sum())
                 {
-                    (out.cost, ..) = saved;
-                    faults.pieces_left.set(saved.1);
-                    faults.painted.set(saved.2);
+                    restore(out);
                     too_many.set(true);
                     copies.clear();
                     break;
