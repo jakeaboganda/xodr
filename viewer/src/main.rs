@@ -125,7 +125,7 @@ fn main() -> ExitCode {
 /// Bake one map and write its viewer scene to `output`.
 fn export(input: &str, output: &str) -> Result<(), String> {
     let xodr = fs::read_to_string(input).map_err(|e| format!("reading {input}: {e}"))?;
-    let dir = Path::new(input).parent().unwrap_or(Path::new("."));
+    let dir = map_dir(input);
     let scene = bake(&xodr, |file| load_crg(dir, file))?;
     for note in &scene.notes {
         eprintln!("warning: {input}: {note}");
@@ -250,6 +250,14 @@ fn stale_scenes(folder: &Path) -> (Vec<(String, String)>, Vec<String>) {
     (jobs, unknown)
 }
 
+/// The folder of the map at `input`, `.` for a bare file name.
+fn map_dir(input: &str) -> &Path {
+    Path::new(input)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."))
+}
+
 /// The longest CRG file `viewer_export` reads, 1 GiB.
 const MAX_CRG_BYTES: u64 = 1 << 30;
 
@@ -314,7 +322,7 @@ fn crg_files(xodr: &str) -> Vec<String> {
 mod tests {
     use std::fs;
 
-    use super::{crg_files, load_crg, read_inside};
+    use super::{crg_files, load_crg, map_dir, read_inside};
 
     #[test]
     fn the_crg_files_of_a_map_are_found_by_name() {
@@ -326,6 +334,16 @@ mod tests {
     #[test]
     fn an_unquoted_or_oddly_quoted_file_is_skipped_not_a_panic() {
         assert!(crg_files("<CRG file=éx.crg/><CRG file=“a.crg”/>").is_empty());
+    }
+
+    #[test]
+    fn a_bare_map_name_is_in_the_working_folder() {
+        assert_eq!(map_dir("crg.xodr"), std::path::Path::new("."));
+        assert_eq!(
+            map_dir("tests/data/crg.xodr"),
+            std::path::Path::new("tests/data")
+        );
+        assert!(read_inside(map_dir("Cargo.toml"), std::path::Path::new("Cargo.toml")).is_ok());
     }
 
     #[test]
