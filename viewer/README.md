@@ -343,7 +343,9 @@ up with the rest, and another dashed line runs to it. The readout shows:
 - each board it is: a static board's signs, with what each shows and means,
   and each sign's `id`, `name`, `countryRevision`, flags, `orientation`,
   `hOffset`, `pitch`, `roll` and depth, or a message board's display and its
-  display areas
+  display areas. Where a sign or a display area gives its own lanes, dependencies or
+  references, which override the signal's, they show under it
+- the `<vmsGroup>` the board is in, and its place there
 - its country, `type` and `subtype`, as the map spells them
 - its value and unit, and its text
 - its road, OpenDRIVE id, `s`, `t` and orientation

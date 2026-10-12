@@ -290,6 +290,7 @@ let virtualMeshes = [];      // virtual junction stretches and links; userData.v
 let crossPaths = [];         // the exported cross paths, by lane id
 let junctionGroups = [];     // the exported junction groups
 let crossings = [];          // the exported crossings, each with its road sections
+let vmsGroups = [];          // the exported groups of message boards on one gantry
 let railMeshes = [];         // platforms and switches; userData.rail is the exported record
 let walkers = [];            // the marker's branches: {lane, arc, side, dead}, as RoadNetwork::advance gives them
 let walkerMesh;              // a square at each branch of the marker
@@ -467,6 +468,7 @@ async function init() {
   crossPaths = data.crossPaths ?? [];
   junctionGroups = data.junctionGroups ?? [];
   crossings = data.crossings ?? [];
+  vmsGroups = data.vmsGroups ?? [];
   roadNeighbors = data.roadNeighbors ?? [];
   buildSidebar();
   buildLegend();
@@ -1254,10 +1256,20 @@ function signalRows(sg) {
           s.roll && `roll ${s.roll.toFixed(2)}`, s.length != null && `${+s.length.toFixed(2)} m deep`].filter(Boolean);
         rows.push(`  sign ${escapeHtml(s.type || '?')}${shows} at z ${s.position[2].toFixed(2)}${means}`);
         if (own.length) rows.push(`    ${own.join('   ')}`);
+        rows.push(...signLinkRows(sg, b, s));
       }
     } else if (b.kind === 'message') {
       const size = b.width != null && b.height != null ? ` ${b.width} × ${b.height} m` : '';
       rows.push(`<b>message board</b> ${escapeHtml(b.display || '')}${size}, ${b.areas.length} display area${b.areas.length === 1 ? '' : 's'}`);
+      for (const a of b.areas) {
+        const own = signLinkRows(sg, null, a);
+        if (own.length) rows.push(`  area ${a.index ?? '?'}`, ...own);
+      }
+    }
+  }
+  for (const g of vmsGroups) {
+    for (const r of g.boards.filter(r => r.signalId === sg.signalId)) {
+      rows.push(`on gantry <b>vmsGroup</b> ${escapeHtml(g.id)}, board ${r.vmsIndex ?? '?'} as ${r.groupIndex ?? '?'}`);
     }
   }
   rows.push(...controllerRows(sg), ...linkRows(sg));
@@ -1306,18 +1318,37 @@ function controllerRows(sg) {
 
 // A row each for the signals a signal depends on and the signals and
 // objects it refers to, by name, OpenDRIVE id and link type.
-function linkRows(sg) {
-  const signalById = new Map(signals.map(s => [s.signalId, s]));
-  const objectById = new Map(objects.map(o => [o.objectId, o]));
-  const describe = link => {
-    const target = link.signalId != null ? signalById.get(link.signalId) : objectById.get(link.objectId);
-    const what = link.signalId != null ? 'signal' : 'object';
-    const name = target ? `${escapeHtml(target.name || '(unnamed)')} ${escapeHtml(target.odId ?? '')}` : '?';
-    return `${what} ${name}` + (link.type ? ` (${escapeHtml(link.type)})` : '');
-  };
+// What a sign or display area `part` says for itself where it overrides its
+// signal `sg`: its lanes, and its dependencies and references. `board` is
+// the sign's static board, to name a sign it depends on.
+function signLinkRows(sg, board, part) {
+  const same = (a, b) => JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
   const rows = [];
-  if (sg.dependencies?.length) rows.push('<b>depends on</b> ' + sg.dependencies.map(describe).join(', '));
-  if (sg.references?.length) rows.push('<b>refers to</b> ' + sg.references.map(describe).join(', '));
+  if (!same(part.lanes, sg.lanes)) rows.push('    ' + laneList(lanesOf(part.lanes), 'lanes'));
+  if (part.dependencies?.length && !same(part.dependencies, sg.dependencies)) {
+    rows.push('    depends on ' + part.dependencies.map(d => linkText(d, board)).join(', '));
+  }
+  if (part.references?.length && !same(part.references, sg.references)) {
+    rows.push('    refers to ' + part.references.map(r => linkText(r)).join(', '));
+  }
+  return rows;
+}
+
+// A dependency or reference as words: the signal, object, or sign on
+// `board` it names, and its type.
+function linkText(link, board) {
+  const target = link.sign != null ? board?.signs[link.sign]
+    : link.signalId != null ? signals.find(s => s.signalId === link.signalId)
+    : objects.find(o => o.objectId === link.objectId);
+  const what = link.sign != null ? 'sign' : link.signalId != null ? 'signal' : 'object';
+  const name = target ? `${escapeHtml(target.name || '(unnamed)')} ${escapeHtml(target.odId ?? target.id ?? '')}` : '?';
+  return `${what} ${name}` + (link.type ? ` (${escapeHtml(link.type)})` : '');
+}
+
+function linkRows(sg) {
+  const rows = [];
+  if (sg.dependencies?.length) rows.push('<b>depends on</b> ' + sg.dependencies.map(d => linkText(d)).join(', '));
+  if (sg.references?.length) rows.push('<b>refers to</b> ' + sg.references.map(r => linkText(r)).join(', '));
   return rows;
 }
 
