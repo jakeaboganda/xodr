@@ -182,3 +182,17 @@ fn a_lane_pair_naming_a_missing_lane_is_left_out_with_a_warning() {
         .find(|l| matches!(l.from, xodr::LinkPoint::Along { .. }) && l.lanes.len() == 1);
     assert!(link.is_some(), "the link keeps its good pair");
 }
+
+#[test]
+fn a_virtual_connection_to_something_other_than_a_road_is_dropped() {
+    let xml = std::fs::read_to_string(FIXTURE).unwrap().replace(
+        r#"<successor elementType="road" elementId="99" contactPoint="end"/><laneLink from="1" to="1"/>"#,
+        r#"<successor elementType="junction" elementId="99" contactPoint="end"/><laneLink from="1" to="1"/>"#,
+    );
+    let (_, prov) = xodr::load_str_with_provenance(&xml).unwrap();
+    assert!(prov.warnings.contains(&Warning::VirtualLinkDropped {
+        junction_id: "555".into(),
+        road_id: String::new(),
+        connection_id: "2".into(),
+    }));
+}

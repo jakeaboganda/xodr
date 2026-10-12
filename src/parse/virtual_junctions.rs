@@ -180,6 +180,9 @@ pub(super) fn place(
 /// Where a `<predecessor>` or `<successor>` meets its road: part way along
 /// it if it gives an `elementS`, or else the end its `contactPoint` names.
 fn point(roads: &[(roxmltree::Node, BakedRoad)], link: roxmltree::Node) -> Option<LinkPoint> {
+    if link.attribute("elementType").is_some_and(|t| t != "road") {
+        return None;
+    }
     let road = find(roads, link.attribute("elementId")?)?;
     if link.attribute("elementS").is_some() {
         let s = attr_f64(link, "elementS").filter(|s| road.on_road(*s))?;
