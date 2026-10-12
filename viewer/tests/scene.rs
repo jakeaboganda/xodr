@@ -6,7 +6,8 @@ use serde_json::Value;
 /// The scene of `map`, a file in `tests/data`, as the page reads it.
 fn scene(map: &str) -> Value {
     let xodr = std::fs::read_to_string(format!("../tests/data/{map}.xodr")).unwrap();
-    let scene = xodr_viewer::bake(&xodr, |_| Err("no CRG here".into())).unwrap();
+    let none = |_: &str| Err("no file here".to_string());
+    let scene = xodr_viewer::bake(&xodr, none, |_| Err("no CRG here".into())).unwrap();
     let mut out = Vec::new();
     scene.write(&mut out).unwrap();
     serde_json::from_slice(&out).unwrap()

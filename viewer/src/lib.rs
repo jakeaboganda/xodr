@@ -45,14 +45,14 @@ use serde::Serialize;
 use serde_json::{json, Map, Value};
 use xodr::opencrg::CrgGrid;
 use xodr::{
-    load_str_with_provenance, Access, Along, Controller, ControllerProvenance, Corner, CrgMode,
-    CrgPurpose, CrgSurface, CrossPathEnd, Direction, Extent, JunctionArea, JunctionGroupKind,
-    LaneId, LanePosition, LaneSpan, LinePattern, LinkPoint, Marking, Mesh, Object,
-    ObjectProvenance, Orientation, PlatformSegment, Point, Provenance, Reference, Referenced,
-    RoadEnd, RoadMark, RoadMarkProvenance, RoadMarkWeight, RoadNetwork, RoadPosition, RoadSurface,
-    RoadUser, Semantic, Shape, Side, SignProvenance, SignTarget, Signal, SignalBoard,
-    SignalProvenance, SpeedLimit, Structure, StructureKind, StructureProvenance, SurfaceHint,
-    SwitchPosition, TrackPoint, VirtualJunction, Warning,
+    load_str_with, Access, Along, Controller, ControllerProvenance, Corner, CrgMode, CrgPurpose,
+    CrgSurface, CrossPathEnd, Direction, Extent, JunctionArea, JunctionGroupKind, LaneId,
+    LanePosition, LaneSpan, LinePattern, LinkPoint, Marking, Mesh, Object, ObjectProvenance,
+    Orientation, PlatformSegment, Point, Provenance, Reference, Referenced, RoadEnd, RoadMark,
+    RoadMarkProvenance, RoadMarkWeight, RoadNetwork, RoadPosition, RoadSurface, RoadUser, Semantic,
+    Shape, Side, SignProvenance, SignTarget, Signal, SignalBoard, SignalProvenance, SpeedLimit,
+    Structure, StructureKind, StructureProvenance, SurfaceHint, SwitchPosition, TrackPoint,
+    VirtualJunction, Warning,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -115,14 +115,16 @@ impl Scene {
     }
 }
 
-/// Bake an OpenDRIVE document into its viewer scene. `crg` reads the
-/// OpenCRG file a `<CRG file>` names, relative to the map.
+/// Bake an OpenDRIVE document into its viewer scene. `include` reads the
+/// file an `<include>` names, and `crg` the OpenCRG file a `<CRG file>`
+/// names, each relative to the map.
 pub fn bake(
     xodr: &str,
+    include: impl FnMut(&str) -> Result<String, String>,
     mut crg: impl FnMut(&str) -> Result<CrgGrid, String>,
 ) -> Result<Scene, String> {
     let (net, provenance) =
-        load_str_with_provenance(xodr).map_err(|e| format!("import failed: {e}"))?;
+        load_str_with(xodr, include).map_err(|e| format!("import failed: {e}"))?;
     let mut notes = Vec::new();
 
     let mesh = net.surface_mesh();
