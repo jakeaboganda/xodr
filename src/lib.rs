@@ -539,8 +539,9 @@
 //! A signal's `<semantics>` say what it means, whatever its catalogue codes,
 //! as [`Signal::semantics`]: each is a [`Semantic`], such as a maximum speed
 //! of 50 km/h, a stop line, or the [`RoadUser`]s it bars. The crate keeps
-//! each kind's `type` as the file spells it, and applies none of them: a
-//! speed semantic sets no [`RoadNetwork::speed_limits`]. A child the spec
+//! each kind's `type` as the file spells it. It applies one of them, the
+//! speed semantic, which sets [`RoadNetwork::speed_limits`]. See [Speed
+//! limits and road types](#speed-limits-and-road-types). A child the spec
 //! does not name is skipped.
 //!
 //! A `<staticBoard>` or a `<vmsBoard>` makes the signal a board, as on a
@@ -1047,9 +1048,29 @@
 //! its rules. The spec's example writes its subtype `subType`, which the
 //! crate reads too, beside the schema's `subtype`.
 //!
-//! The limits come from `<speed>` records only. The spec says a speed limit
-//! sign takes precedence, but the crate does not read signs as limits. A
-//! caller that wants them can find the signs in [`RoadNetwork::signals`].
+//! A speed limit sign sets the limit, over the `<speed>` records, since the
+//! spec says "speed limits derived from signals shall always have
+//! preference". A sign, or a sign on its board, sets one with a `<speed>`
+//! semantic of type `maximum` or `zone`, and ends the one before with
+//! `maximumEnd` or `zoneEnd`. The limit runs from where the sign stands,
+//! and from each place a `<signalReference>` applies it, along each lane it
+//! applies to in the lane's direction of travel, on into the lanes after it
+//! on the same road, to the next speed sign on that lane. Where a sign's
+//! limit differs from the record it overrides, the crate raises a
+//! [`Warning::SpeedLimitDisagrees`]. The crate departs from the spec here:
+//!
+//! - The spec doesn't say how far a sign reaches, and countries' rules
+//!   differ. The crate stops it at the next speed sign or the end of the
+//!   road, and does not follow it through a junction.
+//! - A file before OpenDRIVE 1.8 has no `<semantics>`, so its signs set no
+//!   limit. The crate does not read a limit from a sign's catalogue codes,
+//!   such as Germany's `274`, which would cover one country's signs and not
+//!   the rest.
+//! - A `zone` speed is read as a `maximum` over the zone, from its sign to
+//!   its `zoneEnd`. A `minimum` or `recommended` speed sets nothing, as a
+//!   [`SpeedLimit`] is a maximum.
+//! - A two-way lane takes the direction its sign faces, `+s` for `+` and
+//!   `none`.
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:
 //!
@@ -1547,6 +1568,8 @@
 //!   `Ex_CrossFall_LeftTurn`.
 //! - [`Warning::AccessDropped`] for an `<access>` it can't read. See
 //!   [Lane rules, access and materials](#lane-rules-access-and-materials).
+//! - [`Warning::SpeedLimitDisagrees`] for a speed limit sign whose limit
+//!   differs from the record it overrides.
 //! - [`Warning::SpeedLimitDropped`] for a `<speed>` it can't read. See
 //!   [Speed limits and road types](#speed-limits-and-road-types).
 //! - [`Warning::LaneNotLevel`] for a lane outside a level lane that is not
