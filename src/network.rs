@@ -1086,7 +1086,7 @@ impl RoadNetwork {
             .find(|(od_id, _)| *od_id == lane.od_id)?;
         Some(LanePosition {
             lane: id,
-            s: at.s,
+            s: at.s.clamp(section.start, section.end),
             offset: at.t - (lane.inner_t + lane.outer_t) / 2.0,
         })
     }
