@@ -298,6 +298,10 @@ pose and size of its board.
   `dynamic`, `invalidated`, `temporary`, `hOffset`, `pitch`, `roll` and
   `length`. The crate places the sign by none of them. It wraps the three
   angles into one turn.
+- A sign's own `<validity>`, `<dependency>`s and `<reference>`s override
+  its signal's, and so do a display area's validity and dependencies, which
+  the spec's text gives it. A sign's dependency may name another sign on
+  its board.
 
 `load_*_with_provenance` gives its road, OpenDRIVE id, `(s, t)` and
 orientation.
@@ -471,8 +475,7 @@ of the document, with how many times the file uses it.
 
 Elements it skips: `<vmsGroup>`, a header's `<license>` and
 `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere. It skips
-`<userData>` anywhere but directly on an object, which it reads. It also skips the `<validity>`, `<dependency>` and
-`<reference>` of a board sign.
+`<userData>` anywhere but directly on an object, which it reads.
 
 Uses of elements it reads that it ignores:
 

@@ -56,21 +56,6 @@ const FEATURES: &[Feature] = &[
         when: repeats_a_layer,
     },
     Feature {
-        name: "<sign> <validity>",
-        path: "signals/signal/staticBoard/sign/validity",
-        when: always,
-    },
-    Feature {
-        name: "<sign> <dependency>",
-        path: "signals/signal/staticBoard/sign/dependency",
-        when: always,
-    },
-    Feature {
-        name: "<sign> <reference>",
-        path: "signals/signal/staticBoard/sign/reference",
-        when: always,
-    },
-    Feature {
         name: "<roadSection>",
         path: "roadSection",
         when: not_in_a_crossing,

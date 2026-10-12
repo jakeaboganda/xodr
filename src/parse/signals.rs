@@ -13,8 +13,8 @@ use crate::object::orient;
 use crate::road::{Road, Validity};
 use crate::{
     BoardSign, Control, Controller, ControllerId, Dependency, Direction, DisplayArea, Lane, LaneId,
-    MessageBoard, ObjectId, Reference, Referenced, RoadUser, Semantic, Signal, SignalBoard,
-    SignalId, Unit,
+    MessageBoard, ObjectId, Reference, Referenced, RoadUser, Semantic, SignDependency, SignTarget,
+    Signal, SignalBoard, SignalId, Unit,
 };
 
 /// The signals and controllers baked so far, and the provenance of each, in
@@ -244,6 +244,7 @@ fn place_signal(
     let text = |name| node.attribute(name).unwrap_or_default().to_string();
     let flag = |name| matches!(node.attribute(name), Some("true" | "1"));
     let size = |name| attr_f32(node, name);
+    let signal_lanes_here = signal_lanes(road, lanes, s, orientation, validity(node));
     let id = SignalId(out.baked.len());
     out.baked.push(Signal {
         id,
@@ -261,7 +262,7 @@ fn place_signal(
         controllers: Vec::new(),
         dependencies: Vec::new(),
         references: Vec::new(),
-        lanes: signal_lanes(road, lanes, s, orientation, validity(node)),
+        lanes: signal_lanes_here.clone(),
         applies_at: vec![road.surface(s, t).0],
         position: board.position,
         heading: angle(board.heading),
@@ -271,7 +272,13 @@ fn place_signal(
         width: size("width"),
         height: size("height"),
         semantics: semantics(node),
-        boards: boards(node, &board),
+        boards: boards(node, &board, |n| {
+            let own = validity(n);
+            match own.is_empty() {
+                true => signal_lanes_here.clone(),
+                false => signal_lanes(road, lanes, s, orientation, own),
+            }
+        }),
     });
     out.provenance.push(SignalProvenance {
         signal: id,
@@ -322,8 +329,14 @@ fn signs(node: roxmltree::Node) -> Vec<SignProvenance> {
 }
 
 /// Give `signal` the `<dependency>`s and `<reference>`s of its `<signal>`,
-/// `node`. `placed` finds a signal by its id, and `baked_from` the objects
-/// an `<object id>` baked to. A reference to an object names each of them.
+/// `node`, and each sign and display area on its boards theirs. `placed`
+/// finds a signal by its id, and `baked_from` the objects an `<object id>`
+/// baked to. A reference to an object names each of them.
+///
+/// A sign's or a display area's own `<dependency>`s and a sign's own
+/// `<reference>`s override the signal's, as the spec says. One with none
+/// takes the signal's. A sign's dependency may name a signal, or another
+/// sign on its board. Returns each link that names nothing the load baked.
 fn link<'a>(
     node: roxmltree::Node<'a, 'a>,
     placed: &HashMap<String, SignalId>,
@@ -332,8 +345,36 @@ fn link<'a>(
 ) -> Vec<(&'static str, Option<&'a str>)> {
     let text = |node: roxmltree::Node, name| node.attribute(name).unwrap_or_default().to_string();
     let named = |id: Option<&str>| id.and_then(|id| placed.get(id)).copied();
+    let children = |n: roxmltree::Node<'a, 'a>, tag: &'static str| {
+        n.children().filter(move |c| c.has_tag_name(tag))
+    };
     let mut dropped = Vec::new();
-    for dependency in node.children().filter(|n| n.has_tag_name("dependency")) {
+    let references = |n: roxmltree::Node<'a, 'a>, dropped: &mut Vec<_>| {
+        let mut out = Vec::new();
+        for reference in children(n, "reference") {
+            let id = reference.attribute("elementId");
+            let to: Vec<Referenced> = match reference.attribute("elementType") {
+                Some("signal") => named(id).map(Referenced::Signal).into_iter().collect(),
+                Some("object") => id
+                    .and_then(|id| baked_from.get(id))
+                    .into_iter()
+                    .flatten()
+                    .map(|&o| Referenced::Object(o))
+                    .collect(),
+                _ => Vec::new(),
+            };
+            if to.is_empty() {
+                dropped.push(("reference", id));
+            }
+            let kind = text(reference, "type");
+            out.extend(to.into_iter().map(|to| Reference {
+                to,
+                kind: kind.clone(),
+            }));
+        }
+        out
+    };
+    for dependency in children(node, "dependency") {
         match named(dependency.attribute("id")) {
             Some(named) => signal.dependencies.push(Dependency {
                 signal: named,
@@ -342,26 +383,73 @@ fn link<'a>(
             None => dropped.push(("dependency", dependency.attribute("id"))),
         }
     }
-    for reference in node.children().filter(|n| n.has_tag_name("reference")) {
-        let id = reference.attribute("elementId");
-        let to: Vec<Referenced> = match reference.attribute("elementType") {
-            Some("signal") => named(id).map(Referenced::Signal).into_iter().collect(),
-            Some("object") => id
-                .and_then(|id| baked_from.get(id))
-                .into_iter()
-                .flatten()
-                .map(|&o| Referenced::Object(o))
-                .collect(),
-            _ => Vec::new(),
-        };
-        if to.is_empty() {
-            dropped.push(("reference", id));
+    signal.references = references(node, &mut dropped);
+    let board_nodes = node
+        .children()
+        .filter(|b| b.has_tag_name("staticBoard") || b.has_tag_name("vmsBoard"));
+    for (b, board) in board_nodes.zip(&mut signal.boards) {
+        match board {
+            SignalBoard::Static(signs) => {
+                let sign_nodes: Vec<_> = children(b, "sign").collect();
+                let ids: Vec<Option<&str>> = sign_nodes.iter().map(|n| n.attribute("id")).collect();
+                for (n, sign) in sign_nodes.iter().zip(signs.iter_mut()) {
+                    let own: Vec<_> = children(*n, "dependency").collect();
+                    sign.dependencies = if own.is_empty() {
+                        (signal.dependencies.iter())
+                            .map(|d| SignDependency {
+                                to: SignTarget::Signal(d.signal),
+                                kind: d.kind.clone(),
+                            })
+                            .collect()
+                    } else {
+                        own.iter()
+                            .filter_map(|d| {
+                                let id = d.attribute("id");
+                                let on_board = ids.iter().position(|&i| i.is_some() && i == id);
+                                let to = match (named(id), on_board) {
+                                    (Some(s), _) => SignTarget::Signal(s),
+                                    (None, Some(k)) => SignTarget::Sign(k),
+                                    (None, None) => {
+                                        dropped.push(("dependency", id));
+                                        return None;
+                                    }
+                                };
+                                Some(SignDependency {
+                                    to,
+                                    kind: text(*d, "type"),
+                                })
+                            })
+                            .collect()
+                    };
+                    sign.references = match children(*n, "reference").next() {
+                        Some(_) => references(*n, &mut dropped),
+                        None => signal.references.clone(),
+                    };
+                }
+            }
+            SignalBoard::Message(message) => {
+                let area_nodes = children(b, "displayArea");
+                for (n, area) in area_nodes.zip(message.areas.iter_mut()) {
+                    let own: Vec<_> = children(n, "dependency").collect();
+                    area.dependencies = if own.is_empty() {
+                        signal.dependencies.clone()
+                    } else {
+                        own.iter()
+                            .filter_map(|d| match named(d.attribute("id")) {
+                                Some(named) => Some(Dependency {
+                                    signal: named,
+                                    kind: text(*d, "type"),
+                                }),
+                                None => {
+                                    dropped.push(("dependency", d.attribute("id")));
+                                    None
+                                }
+                            })
+                            .collect()
+                    };
+                }
+            }
         }
-        let kind = text(reference, "type");
-        signal.references.extend(to.into_iter().map(|to| Reference {
-            to,
-            kind: kind.clone(),
-        }));
     }
     dropped
 }
@@ -462,8 +550,14 @@ fn semantics(node: roxmltree::Node) -> Vec<Semantic> {
 
 /// `node`'s `<staticBoard>`s and `<vmsBoard>`s, in file order, placed on
 /// `board`: `v` across it, to the left of its heading, and `z` up it,
-/// turned by its heading, pitch and roll.
-fn boards(node: roxmltree::Node, board: &Board) -> Vec<SignalBoard> {
+/// turned by its heading, pitch and roll. `lanes` gives the lanes a sign or
+/// a display area applies to, from its own `<validity>` if it has any.
+/// Their dependencies and references are linked later, by [`link`].
+fn boards(
+    node: roxmltree::Node,
+    board: &Board,
+    lanes: impl Fn(roxmltree::Node) -> Vec<LaneId>,
+) -> Vec<SignalBoard> {
     let at = |n: roxmltree::Node| {
         let local = [
             0.0,
@@ -503,6 +597,9 @@ fn boards(node: roxmltree::Node, board: &Board) -> Vec<SignalBoard> {
                         position: at(sign),
                         width: size(sign, "width"),
                         height: size(sign, "height"),
+                        lanes: lanes(sign),
+                        dependencies: Vec::new(),
+                        references: Vec::new(),
                     })
                     .collect();
                 Some(SignalBoard::Static(signs))
@@ -520,6 +617,8 @@ fn boards(node: roxmltree::Node, board: &Board) -> Vec<SignalBoard> {
                             position: at(area),
                             width: size(area, "width"),
                             height: size(area, "height"),
+                            lanes: lanes(area),
+                            dependencies: Vec::new(),
                         })
                         .collect(),
                 }))

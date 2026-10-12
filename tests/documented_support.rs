@@ -63,7 +63,13 @@ fn tags_the_parser_reads() -> Vec<String> {
         VIRTUAL_JUNCTIONS,
     ] {
         // Each of these takes the tag as its first (or only) string literal.
-        for marker in ["has_tag_name(", "child(", "cubics_in(", "by_offset("] {
+        for marker in [
+            "has_tag_name(",
+            "child(",
+            "children(",
+            "cubics_in(",
+            "by_offset(",
+        ] {
             let mut rest = source;
             while let Some(at) = rest.find(marker) {
                 rest = &rest[at + marker.len()..];

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Signal boards
+
+- **Breaking:** a sign's own `<validity>`, `<dependency>`s and
+  `<reference>`s override its signal's, as the spec says.
+  `BoardSign::lanes`, `dependencies` and `references` hold the sign's own,
+  or the signal's where it gives none. A sign's dependency may name another
+  sign on its board, as `SignTarget::Sign`. A link naming nothing the load
+  baked raises `Warning::SignalLinkDropped`. The three leave the `Ignored`
+  list.
+- **Breaking:** `DisplayArea::lanes` and `dependencies`, from a display
+  area's own `<validity>` and `<dependency>`s, which the spec's text gives
+  it though its schema does not.
+
 ### Crossings
 
 - `RoadNetwork::crossings` gives each `<junction type="crossing">` as a
