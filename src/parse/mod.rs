@@ -84,17 +84,43 @@ const MAX_REPEAT_INSTANCES: f64 = 100_000.0;
 /// well under [`MAX_REPEAT_INSTANCES`] could still bake a billion.
 const MAX_OUTLINE_CORNERS: usize = 1_000_000;
 
-/// The most one load may spend on its objects, counting [`OBJECT_COST`] for
-/// each object baked and one for each corner of an outline, vertex of a
-/// skeleton and section of a continuous repeat, an `<objectReference>`
-/// counting again. The largest real map the crate is tried on spends about
-/// 1,250,000. Many repeats or references to one object could otherwise ask
-/// for gigabytes from a few kilobytes of file.
-const MAX_OBJECT_COST: usize = 5_000_000;
+/// The most objects one load bakes, an `<objectReference>` counting again.
+/// Three rows of posts every 2 m along a 60 km highway are 90,000. Many
+/// repeats or references to one object could otherwise ask for gigabytes
+/// from a few kilobytes of file.
+const MAX_OBJECTS: usize = 100_000;
 
-/// What one baked object counts toward [`MAX_OBJECT_COST`], for its own
-/// record and provenance.
-const OBJECT_COST: usize = 64;
+/// The most corners of outlines, vertices of skeletons and sections of
+/// continuous repeats one load bakes for its objects, an
+/// `<objectReference>` counting again. The 60 km A9 test field, lined with
+/// guardrails, bakes about 750,000.
+const MAX_OBJECT_PIECES: usize = 2_000_000;
+
+/// What baking objects costs: how many objects, and how many corners,
+/// vertices and sections they have. See [`MAX_OBJECTS`] and
+/// [`MAX_OBJECT_PIECES`].
+#[derive(Clone, Copy, Default)]
+struct Cost {
+    objects: usize,
+    pieces: usize,
+}
+
+impl std::ops::Add for Cost {
+    type Output = Cost;
+
+    fn add(self, o: Cost) -> Cost {
+        Cost {
+            objects: self.objects.saturating_add(o.objects),
+            pieces: self.pieces.saturating_add(o.pieces),
+        }
+    }
+}
+
+impl std::iter::Sum for Cost {
+    fn sum<I: Iterator<Item = Cost>>(iter: I) -> Cost {
+        iter.fold(Cost::default(), |a, b| a + b)
+    }
+}
 
 /// How far paint stands off the surface under it, in metres, where the map
 /// does not say: an object's `<marking>` with no `zOffset`, and a
@@ -2674,25 +2700,27 @@ struct Objects {
     baked: Vec<Object>,
     provenance: Vec<ObjectProvenance>,
     warnings: Vec<Warning>,
-    /// What placing them has spent of [`MAX_OBJECT_COST`].
-    cost: usize,
+    /// What placing them has cost so far.
+    cost: Cost,
     /// The `<surface>` CRG of each object that has one, for each solid it
     /// bakes to.
     surfaces: Vec<ObjectCrg>,
 }
 
 impl Objects {
-    /// Whether `cost` is no more than is left of [`MAX_OBJECT_COST`].
-    fn affords(&self, cost: usize) -> bool {
-        self.cost.saturating_add(cost) <= MAX_OBJECT_COST
+    /// Whether baking `cost` more stays within [`MAX_OBJECTS`] and
+    /// [`MAX_OBJECT_PIECES`].
+    fn affords(&self, cost: Cost) -> bool {
+        let total = self.cost + cost;
+        total.objects <= MAX_OBJECTS && total.pieces <= MAX_OBJECT_PIECES
     }
 
-    /// Spend `cost` of [`MAX_OBJECT_COST`], or `false`, spending nothing,
-    /// if that is more than is left.
-    fn spend(&mut self, cost: usize) -> bool {
+    /// Spend `cost`, or `false`, spending nothing, if it is more than the
+    /// load has left.
+    fn spend(&mut self, cost: Cost) -> bool {
         let fits = self.affords(cost);
         if fits {
-            self.cost += cost;
+            self.cost = self.cost + cost;
         }
         fits
     }
@@ -3166,7 +3194,10 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 outlined(st).iter().map(Part::corner_count).sum::<usize>()
             });
             if corners.saturating_mul(stations.len()) > MAX_OUTLINE_CORNERS
-                || !out.spend(stations.len() * (OBJECT_COST + corners))
+                || !out.spend(Cost {
+                    objects: stations.len(),
+                    pieces: stations.len() * corners,
+                })
             {
                 too_many.set(true);
                 continue;
@@ -3179,7 +3210,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 }
             }
         } else {
-            let most = MAX_OBJECT_COST.saturating_sub(out.cost + OBJECT_COST);
+            let most = MAX_OBJECT_PIECES.saturating_sub(out.cost.pieces);
             match sweep(repeat, &base, road, most) {
                 Ok(Some((shape, start, end))) => {
                     let part = Part::new(shape, &start, (start.s, end));
@@ -3500,17 +3531,21 @@ struct Part {
 }
 
 impl Part {
-    /// How many corners its outline has, holes included, or vertices its
-    /// skeleton has. 0 for any other shape.
-    /// What it counts toward [`MAX_OBJECT_COST`].
-    fn cost(&self) -> usize {
+    /// What baking it costs: one object, and its corners, vertices or
+    /// sections.
+    fn cost(&self) -> Cost {
         let sections = match &self.shape {
             Shape::Sweep { sections, .. } => sections.len(),
             _ => 0,
         };
-        OBJECT_COST + self.corner_count() + sections
+        Cost {
+            objects: 1,
+            pieces: self.corner_count() + sections,
+        }
     }
 
+    /// How many corners its outline has, holes included, or vertices its
+    /// skeleton has. 0 for any other shape.
     fn corner_count(&self) -> usize {
         match &self.shape {
             Shape::Outline { corners, holes, .. } => {
@@ -3641,15 +3676,21 @@ impl<'a> Repeat<'a> {
         }
     }
 
-    /// The least it can count toward [`MAX_OBJECT_COST`], known before it is
-    /// baked: an object per station, or for a continuous repeat, one object
-    /// and a section every [`SWEEP_MAX_STEP`].
-    fn least_cost(&self) -> usize {
-        let count = match self.distance > 0.0 {
-            true => (self.length / self.distance) * OBJECT_COST as f64,
-            false => OBJECT_COST as f64 + self.length / SWEEP_MAX_STEP,
-        };
-        count.min(usize::MAX as f64) as usize
+    /// The least baking it can cost, known before it is baked: an object
+    /// per station, or for a continuous repeat, one object and a section
+    /// every [`SWEEP_MAX_STEP`].
+    fn least_cost(&self) -> Cost {
+        let count = |n: f64| n.min(usize::MAX as f64) as usize;
+        match self.distance > 0.0 {
+            true => Cost {
+                objects: count(self.length / self.distance),
+                pieces: 0,
+            },
+            false => Cost {
+                objects: 1,
+                pieces: count(self.length / SWEEP_MAX_STEP),
+            },
+        }
     }
 
     /// One station every `distance` metres, both ends included, or `None` if

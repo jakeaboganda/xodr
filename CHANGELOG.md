@@ -69,11 +69,12 @@
   skipped with `RoadSkipReason::MapTooLarge`, and a road CRG past it is
   dropped. Before, an 84 KB file of one 100 km road with 1,000 lanes, or
   one with hundreds of long `<CRG>` records, used gigabytes of memory.
-- One load bakes a bounded number of objects, outline corners and sweep
-  sections, an `<objectReference>` counting again: about four times what
-  the 60 km A9 test field needs. An object past it is left out with
-  `Warning::TooManyCopies`. Before, a few kilobytes of repeats or
-  references to one object used gigabytes.
+- One load bakes at most 100,000 objects and 2,000,000 outline corners,
+  skeleton vertices and sweep sections, an `<objectReference>` counting
+  again. That is room for three rows of posts every 2 m along a 60 km
+  highway, and over twice the guardrails of the 60 km A9 test field. An
+  object past it is left out with `Warning::TooManyCopies`. Before, a few
+  kilobytes of repeats or references to one object used gigabytes.
 - A road `<CRG>` with no `file` is dropped, as its documentation said.
 
 ## 0.6.0 - 2026-10-11

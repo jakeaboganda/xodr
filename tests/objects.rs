@@ -1210,6 +1210,29 @@ fn copies_past_what_one_load_bakes_are_left_out_with_a_warning() {
 }
 
 #[test]
+fn three_rows_of_posts_along_a_long_highway_all_bake() {
+    let row = |id: u32, t: f64| {
+        format!(
+            r#"<object id="{id}" type="pole" s="0" t="{t}" height="1" radius="0.1">
+            <repeat s="0" length="60000" distance="2" tStart="{t}" tEnd="{t}"/></object>"#
+        )
+    };
+    let xodr = format!(
+        r#"<OpenDRIVE><header/><road id="1" length="60000" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="60000"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes><objects>{}{}{}</objects></road></OpenDRIVE>"#,
+        row(1, -5.0),
+        row(2, 5.0),
+        row(3, -1.0)
+    );
+    let (net, prov) = xodr::load_str_with_provenance(&xodr).unwrap();
+    assert_eq!(net.objects().len(), 3 * 30_001);
+    assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+}
+
+#[test]
 fn a_repeat_to_the_road_end_keeps_its_last_copy_on_the_road() {
     for length in ["0.3", "0.7", "1.2"] {
         let xodr = format!(
