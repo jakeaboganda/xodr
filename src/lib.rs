@@ -543,9 +543,29 @@
 //! as a [`BoardSign`], with its codes and semantics, and a variable message
 //! board its display and its [`DisplayArea`]s. Each stands where its `v` and
 //! `z` put it: across the signal's board, to the left of its heading, and
-//! up it, turned with it. A sign's own validities, links and position off
-//! the board are not read. No other reader to compare against reads any of
+//! up it, turned with it. No other reader to compare against reads any of
 //! these.
+//!
+//! A sign's own `<validity>`, `<dependency>`s and `<reference>`s override
+//! the signal's, as the spec says: [`BoardSign::lanes`],
+//! [`BoardSign::dependencies`] and [`BoardSign::references`] are the sign's
+//! own where it gives them, and the signal's where it does not. A sign's
+//! dependency may name another sign on its board, as the plates under the
+//! speed sign in the spec's example do, which a [`SignTarget::Sign`] holds.
+//! A link naming nothing the load baked is dropped with a
+//! [`Warning::SignalLinkDropped`]. The crate departs from the spec here:
+//!
+//! - A sign's own validity applies where its signal stands. The spec doesn't
+//!   say whether it applies where a `<signalReference>` applies the signal
+//!   too, and the crate leaves those places to the signal.
+//! - The spec's text gives a `<displayArea>` its own `<validity>` and
+//!   dependencies, overriding the signal's, though its schema gives it
+//!   neither. The crate reads them, as [`DisplayArea::lanes`] and
+//!   [`DisplayArea::dependencies`]. The spec's example spells the dependency
+//!   `<signalDependency>`. The crate reads `<dependency>`, as the schema
+//!   names a signal's.
+//! - A sign's position off its board, its `<positionRoad>` or
+//!   `<positionInertial>`, is not read.
 //!
 //! Each top-level `<controller>` bakes to a [`Controller`] in
 //! [`RoadNetwork::controllers`], with the signals its `<control>`s name, and
@@ -1175,8 +1195,7 @@
 //!
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
 //! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere. It
-//! skips `<userData>` anywhere but directly on an object, which it reads. It
-//! skips the `validity`, `dependency` and `reference` of a board sign.
+//! skips `<userData>` anywhere but directly on an object, which it reads.
 //!
 //! It also ignores these uses of elements it reads:
 //!
@@ -1628,6 +1647,7 @@ pub use road_mark::{
 };
 pub use signal::{
     BoardSign, Control, Controller, ControllerId, Dependency, DisplayArea, MessageBoard, Reference,
-    Referenced, RoadUser, Semantic, Signal, SignalBoard, SignalId, Unit,
+    Referenced, RoadUser, Semantic, SignDependency, SignTarget, Signal, SignalBoard, SignalId,
+    Unit,
 };
 pub use structure::{Coverage, Structure, StructureId, StructureKind};

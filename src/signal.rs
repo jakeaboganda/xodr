@@ -271,6 +271,38 @@ pub struct BoardSign {
     pub width: Option<f32>,
     /// Metres up, if the map gives it.
     pub height: Option<f32>,
+    /// The lanes it applies to: those of its own `<validity>`, which
+    /// overrides the signal's, as the spec says, or the signal's
+    /// [`Signal::lanes`] if it has none. Its own validity applies where the
+    /// signal stands, not where a `<signalReference>` applies the signal too.
+    pub lanes: Vec<LaneId>,
+    /// What it depends on: its own `<dependency>`s, which override the
+    /// signal's, or the signal's if it has none.
+    pub dependencies: Vec<SignDependency>,
+    /// What it relates to: its own `<reference>`s, which override the
+    /// signal's, or the signal's [`Signal::references`] if it has none.
+    pub references: Vec<Reference>,
+}
+
+/// A dependency of a [`BoardSign`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SignDependency {
+    /// What it names.
+    pub to: SignTarget,
+    /// What the dependency is. Free text, and empty if the map gives none.
+    pub kind: String,
+}
+
+/// What a [`SignDependency`] names: a signal, or a sign on the same board,
+/// as the spec's example of a speed sign and the plates under it does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum SignTarget {
+    /// A signal.
+    Signal(SignalId),
+    /// The sign at this position among the same board's signs.
+    Sign(usize),
 }
 
 /// A `<vmsBoard>`: a display that shows what a scenario tells it to.
@@ -301,6 +333,14 @@ pub struct DisplayArea {
     pub width: Option<f32>,
     /// Metres up, if the map gives it.
     pub height: Option<f32>,
+    /// The lanes it applies to, as a [`BoardSign`]'s, from its own
+    /// `<validity>`. The spec's text gives a display area one, though its
+    /// schema does not, and the crate reads it.
+    pub lanes: Vec<LaneId>,
+    /// What it depends on: its own `<dependency>`s, which override the
+    /// signal's, or the signal's [`Signal::dependencies`] if it has none.
+    /// Like its validity, from the spec's text.
+    pub dependencies: Vec<Dependency>,
 }
 
 /// A group of signals that always show the same state, such as the lights of

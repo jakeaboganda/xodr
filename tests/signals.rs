@@ -510,3 +510,89 @@ fn signals_and_links_the_crate_drops_raise_warnings() {
         ]
     );
 }
+
+/// The spec's static board example, section 14.7.1, on a road with lanes 1,
+/// -1 and -2, and a message board whose areas say their own lanes.
+const BOARDS: &str = r#"<OpenDRIVE><header/><road id="1" length="100" junction="-1"><planView>
+    <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+    <lanes><laneSection s="0"><left><lane id="1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane></left>
+    <center><lane id="0" type="none"/></center><right>
+    <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+    <lane id="-2" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+    </right></laneSection></lanes><signals>
+    <signal id="post" s="2" t="-9" zOffset="1" orientation="+" dynamic="no" type="206"/>
+    <signal s="4.0" t="-9" id="534" name="board" dynamic="no" orientation="+" zOffset="5.00" country="OpenDRIVE"
+            type="staticBoard" subtype="-1" height="2.0" width="1.5">
+      <validity fromLane="-2" toLane="-1"/>
+      <dependency id="post" type="mount"/>
+      <staticBoard>
+        <sign id="535" country="DE" type="274" subtype="60" v="-0.5" z="1.5" width="0.5" height="0.5" value="60" unit="km/h">
+          <validity fromLane="-2" toLane="-2"/>
+          <dependency id="536" type="plate"/>
+          <dependency id="537" type="plate"/>
+          <reference elementType="signal" elementId="post" type="stand"/>
+        </sign>
+        <sign id="536" country="DE" type="1010" subtype="51" v="-0.75" z="0.9" width="0.420" height="0.231"/>
+        <sign id="537" country="DE" type="1040" subtype="30" v="-0.75" z="0.6" width="0.420" height="0.231" value="22000600"/>
+      </staticBoard>
+      <vmsBoard displayType="LED">
+        <displayArea index="1" v="0" z="3" width="1.4" height="1.4"><validity fromLane="-1" toLane="-1"/></displayArea>
+        <displayArea index="2" v="1.5" z="3" width="1.4" height="1.4"/>
+      </vmsBoard>
+    </signal>
+    </signals></road></OpenDRIVE>"#;
+
+#[test]
+fn a_board_s_signs_and_display_areas_override_its_lanes_and_links() {
+    let (net, prov) = xodr::load_str_with_provenance(BOARDS).unwrap();
+    let lane = |od: i32| {
+        prov.lanes
+            .iter()
+            .find(|p| p.od_id == od)
+            .map(|p| p.lane)
+            .unwrap()
+    };
+    let (board, _) = find(&net, &prov, "534");
+    let (post, _) = find(&net, &prov, "post");
+    let mut lanes = board.lanes.clone();
+    lanes.sort_by_key(|l| l.0);
+    let mut want = [lane(-1), lane(-2)];
+    want.sort_by_key(|l| l.0);
+    assert_eq!(lanes, want);
+    let [xodr::SignalBoard::Static(signs), xodr::SignalBoard::Message(message)] = &board.boards[..]
+    else {
+        panic!("{:?}", board.boards);
+    };
+    assert_eq!(
+        signs[0].lanes,
+        [lane(-2)],
+        "the speed sign says its own lanes"
+    );
+    let plates: Vec<_> = signs[0].dependencies.iter().map(|d| d.to).collect();
+    assert_eq!(
+        plates,
+        [xodr::SignTarget::Sign(1), xodr::SignTarget::Sign(2)]
+    );
+    assert_eq!(
+        signs[0].references,
+        [Reference {
+            to: Referenced::Signal(post.id),
+            kind: "stand".into()
+        }]
+    );
+    assert_eq!(
+        signs[1].lanes, board.lanes,
+        "a plate takes the board's lanes"
+    );
+    assert_eq!(
+        signs[1].dependencies,
+        [xodr::SignDependency {
+            to: xodr::SignTarget::Signal(post.id),
+            kind: "mount".into()
+        }]
+    );
+    assert_eq!(message.areas[0].lanes, [lane(-1)]);
+    assert_eq!(message.areas[1].lanes, board.lanes);
+    assert_eq!(message.areas[1].dependencies, board.dependencies);
+    assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+}
