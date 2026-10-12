@@ -586,3 +586,13 @@ fn a_file_whose_lanes_add_up_past_the_budget_skips_the_roads_past_it() {
     assert_eq!(net.lanes().len(), 1);
     assert_eq!(prov.warnings, [skipped("2", RoadSkipReason::MapTooLarge)]);
 }
+
+#[test]
+fn a_negative_road_length_is_skipped_not_a_panic() {
+    let xodr = r#"<OpenDRIVE><header/><road id="1" length="-1" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    assert!(load_str(xodr).is_err());
+}

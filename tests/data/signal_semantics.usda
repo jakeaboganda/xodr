@@ -1,0 +1,378 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary xodr = {
+            int schemaVersion = 1
+        }
+    }
+    defaultPrim = "Map"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Map"
+{
+    def Scope "Roads"
+    {
+        def Scope "road_0"
+        {
+            custom string xodr:roadId = "0"
+            def Mesh "lane_0"
+            {
+                custom int xodr:section = 0
+                custom int xodr:laneId = 1
+                custom string xodr:laneType = "driving"
+                float3[] extent = [(0, 0, 0), (100, 3.5, 0)]
+                int[] faceVertexCounts = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+                int[] faceVertexIndices = [0, 1, 3, 0, 3, 2, 2, 3, 5, 2, 5, 4, 4, 5, 7, 4, 7, 6, 6, 7, 9, 6, 9, 8, 8, 9, 11, 8, 11, 10, 10, 11, 13, 10, 13, 12, 12, 13, 15, 12, 15, 14, 14, 15, 17, 14, 17, 16, 16, 17, 19, 16, 19, 18, 18, 19, 21, 18, 21, 20, 20, 21, 23, 20, 23, 22, 22, 23, 25, 22, 25, 24, 24, 25, 27, 24, 27, 26, 26, 27, 29, 26, 29, 28, 28, 29, 31, 28, 31, 30, 30, 31, 33, 30, 33, 32, 32, 33, 35, 32, 35, 34, 34, 35, 37, 34, 37, 36, 36, 37, 39, 36, 39, 38, 38, 39, 41, 38, 41, 40, 40, 41, 43, 40, 43, 42, 42, 43, 45, 42, 45, 44, 44, 45, 47, 44, 47, 46, 46, 47, 49, 46, 49, 48, 48, 49, 51, 48, 51, 50, 50, 51, 53, 50, 53, 52, 52, 53, 55, 52, 55, 54, 54, 55, 57, 54, 57, 56, 56, 57, 59, 56, 59, 58, 58, 59, 61, 58, 61, 60, 60, 61, 63, 60, 63, 62, 62, 63, 65, 62, 65, 64, 64, 65, 67, 64, 67, 66, 66, 67, 69, 66, 69, 68, 68, 69, 71, 68, 71, 70, 70, 71, 73, 70, 73, 72, 72, 73, 75, 72, 75, 74, 74, 75, 77, 74, 77, 76, 76, 77, 79, 76, 79, 78, 78, 79, 81, 78, 81, 80, 80, 81, 83, 80, 83, 82, 82, 83, 85, 82, 85, 84, 84, 85, 87, 84, 87, 86, 86, 87, 89, 86, 89, 88, 88, 89, 91, 88, 91, 90, 90, 91, 93, 90, 93, 92, 92, 93, 95, 92, 95, 94, 94, 95, 97, 94, 97, 96, 96, 97, 99, 96, 99, 98, 98, 99, 101, 98, 101, 100]
+                point3f[] points = [(0, 3.5, 0), (0, 0, 0), (2, 3.5, 0), (2, 0, 0), (4, 3.5, 0), (4, 0, 0), (6, 3.5, 0), (6, 0, 0), (8, 3.5, 0), (8, 0, 0), (10, 3.5, 0), (10, 0, 0), (12, 3.5, 0), (12, 0, 0), (14, 3.5, 0), (14, 0, 0), (16, 3.5, 0), (16, 0, 0), (18, 3.5, 0), (18, 0, 0), (20, 3.5, 0), (20, 0, 0), (22, 3.5, 0), (22, 0, 0), (24, 3.5, 0), (24, 0, 0), (26, 3.5, 0), (26, 0, 0), (28, 3.5, 0), (28, 0, 0), (30, 3.5, 0), (30, 0, 0), (32, 3.5, 0), (32, 0, 0), (34, 3.5, 0), (34, 0, 0), (36, 3.5, 0), (36, 0, 0), (38, 3.5, 0), (38, 0, 0), (40, 3.5, 0), (40, 0, 0), (42, 3.5, 0), (42, 0, 0), (44, 3.5, 0), (44, 0, 0), (46, 3.5, 0), (46, 0, 0), (48, 3.5, 0), (48, 0, 0), (50, 3.5, 0), (50, 0, 0), (52, 3.5, 0), (52, 0, 0), (54, 3.5, 0), (54, 0, 0), (56, 3.5, 0), (56, 0, 0), (58, 3.5, 0), (58, 0, 0), (60, 3.5, 0), (60, 0, 0), (62, 3.5, 0), (62, 0, 0), (64, 3.5, 0), (64, 0, 0), (66, 3.5, 0), (66, 0, 0), (68, 3.5, 0), (68, 0, 0), (70, 3.5, 0), (70, 0, 0), (72, 3.5, 0), (72, 0, 0), (74, 3.5, 0), (74, 0, 0), (76, 3.5, 0), (76, 0, 0), (78, 3.5, 0), (78, 0, 0), (80, 3.5, 0), (80, 0, 0), (82, 3.5, 0), (82, 0, 0), (84, 3.5, 0), (84, 0, 0), (86, 3.5, 0), (86, 0, 0), (88, 3.5, 0), (88, 0, 0), (90, 3.5, 0), (90, 0, 0), (92, 3.5, 0), (92, 0, 0), (94, 3.5, 0), (94, 0, 0), (96, 3.5, 0), (96, 0, 0), (98, 3.5, 0), (98, 0, 0), (100, 3.5, 0), (100, 0, 0)]
+                normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+                    interpolation = "vertex"
+                )
+                color3f[] primvars:displayColor = [(0.2, 0.2, 0.2)] (
+                    interpolation = "constant"
+                )
+                uniform token subdivisionScheme = "none"
+            }
+            def Mesh "lane_1"
+            {
+                custom int xodr:section = 0
+                custom int xodr:laneId = -1
+                custom string xodr:laneType = "driving"
+                float3[] extent = [(0, -3.5, 0), (100, 0, 0)]
+                int[] faceVertexCounts = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+                int[] faceVertexIndices = [0, 1, 3, 0, 3, 2, 2, 3, 5, 2, 5, 4, 4, 5, 7, 4, 7, 6, 6, 7, 9, 6, 9, 8, 8, 9, 11, 8, 11, 10, 10, 11, 13, 10, 13, 12, 12, 13, 15, 12, 15, 14, 14, 15, 17, 14, 17, 16, 16, 17, 19, 16, 19, 18, 18, 19, 21, 18, 21, 20, 20, 21, 23, 20, 23, 22, 22, 23, 25, 22, 25, 24, 24, 25, 27, 24, 27, 26, 26, 27, 29, 26, 29, 28, 28, 29, 31, 28, 31, 30, 30, 31, 33, 30, 33, 32, 32, 33, 35, 32, 35, 34, 34, 35, 37, 34, 37, 36, 36, 37, 39, 36, 39, 38, 38, 39, 41, 38, 41, 40, 40, 41, 43, 40, 43, 42, 42, 43, 45, 42, 45, 44, 44, 45, 47, 44, 47, 46, 46, 47, 49, 46, 49, 48, 48, 49, 51, 48, 51, 50, 50, 51, 53, 50, 53, 52, 52, 53, 55, 52, 55, 54, 54, 55, 57, 54, 57, 56, 56, 57, 59, 56, 59, 58, 58, 59, 61, 58, 61, 60, 60, 61, 63, 60, 63, 62, 62, 63, 65, 62, 65, 64, 64, 65, 67, 64, 67, 66, 66, 67, 69, 66, 69, 68, 68, 69, 71, 68, 71, 70, 70, 71, 73, 70, 73, 72, 72, 73, 75, 72, 75, 74, 74, 75, 77, 74, 77, 76, 76, 77, 79, 76, 79, 78, 78, 79, 81, 78, 81, 80, 80, 81, 83, 80, 83, 82, 82, 83, 85, 82, 85, 84, 84, 85, 87, 84, 87, 86, 86, 87, 89, 86, 89, 88, 88, 89, 91, 88, 91, 90, 90, 91, 93, 90, 93, 92, 92, 93, 95, 92, 95, 94, 94, 95, 97, 94, 97, 96, 96, 97, 99, 96, 99, 98, 98, 99, 101, 98, 101, 100]
+                point3f[] points = [(0, 0, 0), (0, -3.5, 0), (2, 0, 0), (2, -3.5, 0), (4, 0, 0), (4, -3.5, 0), (6, 0, 0), (6, -3.5, 0), (8, 0, 0), (8, -3.5, 0), (10, 0, 0), (10, -3.5, 0), (12, 0, 0), (12, -3.5, 0), (14, 0, 0), (14, -3.5, 0), (16, 0, 0), (16, -3.5, 0), (18, 0, 0), (18, -3.5, 0), (20, 0, 0), (20, -3.5, 0), (22, 0, 0), (22, -3.5, 0), (24, 0, 0), (24, -3.5, 0), (26, 0, 0), (26, -3.5, 0), (28, 0, 0), (28, -3.5, 0), (30, 0, 0), (30, -3.5, 0), (32, 0, 0), (32, -3.5, 0), (34, 0, 0), (34, -3.5, 0), (36, 0, 0), (36, -3.5, 0), (38, 0, 0), (38, -3.5, 0), (40, 0, 0), (40, -3.5, 0), (42, 0, 0), (42, -3.5, 0), (44, 0, 0), (44, -3.5, 0), (46, 0, 0), (46, -3.5, 0), (48, 0, 0), (48, -3.5, 0), (50, 0, 0), (50, -3.5, 0), (52, 0, 0), (52, -3.5, 0), (54, 0, 0), (54, -3.5, 0), (56, 0, 0), (56, -3.5, 0), (58, 0, 0), (58, -3.5, 0), (60, 0, 0), (60, -3.5, 0), (62, 0, 0), (62, -3.5, 0), (64, 0, 0), (64, -3.5, 0), (66, 0, 0), (66, -3.5, 0), (68, 0, 0), (68, -3.5, 0), (70, 0, 0), (70, -3.5, 0), (72, 0, 0), (72, -3.5, 0), (74, 0, 0), (74, -3.5, 0), (76, 0, 0), (76, -3.5, 0), (78, 0, 0), (78, -3.5, 0), (80, 0, 0), (80, -3.5, 0), (82, 0, 0), (82, -3.5, 0), (84, 0, 0), (84, -3.5, 0), (86, 0, 0), (86, -3.5, 0), (88, 0, 0), (88, -3.5, 0), (90, 0, 0), (90, -3.5, 0), (92, 0, 0), (92, -3.5, 0), (94, 0, 0), (94, -3.5, 0), (96, 0, 0), (96, -3.5, 0), (98, 0, 0), (98, -3.5, 0), (100, 0, 0), (100, -3.5, 0)]
+                normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+                    interpolation = "vertex"
+                )
+                color3f[] primvars:displayColor = [(0.2, 0.2, 0.2)] (
+                    interpolation = "constant"
+                )
+                uniform token subdivisionScheme = "none"
+            }
+        }
+    }
+    def Scope "RoadMarks"
+    {
+    }
+    def Scope "Objects"
+    {
+    }
+    def Scope "Supports"
+    {
+        def Mesh "support_0"
+        {
+            custom bool xodr:synthesized = 1
+            float3[] extent = [(10.01, -5.04, 0), (10.09, -4.96, 2.3)]
+            int[] faceVertexCounts = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+            int[] faceVertexIndices = [0, 1, 13, 0, 13, 12, 1, 2, 14, 1, 14, 13, 2, 3, 15, 2, 15, 14, 3, 4, 16, 3, 16, 15, 4, 5, 17, 4, 17, 16, 5, 6, 18, 5, 18, 17, 6, 7, 19, 6, 19, 18, 7, 8, 20, 7, 20, 19, 8, 9, 21, 8, 21, 20, 9, 10, 22, 9, 22, 21, 10, 11, 23, 10, 23, 22, 11, 0, 12, 11, 12, 23, 24, 25, 26, 24, 26, 27, 24, 27, 28, 24, 28, 29, 24, 29, 30, 24, 30, 31, 24, 31, 32, 24, 32, 33, 24, 33, 34, 24, 34, 35]
+            point3f[] points = [(10.05, -5.04, 0), (10.070001, -5.034641, 0), (10.084641, -5.02, 0), (10.09, -5, 0), (10.084641, -4.98, 0), (10.070001, -4.965359, 0), (10.05, -4.96, 0), (10.03, -4.965359, 0), (10.015359, -4.98, 0), (10.01, -5, 0), (10.015359, -5.02, 0), (10.03, -5.034641, 0), (10.05, -5.04, 2.3), (10.070001, -5.034641, 2.3), (10.084641, -5.02, 2.3), (10.09, -5, 2.3), (10.084641, -4.98, 2.3), (10.070001, -4.965359, 2.3), (10.05, -4.96, 2.3), (10.03, -4.965359, 2.3), (10.015359, -4.98, 2.3), (10.01, -5, 2.3), (10.015359, -5.02, 2.3), (10.03, -5.034641, 2.3), (10.05, -5.04, 2.3), (10.070001, -5.034641, 2.3), (10.084641, -5.02, 2.3), (10.09, -5, 2.3), (10.084641, -4.98, 2.3), (10.070001, -4.965359, 2.3), (10.05, -4.96, 2.3), (10.03, -4.965359, 2.3), (10.015359, -4.98, 2.3), (10.01, -5, 2.3), (10.015359, -5.02, 2.3), (10.03, -5.034641, 2.3)]
+            normal3f[] normals = [(0, -1, 0), (0.5, -0.8660254, 0), (0.86602545, -0.49999997, 0), (1, 0.00000004371139, 0), (0.8660254, 0.50000006, 0), (0.49999982, 0.8660255, 0), (-0.00000008742278, 1, -0), (-0.5000002, 0.86602527, -0), (-0.86602545, 0.4999999, -0), (-1, -0.000000011924881, 0), (-0.8660252, -0.50000036, 0), (-0.49999976, -0.86602557, 0), (0, -1, 0), (0.5, -0.8660254, 0), (0.86602545, -0.49999997, 0), (1, 0.00000004371139, 0), (0.8660254, 0.50000006, 0), (0.49999982, 0.8660255, 0), (-0.00000008742278, 1, -0), (-0.5000002, 0.86602527, -0), (-0.86602545, 0.4999999, -0), (-1, -0.000000011924881, 0), (-0.8660252, -0.50000036, 0), (-0.49999976, -0.86602557, 0), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+                interpolation = "vertex"
+            )
+            color3f[] primvars:displayColor = [(0.5, 0.5, 0.5)] (
+                interpolation = "constant"
+            )
+            uniform token subdivisionScheme = "none"
+        }
+        def Mesh "support_1"
+        {
+            custom bool xodr:synthesized = 1
+            float3[] extent = [(30.009998, -5.04, 0), (30.09, -4.96, 5.3)]
+            int[] faceVertexCounts = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+            int[] faceVertexIndices = [0, 1, 13, 0, 13, 12, 1, 2, 14, 1, 14, 13, 2, 3, 15, 2, 15, 14, 3, 4, 16, 3, 16, 15, 4, 5, 17, 4, 17, 16, 5, 6, 18, 5, 18, 17, 6, 7, 19, 6, 19, 18, 7, 8, 20, 7, 20, 19, 8, 9, 21, 8, 21, 20, 9, 10, 22, 9, 22, 21, 10, 11, 23, 10, 23, 22, 11, 0, 12, 11, 12, 23, 24, 25, 26, 24, 26, 27, 24, 27, 28, 24, 28, 29, 24, 29, 30, 24, 30, 31, 24, 31, 32, 24, 32, 33, 24, 33, 34, 24, 34, 35]
+            point3f[] points = [(30.05, -5.04, 0), (30.07, -5.034641, 0), (30.08464, -5.02, 0), (30.09, -5, 0), (30.08464, -4.98, 0), (30.07, -4.965359, 0), (30.05, -4.96, 0), (30.029999, -4.965359, 0), (30.015358, -4.98, 0), (30.009998, -5, 0), (30.015358, -5.02, 0), (30.029999, -5.034641, 0), (30.05, -5.04, 5.3), (30.07, -5.034641, 5.3), (30.08464, -5.02, 5.3), (30.09, -5, 5.3), (30.08464, -4.98, 5.3), (30.07, -4.965359, 5.3), (30.05, -4.96, 5.3), (30.029999, -4.965359, 5.3), (30.015358, -4.98, 5.3), (30.009998, -5, 5.3), (30.015358, -5.02, 5.3), (30.029999, -5.034641, 5.3), (30.05, -5.04, 5.3), (30.07, -5.034641, 5.3), (30.08464, -5.02, 5.3), (30.09, -5, 5.3), (30.08464, -4.98, 5.3), (30.07, -4.965359, 5.3), (30.05, -4.96, 5.3), (30.029999, -4.965359, 5.3), (30.015358, -4.98, 5.3), (30.009998, -5, 5.3), (30.015358, -5.02, 5.3), (30.029999, -5.034641, 5.3)]
+            normal3f[] normals = [(0, -1, 0), (0.5, -0.8660254, 0), (0.86602545, -0.49999997, 0), (1, 0.00000004371139, 0), (0.8660254, 0.50000006, 0), (0.49999982, 0.8660255, 0), (-0.00000008742278, 1, -0), (-0.5000002, 0.86602527, -0), (-0.86602545, 0.4999999, -0), (-1, -0.000000011924881, 0), (-0.8660252, -0.50000036, 0), (-0.49999976, -0.86602557, 0), (0, -1, 0), (0.5, -0.8660254, 0), (0.86602545, -0.49999997, 0), (1, 0.00000004371139, 0), (0.8660254, 0.50000006, 0), (0.49999982, 0.8660255, 0), (-0.00000008742278, 1, -0), (-0.5000002, 0.86602527, -0), (-0.86602545, 0.4999999, -0), (-1, -0.000000011924881, 0), (-0.8660252, -0.50000036, 0), (-0.49999976, -0.86602557, 0), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+                interpolation = "vertex"
+            )
+            color3f[] primvars:displayColor = [(0.5, 0.5, 0.5)] (
+                interpolation = "constant"
+            )
+            uniform token subdivisionScheme = "none"
+        }
+        def Mesh "support_2"
+        {
+            custom bool xodr:synthesized = 1
+            float3[] extent = [(60.01, -5.04, 0), (60.09, -4.96, 5.3)]
+            int[] faceVertexCounts = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+            int[] faceVertexIndices = [0, 1, 13, 0, 13, 12, 1, 2, 14, 1, 14, 13, 2, 3, 15, 2, 15, 14, 3, 4, 16, 3, 16, 15, 4, 5, 17, 4, 17, 16, 5, 6, 18, 5, 18, 17, 6, 7, 19, 6, 19, 18, 7, 8, 20, 7, 20, 19, 8, 9, 21, 8, 21, 20, 9, 10, 22, 9, 22, 21, 10, 11, 23, 10, 23, 22, 11, 0, 12, 11, 12, 23, 24, 25, 26, 24, 26, 27, 24, 27, 28, 24, 28, 29, 24, 29, 30, 24, 30, 31, 24, 31, 32, 24, 32, 33, 24, 33, 34, 24, 34, 35]
+            point3f[] points = [(60.05, -5.04, 0), (60.07, -5.034641, 0), (60.08464, -5.02, 0), (60.09, -5, 0), (60.08464, -4.98, 0), (60.07, -4.965359, 0), (60.05, -4.96, 0), (60.03, -4.965359, 0), (60.015358, -4.98, 0), (60.01, -5, 0), (60.015358, -5.02, 0), (60.03, -5.034641, 0), (60.05, -5.04, 5.3), (60.07, -5.034641, 5.3), (60.08464, -5.02, 5.3), (60.09, -5, 5.3), (60.08464, -4.98, 5.3), (60.07, -4.965359, 5.3), (60.05, -4.96, 5.3), (60.03, -4.965359, 5.3), (60.015358, -4.98, 5.3), (60.01, -5, 5.3), (60.015358, -5.02, 5.3), (60.03, -5.034641, 5.3), (60.05, -5.04, 5.3), (60.07, -5.034641, 5.3), (60.08464, -5.02, 5.3), (60.09, -5, 5.3), (60.08464, -4.98, 5.3), (60.07, -4.965359, 5.3), (60.05, -4.96, 5.3), (60.03, -4.965359, 5.3), (60.015358, -4.98, 5.3), (60.01, -5, 5.3), (60.015358, -5.02, 5.3), (60.03, -5.034641, 5.3)]
+            normal3f[] normals = [(0, -1, 0), (0.5, -0.8660254, 0), (0.86602545, -0.49999997, 0), (1, 0.00000004371139, 0), (0.8660254, 0.50000006, 0), (0.49999982, 0.8660255, 0), (-0.00000008742278, 1, -0), (-0.5000002, 0.86602527, -0), (-0.86602545, 0.4999999, -0), (-1, -0.000000011924881, 0), (-0.8660252, -0.50000036, 0), (-0.49999976, -0.86602557, 0), (0, -1, 0), (0.5, -0.8660254, 0), (0.86602545, -0.49999997, 0), (1, 0.00000004371139, 0), (0.8660254, 0.50000006, 0), (0.49999982, 0.8660255, 0), (-0.00000008742278, 1, -0), (-0.5000002, 0.86602527, -0), (-0.86602545, 0.4999999, -0), (-1, -0.000000011924881, 0), (-0.8660252, -0.50000036, 0), (-0.49999976, -0.86602557, 0), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+                interpolation = "vertex"
+            )
+            color3f[] primvars:displayColor = [(0.5, 0.5, 0.5)] (
+                interpolation = "constant"
+            )
+            uniform token subdivisionScheme = "none"
+        }
+    }
+    def Scope "Signals"
+    {
+        def Xform "signal_0"
+        {
+            custom string xodr:name = ""
+            custom string xodr:country = "DE"
+            custom string xodr:countryRevision = ""
+            custom string xodr:type = "274"
+            custom string xodr:subtype = "-1"
+            custom string xodr:text = ""
+            custom bool xodr:dynamic = 0
+            custom bool xodr:invalidated = 0
+            custom bool xodr:temporary = 0
+            custom bool xodr:sizeGuessed = 0
+            custom string xodr:signalId = "1"
+            custom string xodr:roadId = "0"
+            custom double xodr:s = 10
+            custom double xodr:t = -5
+            custom token xodr:orientation = "+"
+            custom token xodr:support = "synthesized"
+            rel xodr:supportPrim = [</Map/Supports/support_0>]
+            custom point3f[] xodr:appliesAt = [(10, -5, 0)]
+            rel xodr:lanes = [</Map/Roads/road_0/lane_1>]
+            double3 xformOp:translate = (10, -5, 2)
+            float3 xformOp:rotateXYZ = (0, 0, 180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+            def Xform "board" (
+                inherits = </_SignalTypes/DE_274__1>
+                prepend apiSchemas = ["SemanticsLabelsAPI:opendrive", "SemanticsLabelsAPI:meaning"]
+            )
+            {
+                token[] semantics:labels:opendrive = ["DE:274:-1"]
+                token[] semantics:labels:meaning = ["speed:maximum", "supplementaryAllows"]
+                float3 xformOp:scale = (1, 0.6, 0.6)
+                uniform token[] xformOpOrder = ["xformOp:scale"]
+            }
+        }
+        def Xform "signal_1"
+        {
+            custom string xodr:name = ""
+            custom string xodr:country = "DE"
+            custom string xodr:countryRevision = ""
+            custom string xodr:type = "274"
+            custom string xodr:subtype = "-1"
+            custom string xodr:text = ""
+            custom bool xodr:dynamic = 0
+            custom bool xodr:invalidated = 0
+            custom bool xodr:temporary = 0
+            custom bool xodr:sizeGuessed = 0
+            custom string xodr:signalId = "2"
+            custom string xodr:roadId = "0"
+            custom double xodr:s = 30
+            custom double xodr:t = -5
+            custom token xodr:orientation = "+"
+            custom token xodr:support = "synthesized"
+            rel xodr:supportPrim = [</Map/Supports/support_1>]
+            custom point3f[] xodr:appliesAt = [(30, -5, 0)]
+            rel xodr:lanes = [</Map/Roads/road_0/lane_1>]
+            double3 xformOp:translate = (30, -5, 5)
+            float3 xformOp:rotateXYZ = (0, 0, 180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+            def Xform "board" (
+                inherits = </_SignalTypes/DE_274__1>
+                prepend apiSchemas = ["SemanticsLabelsAPI:opendrive"]
+            )
+            {
+                token[] semantics:labels:opendrive = ["DE:274:-1"]
+                float3 xformOp:scale = (1, 0.6, 0.6)
+                uniform token[] xformOpOrder = ["xformOp:scale"]
+            }
+            def Xform "sign_0_0" (
+                inherits = </_SignalTypes/DE_274_60>
+                prepend apiSchemas = ["SemanticsLabelsAPI:opendrive", "SemanticsLabelsAPI:meaning"]
+            )
+            {
+                custom string xodr:name = ""
+                custom string xodr:country = ""
+                custom string xodr:type = "274"
+                custom string xodr:subtype = "60"
+                custom string xodr:text = ""
+                custom double xodr:value = 60
+                custom string xodr:unit = "km/h"
+                token[] semantics:labels:opendrive = ["DE:274:60"]
+                token[] semantics:labels:meaning = ["speed:maximum"]
+                double3 xformOp:translate = (0.010000087, 1, 0.5)
+                float3 xformOp:scale = (1, 0.8, 0.8)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+            def Xform "sign_0_1" (
+                inherits = </_SignalTypes/DE_253_>
+                prepend apiSchemas = ["SemanticsLabelsAPI:opendrive", "SemanticsLabelsAPI:meaning"]
+            )
+            {
+                custom string xodr:name = ""
+                custom string xodr:country = ""
+                custom string xodr:type = "253"
+                custom string xodr:subtype = ""
+                custom string xodr:text = ""
+                token[] semantics:labels:opendrive = ["DE:253:"]
+                token[] semantics:labels:meaning = ["prohibited"]
+                double3 xformOp:translate = (0.009999912, -1, 0.5)
+                float3 xformOp:scale = (1, 0.6, 0.6)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+        def Xform "signal_2"
+        {
+            custom string xodr:name = ""
+            custom string xodr:country = "DE"
+            custom string xodr:countryRevision = ""
+            custom string xodr:type = "274"
+            custom string xodr:subtype = "-1"
+            custom string xodr:text = ""
+            custom bool xodr:dynamic = 1
+            custom bool xodr:invalidated = 0
+            custom bool xodr:temporary = 0
+            custom bool xodr:sizeGuessed = 0
+            custom string xodr:signalId = "3"
+            custom string xodr:roadId = "0"
+            custom double xodr:s = 60
+            custom double xodr:t = -5
+            custom token xodr:orientation = "+"
+            custom token xodr:support = "synthesized"
+            rel xodr:supportPrim = [</Map/Supports/support_2>]
+            custom point3f[] xodr:appliesAt = [(60, -5, 0)]
+            rel xodr:lanes = [</Map/Roads/road_0/lane_1>]
+            double3 xformOp:translate = (60, -5, 5)
+            float3 xformOp:rotateXYZ = (0, 0, 180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+            def Xform "board" (
+                inherits = </_SignalTypes/DE_274__1>
+                prepend apiSchemas = ["SemanticsLabelsAPI:opendrive"]
+            )
+            {
+                token[] semantics:labels:opendrive = ["DE:274:-1"]
+                float3 xformOp:scale = (1, 0.6, 0.6)
+                uniform token[] xformOpOrder = ["xformOp:scale"]
+            }
+            def Xform "display_0"
+            {
+                custom string xodr:display = "LED"
+                def Mesh "screen"
+                {
+                    float3[] extent = [(0.01, -2, 0), (0.01, 2, 2)]
+                    int[] faceVertexCounts = [4]
+                    int[] faceVertexIndices = [0, 1, 2, 3]
+                    point3f[] points = [(0.01, -2, 0), (0.01, 2, 0), (0.01, 2, 2), (0.01, -2, 2)]
+                    color3f[] primvars:displayColor = [(0.1, 0.1, 0.1)] (
+                        interpolation = "constant"
+                    )
+                    uniform bool doubleSided = 1
+                    uniform token subdivisionScheme = "none"
+                }
+                def Mesh "area_0"
+                {
+                    custom int xodr:index = 0
+                    float3[] extent = [(0.019999912, -1.75, 0.5), (0.019999912, -0.25, 2)]
+                    int[] faceVertexCounts = [4]
+                    int[] faceVertexIndices = [0, 1, 2, 3]
+                    point3f[] points = [(0.019999912, -1.75, 0.5), (0.019999912, -0.25, 0.5), (0.019999912, -0.25, 2), (0.019999912, -1.75, 2)]
+                    color3f[] primvars:displayColor = [(0.25, 0.25, 0.25)] (
+                        interpolation = "constant"
+                    )
+                    uniform bool doubleSided = 1
+                    uniform token subdivisionScheme = "none"
+                }
+                def Mesh "area_1"
+                {
+                    custom int xodr:index = 1
+                    float3[] extent = [(0.020000087, 0.25, 0.5), (0.020000087, 1.75, 2)]
+                    int[] faceVertexCounts = [4]
+                    int[] faceVertexIndices = [0, 1, 2, 3]
+                    point3f[] points = [(0.020000087, 0.25, 0.5), (0.020000087, 1.75, 0.5), (0.020000087, 1.75, 2), (0.020000087, 0.25, 2)]
+                    color3f[] primvars:displayColor = [(0.25, 0.25, 0.25)] (
+                        interpolation = "constant"
+                    )
+                    uniform bool doubleSided = 1
+                    uniform token subdivisionScheme = "none"
+                }
+            }
+        }
+        def Xform "signal_3"
+        {
+            custom string xodr:name = ""
+            custom string xodr:country = "DE"
+            custom string xodr:countryRevision = ""
+            custom string xodr:type = "274"
+            custom string xodr:subtype = "-1"
+            custom string xodr:text = ""
+            custom bool xodr:dynamic = 0
+            custom bool xodr:invalidated = 0
+            custom bool xodr:temporary = 0
+            custom bool xodr:sizeGuessed = 0
+            custom string xodr:signalId = "4"
+            custom string xodr:roadId = "0"
+            custom double xodr:s = 80
+            custom double xodr:t = 0
+            custom token xodr:orientation = "+"
+            custom token xodr:support = "none"
+            custom point3f[] xodr:appliesAt = [(80, 0, 0)]
+            rel xodr:lanes = [</Map/Roads/road_0/lane_1>]
+            double3 xformOp:translate = (80, 0, 0)
+            float3 xformOp:rotateXYZ = (0, 0, 180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+            def Xform "board" (
+                inherits = </_SignalTypes/DE_274__1>
+                prepend apiSchemas = ["SemanticsLabelsAPI:opendrive", "SemanticsLabelsAPI:meaning"]
+            )
+            {
+                token[] semantics:labels:opendrive = ["DE:274:-1"]
+                token[] semantics:labels:meaning = ["priority:stopLine"]
+                float3 xformOp:scale = (1, 0.6, 0.6)
+                uniform token[] xformOpOrder = ["xformOp:scale"]
+            }
+        }
+    }
+    def Scope "Controllers"
+    {
+    }
+}
+
+class "_SignalTypes"
+{
+    class Xform "DE_253_"
+    {
+        def Mesh "Board"
+        {
+            float3[] extent = [(0, -0.5, 0), (0, 0.5, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(0, -0.5, 0), (0, 0.5, 0), (0, 0.5, 1), (0, -0.5, 1)]
+            color3f[] primvars:displayColor = [(0.7, 0.7, 0.7)] (
+                interpolation = "constant"
+            )
+            uniform bool doubleSided = 1
+            uniform token subdivisionScheme = "none"
+        }
+    }
+    class Xform "DE_274_60"
+    {
+        def Mesh "Board"
+        {
+            float3[] extent = [(0, -0.5, 0), (0, 0.5, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(0, -0.5, 0), (0, 0.5, 0), (0, 0.5, 1), (0, -0.5, 1)]
+            color3f[] primvars:displayColor = [(0.7, 0.7, 0.7)] (
+                interpolation = "constant"
+            )
+            uniform bool doubleSided = 1
+            uniform token subdivisionScheme = "none"
+        }
+    }
+    class Xform "DE_274__1"
+    {
+        def Mesh "Board"
+        {
+            float3[] extent = [(0, -0.5, 0), (0, 0.5, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(0, -0.5, 0), (0, 0.5, 0), (0, 0.5, 1), (0, -0.5, 1)]
+            color3f[] primvars:displayColor = [(0.7, 0.7, 0.7)] (
+                interpolation = "constant"
+            )
+            uniform bool doubleSided = 1
+            uniform token subdivisionScheme = "none"
+        }
+    }
+}

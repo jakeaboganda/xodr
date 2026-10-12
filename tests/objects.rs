@@ -1192,3 +1192,39 @@ fn a_marking_of_the_object_paints_only_the_first_outline_with_its_corners() {
     let painted: Vec<usize> = net.objects().iter().map(|o| o.markings.len()).collect();
     assert_eq!(painted, [1, 0]);
 }
+
+#[test]
+fn copies_past_what_one_load_bakes_are_left_out_with_a_warning() {
+    let posts = r#"<object id="posts" type="pole" s="0" t="-5" height="1" radius="0.1">
+        <repeat s="0" length="60" distance="0.001"/></object>
+        <objectReference id="posts" s="0" t="5" orientation="none"/>"#;
+    let (net, prov) = xodr::load_str_with_provenance(&on_straight_road(posts)).unwrap();
+    assert_eq!(net.objects().len(), 60_001, "the first placement fits");
+    assert_eq!(
+        prov.warnings,
+        [xodr::Warning::TooManyCopies {
+            road_id: "1".into(),
+            object_id: "posts".into(),
+        }]
+    );
+}
+
+#[test]
+fn a_repeat_to_the_road_end_keeps_its_last_copy_on_the_road() {
+    for length in ["0.3", "0.7", "1.2"] {
+        let xodr = format!(
+            r#"<OpenDRIVE><header/><road id="1" length="{length}" junction="-1"><planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="{length}"><line/></geometry></planView>
+            <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+            <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+            </right></laneSection></lanes><objects>
+            <object id="p" type="pole" s="0" t="-5" height="1" radius="0.1">
+            <repeat s="0" length="{length}" distance="0.1" tStart="-5" tEnd="-5"/></object>
+            </objects></road></OpenDRIVE>"#
+        );
+        let (net, prov) = xodr::load_str_with_provenance(&xodr).unwrap();
+        let want = (length.parse::<f64>().unwrap() / 0.1).round() as usize + 1;
+        assert_eq!(net.objects().len(), want, "length {length}");
+        assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+    }
+}
