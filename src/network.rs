@@ -16,7 +16,7 @@ use crate::object::{Material, Object, ObjectId};
 use crate::railway::{Station, Switch};
 use crate::road::{LanePosition, Priority, Road, RoadId, RoadLane, RoadNeighbor, RoadPosition};
 use crate::road_mark::{RoadMark, RoadMarkId};
-use crate::signal::{Controller, ControllerId, Signal, SignalId};
+use crate::signal::{Controller, ControllerId, Signal, SignalId, VmsGroup};
 use crate::structure::{Coverage, Structure, StructureId};
 
 /// An opaque lane identifier. **Not** a vector index into `RoadNetwork.lanes`.
@@ -373,6 +373,7 @@ pub struct RoadNetwork {
     structures: Vec<Structure>,
     signals: Vec<Signal>,
     controllers: Vec<Controller>,
+    vms_groups: Vec<VmsGroup>,
     road_marks: Vec<RoadMark>,
     crg: Vec<CrgSurface>,
     speed_limits: Vec<Along<SpeedLimit>>,
@@ -419,6 +420,7 @@ impl PartialEq for RoadNetwork {
             && self.structures == other.structures
             && self.signals == other.signals
             && self.controllers == other.controllers
+            && self.vms_groups == other.vms_groups
             && self.road_marks == other.road_marks
             && self.crg == other.crg
             && self.speed_limits == other.speed_limits
@@ -452,6 +454,8 @@ struct NetworkData {
     structures: Vec<Structure>,
     signals: Vec<Signal>,
     controllers: Vec<Controller>,
+    #[serde(default)]
+    vms_groups: Vec<VmsGroup>,
     road_marks: Vec<RoadMark>,
     crg: Vec<CrgSurface>,
     speed_limits: Vec<Along<SpeedLimit>>,
@@ -500,6 +504,7 @@ impl From<NetworkData> for RoadNetwork {
             .with_structures(data.structures)
             .with_signals(data.signals)
             .with_controllers(data.controllers)
+            .with_vms_groups(data.vms_groups)
             .with_road_marks(data.road_marks)
             .with_crg_surfaces(data.crg)
             .with_speed_limits(data.speed_limits)
@@ -532,6 +537,7 @@ impl From<RoadNetwork> for NetworkData {
             structures: net.structures,
             signals: net.signals,
             controllers: net.controllers,
+            vms_groups: net.vms_groups,
             road_marks: net.road_marks,
             crg: net.crg,
             speed_limits: net.speed_limits,
@@ -740,6 +746,7 @@ impl RoadNetwork {
             structures: Vec::new(),
             signals: Vec::new(),
             controllers: Vec::new(),
+            vms_groups: Vec::new(),
             road_marks: Vec::new(),
             crg: Vec::new(),
             speed_limits: Vec::new(),
@@ -1181,6 +1188,18 @@ impl RoadNetwork {
     pub fn with_signals(mut self, signals: Vec<Signal>) -> Self {
         self.signals = signals;
         self
+    }
+
+    /// This network with `vms_groups` over its signals, replacing any it
+    /// had.
+    pub fn with_vms_groups(mut self, vms_groups: Vec<VmsGroup>) -> Self {
+        self.vms_groups = vms_groups;
+        self
+    }
+
+    /// Every group of variable message boards on one gantry, in file order.
+    pub fn vms_groups(&self) -> &[VmsGroup] {
+        &self.vms_groups
     }
 
     /// This network with `controllers` over its signals, replacing any it

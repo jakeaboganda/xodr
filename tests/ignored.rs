@@ -37,7 +37,6 @@ fn every_ignored_feature_is_counted_where_the_file_uses_it() {
         of("", "", "<dataQuality>", 1),
         of("", "", "<license>", 1),
         of("", "", "<defaultRegulations>", 1),
-        of("", "", "<vmsGroup>", 1),
         of("", "100", "<roadSection>", 2),
         of("1", "", "<userData>", 3),
         of("1", "", "<include>", 1),
@@ -86,7 +85,7 @@ fn only_the_ignored_warnings_say_they_are() {
         .iter()
         .filter(|w| w.is_ignored())
         .count();
-    assert_eq!(ignored, 13);
+    assert_eq!(ignored, 12);
     assert!(
         provenance.warnings.len() > ignored,
         "the fixture's boundary doesn't close, which is a fault"
@@ -107,7 +106,7 @@ fn the_message_names_the_place_and_the_count() {
         .map(|w| w.to_string())
         .collect();
     assert!(messages.contains(&"road \"5\": <userData> ignored, 500 uses".to_string()));
-    assert!(messages.contains(&"the document: <vmsGroup> ignored, 1 use".to_string()));
+    assert!(messages.contains(&"the document: <license> ignored, 1 use".to_string()));
     assert!(messages.contains(&"junction \"100\": <roadSection> ignored, 2 uses".to_string()));
 }
 

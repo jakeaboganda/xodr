@@ -298,6 +298,8 @@ pose and size of its board.
   `dynamic`, `invalidated`, `temporary`, `hOffset`, `pitch`, `roll` and
   `length`. The crate places the sign by none of them. It wraps the three
   angles into one turn.
+- `<vmsGroup>`s, as `RoadNetwork::vms_groups`: the variable message boards
+  on one gantry, each by its signal.
 - A sign's own `<validity>`, `<dependency>`s and `<reference>`s override
   its signal's, and so do a display area's validity and dependencies, which
   the spec's text gives it. A sign's dependency may name another sign on
@@ -473,7 +475,7 @@ The importer skips what the sections above do not list as read. Each feature
 below raises an `Ignored` warning, once for each road, junction, or the rest
 of the document, with how many times the file uses it.
 
-Elements it skips: `<vmsGroup>`, a header's `<license>` and
+Elements it skips: a header's `<license>` and
 `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere. It skips
 `<userData>` anywhere but directly on an object, which it reads.
 

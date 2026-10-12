@@ -596,3 +596,33 @@ fn a_board_s_signs_and_display_areas_override_its_lanes_and_links() {
     assert_eq!(message.areas[1].dependencies, board.dependencies);
     assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
 }
+
+#[test]
+fn a_vms_group_names_the_boards_on_one_gantry() {
+    let xodr = BOARDS.replace(
+        "</OpenDRIVE>",
+        r#"<vmsGroup id="27"><vmsBoardReference signalId="534" vmsIndex="1" groupIndex="1"/>
+           <vmsBoardReference signalId="ghost" vmsIndex="1" groupIndex="2"/></vmsGroup></OpenDRIVE>"#,
+    );
+    let (net, prov) = xodr::load_str_with_provenance(&xodr).unwrap();
+    let (board, _) = find(&net, &prov, "534");
+    assert_eq!(
+        net.vms_groups(),
+        [xodr::VmsGroup {
+            od_id: "27".into(),
+            boards: vec![xodr::VmsBoardReference {
+                signal: board.id,
+                vms_index: Some(1),
+                group_index: Some(1),
+            }],
+        }]
+    );
+    assert_eq!(
+        prov.warnings,
+        [xodr::Warning::SignalLinkDropped {
+            road_id: String::new(),
+            element: "vmsBoardReference".into(),
+            id: "ghost".into(),
+        }]
+    );
+}

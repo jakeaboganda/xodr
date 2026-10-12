@@ -824,6 +824,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             .with_structures(structures.baked)
             .with_signals(signals.baked)
             .with_controllers(signals.controllers)
+            .with_vms_groups(signals.vms_groups)
             .with_road_marks(road_marks.baked)
             .with_crg_surfaces(surfaces)
             .with_speed_limits(properties.speed_limits)

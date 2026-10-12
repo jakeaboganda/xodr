@@ -46,11 +46,6 @@ const FEATURES: &[Feature] = &[
         when: always,
     },
     Feature {
-        name: "<vmsGroup>",
-        path: "vmsGroup",
-        when: always,
-    },
-    Feature {
         name: "a repeated <lanes> of one layer",
         path: "lanes",
         when: repeats_a_layer,

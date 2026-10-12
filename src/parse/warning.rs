@@ -609,15 +609,17 @@ pub enum Warning {
         /// Its `id`. Empty if it has none.
         signal_id: String,
     },
-    /// A signal's `<dependency>` or `<reference>`, a `<signalReference>`,
-    /// or a `<controller>`'s `<control>` naming a signal or object the load
-    /// didn't bake. Also a `<signalReference>` without a readable `s` or
+    /// A signal's or a sign's `<dependency>` or `<reference>`, a
+    /// `<signalReference>`, a `<controller>`'s `<control>` or a
+    /// `<vmsGroup>`'s `<vmsBoardReference>` naming a signal, sign or object
+    /// the load didn't bake. Also a `<signalReference>` without a readable `s` or
     /// `t`, or off the ends of its road. The crate drops it.
     SignalLinkDropped {
-        /// The `<road id>` it is on. Empty for a `<control>`.
+        /// The `<road id>` it is on. Empty for a `<control>` or a
+        /// `<vmsBoardReference>`.
         road_id: String,
-        /// Its element: `dependency`, `reference`, `signalReference` or
-        /// `control`.
+        /// Its element: `dependency`, `reference`, `signalReference`,
+        /// `control` or `vmsBoardReference`.
         element: String,
         /// The id it names.
         id: String,
@@ -1236,9 +1238,10 @@ impl fmt::Display for Warning {
                 element,
                 id,
             } => {
-                let at = match road_id.is_empty() {
-                    true => "a controller".to_string(),
-                    false => format!("road {road_id:?}"),
+                let at = match (road_id.is_empty(), element.as_str()) {
+                    (false, _) => format!("road {road_id:?}"),
+                    (true, "vmsBoardReference") => "a <vmsGroup>".to_string(),
+                    (true, _) => "a controller".to_string(),
                 };
                 write!(f, "{at}: <{element}> to {id:?} names nothing the load baked, dropped")
             }

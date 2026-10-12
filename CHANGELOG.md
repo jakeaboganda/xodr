@@ -4,6 +4,11 @@
 
 ### Signal boards
 
+- `RoadNetwork::vms_groups` gives each `<vmsGroup>` as a `VmsGroup`: the
+  variable message boards on one gantry, each a `VmsBoardReference` to its
+  signal with its `vmsIndex` and `groupIndex`. A reference naming no signal
+  raises `Warning::SignalLinkDropped`. `<vmsGroup>` leaves the `Ignored`
+  list.
 - **Breaking:** a sign's own `<validity>`, `<dependency>`s and
   `<reference>`s override its signal's, as the spec says.
   `BoardSign::lanes`, `dependencies` and `references` hold the sign's own,
