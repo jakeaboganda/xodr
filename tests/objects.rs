@@ -1251,3 +1251,42 @@ fn a_repeat_to_the_road_end_keeps_its_last_copy_on_the_road() {
         assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
     }
 }
+
+#[test]
+fn each_outline_of_a_repeat_counts_as_an_object_toward_what_one_load_bakes() {
+    let ring = |id: u32, u: f64| {
+        let c = |k, du, v| {
+            format!(
+                r#"<cornerLocal id="{k}" u="{}" v="{v}" height="1"/>"#,
+                u + du
+            )
+        };
+        format!(
+            r#"<outline id="{id}">{}{}{}</outline>"#,
+            c(0, 0.0, 0.0),
+            c(1, 0.2, 0.0),
+            c(2, 0.2, 0.2)
+        )
+    };
+    let xodr = format!(
+        r#"<OpenDRIVE><header/><road id="1" length="60000" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="60000"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes><objects>
+        <object id="pair" type="obstacle" s="0" t="-6"><outlines>{}{}</outlines>
+        <repeat s="0" length="59999" distance="1" tStart="-6" tEnd="-6"/></object>
+        </objects></road></OpenDRIVE>"#,
+        ring(0, 0.0),
+        ring(1, 0.5)
+    );
+    let (net, prov) = xodr::load_str_with_provenance(&xodr).unwrap();
+    assert!(net.objects().is_empty(), "{} objects", net.objects().len());
+    assert_eq!(
+        prov.warnings,
+        [xodr::Warning::TooManyCopies {
+            road_id: "1".into(),
+            object_id: "pair".into(),
+        }]
+    );
+}
