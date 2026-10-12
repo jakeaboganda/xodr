@@ -2,6 +2,7 @@
 name = "xodr-viewer"
 version = "0.0.0"
 edition = "2021"
+rust-version = "1.85"
 publish = false
 description = "Bakes OpenDRIVE maps into the JSON the three.js viewer in web/ draws, natively or in the browser."
 license = "MIT OR Apache-2.0"

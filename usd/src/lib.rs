@@ -279,7 +279,7 @@ fn heights(lane: &Lane, record: &LaneProvenance, span: &LaneSpan, mesh: &Mesh) -
     let inner_left = record.od_id < 0;
     (span.vertices.start..span.vertices.end)
         .map(|v| {
-            let left = (v - span.vertices.start).is_multiple_of(2);
+            let left = (v - span.vertices.start) % 2 == 0;
             let rib = if left { v } else { v - 1 } as usize;
             let middle = mesh.vertices[rib].lerp(mesh.vertices[rib + 1], 0.5);
             let distance = |i: &usize| centre[*i].distance_squared_to(middle);
