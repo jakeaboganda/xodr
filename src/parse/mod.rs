@@ -744,6 +744,8 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     warnings.extend(cross_path_warnings);
     let (groups, group_warnings) = junction_areas::groups(root);
     warnings.extend(group_warnings);
+    let (crossings, crossing_warnings) = junction_areas::crossings(root, &roads, &lanes);
+    warnings.extend(crossing_warnings);
     let (switches, switch_warnings) = railway::switches(&roads);
     warnings.extend(switch_warnings);
     let (stations, station_warnings) = railway::stations(root, &roads);
@@ -839,6 +841,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             .with_junction_areas(areas)
             .with_cross_paths(cross_paths)
             .with_junction_groups(groups)
+            .with_crossings(crossings)
             .with_virtual_junctions(virtual_junctions)
             .with_railways(switches, stations),
         provenance,
@@ -3092,6 +3095,36 @@ struct Structures {
     provenance: Vec<StructureProvenance>,
 }
 
+/// The part of each of `road`'s `lanes` from `s` `from` to `to`, of those in
+/// `validity`'s ranges if it has any.
+pub(super) fn coverage(
+    road: &Road,
+    lanes: &[Lane],
+    (from, to): (f64, f64),
+    validity: &[Validity],
+) -> Vec<Coverage> {
+    let mut covered = Vec::new();
+    for sec in &road.sections {
+        let (from, to) = (from.max(sec.start), to.min(sec.end));
+        if to - from < 1e-6 {
+            continue;
+        }
+        for &(_, id) in sec
+            .lanes
+            .iter()
+            .filter(|(od_id, _)| is_valid(*od_id, sec.layer, validity))
+        {
+            let center = &lanes[id.0].center;
+            covered.push(Coverage {
+                lane: id,
+                from: along(center.points(), &sec.stations, from),
+                to: along(center.points(), &sec.stations, to),
+            });
+        }
+    }
+    covered
+}
+
 /// Bake every `<tunnel>` and `<bridge>` under one road's `<objects>` into
 /// `out`, as the part of each of the road's `lanes` it covers.
 ///
@@ -3134,26 +3167,7 @@ fn place_structures(
             });
             continue;
         }
-        let validity = validity(node);
-        let mut covered = Vec::new();
-        for sec in &road.sections {
-            let (from, to) = (s.max(sec.start), (s + length).min(sec.end));
-            if to - from < 1e-6 {
-                continue;
-            }
-            for &(_, id) in sec
-                .lanes
-                .iter()
-                .filter(|(od_id, _)| is_valid(*od_id, sec.layer, &validity))
-            {
-                let center = &lanes[id.0].center;
-                covered.push(Coverage {
-                    lane: id,
-                    from: along(center.points(), &sec.stations, from),
-                    to: along(center.points(), &sec.stations, to),
-                });
-            }
-        }
+        let covered = coverage(road, lanes, (s, s + length), &validity(node));
         let id = StructureId(out.baked.len());
         out.baked.push(Structure {
             id,

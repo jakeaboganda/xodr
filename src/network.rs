@@ -11,7 +11,7 @@ use crate::geo::GeoReference;
 use crate::geometry::{Polyline, Projection, RoadSample};
 use crate::grid::{Aabb, Grid};
 use crate::header::Header;
-use crate::junction::{CrossPath, JunctionArea, JunctionGroup, VirtualJunction};
+use crate::junction::{CrossPath, Crossing, JunctionArea, JunctionGroup, VirtualJunction};
 use crate::object::{Material, Object, ObjectId};
 use crate::railway::{Station, Switch};
 use crate::road::{LanePosition, Priority, Road, RoadId, RoadLane, RoadNeighbor, RoadPosition};
@@ -390,6 +390,7 @@ pub struct RoadNetwork {
     junction_areas: Vec<JunctionArea>,
     cross_paths: Vec<CrossPath>,
     junction_groups: Vec<JunctionGroup>,
+    crossings: Vec<Crossing>,
     virtual_junctions: Vec<VirtualJunction>,
     switches: Vec<Switch>,
     stations: Vec<Station>,
@@ -435,6 +436,7 @@ impl PartialEq for RoadNetwork {
             && self.junction_areas == other.junction_areas
             && self.cross_paths == other.cross_paths
             && self.junction_groups == other.junction_groups
+            && self.crossings == other.crossings
             && self.virtual_junctions == other.virtual_junctions
             && self.switches == other.switches
             && self.stations == other.stations
@@ -481,6 +483,8 @@ struct NetworkData {
     #[serde(default)]
     junction_groups: Vec<JunctionGroup>,
     #[serde(default)]
+    crossings: Vec<Crossing>,
+    #[serde(default)]
     virtual_junctions: Vec<VirtualJunction>,
     #[serde(default)]
     switches: Vec<Switch>,
@@ -513,6 +517,7 @@ impl From<NetworkData> for RoadNetwork {
             .with_junction_areas(data.junction_areas)
             .with_cross_paths(data.cross_paths)
             .with_junction_groups(data.junction_groups)
+            .with_crossings(data.crossings)
             .with_virtual_junctions(data.virtual_junctions)
             .with_railways(data.switches, data.stations)
     }
@@ -544,6 +549,7 @@ impl From<RoadNetwork> for NetworkData {
             junction_areas: net.junction_areas,
             cross_paths: net.cross_paths,
             junction_groups: net.junction_groups,
+            crossings: net.crossings,
             virtual_junctions: net.virtual_junctions,
             switches: net.switches,
             stations: net.stations,
@@ -751,6 +757,7 @@ impl RoadNetwork {
             junction_areas: Vec::new(),
             cross_paths: Vec::new(),
             junction_groups: Vec::new(),
+            crossings: Vec::new(),
             virtual_junctions: Vec::new(),
             switches: Vec::new(),
             stations: Vec::new(),
@@ -848,6 +855,18 @@ impl RoadNetwork {
     /// can't, so they are here rather than in the lane graph.
     pub fn cross_paths(&self) -> &[CrossPath] {
         &self.cross_paths
+    }
+
+    /// This network with `crossings`, replacing any it had.
+    pub fn with_crossings(mut self, crossings: Vec<Crossing>) -> Self {
+        self.crossings = crossings;
+        self
+    }
+
+    /// Every crossing, where roads cross at one level without joining, in
+    /// file order.
+    pub fn crossings(&self) -> &[Crossing] {
+        &self.crossings
     }
 
     /// This network with `junction_groups`, replacing any it had.

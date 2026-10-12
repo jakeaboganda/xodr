@@ -93,6 +93,9 @@ files declaring 1.4, 1.6 and 1.7.
   follow those links.
 - Junction `<crossPath>`s, as `RoadNetwork::cross_paths`: paths for
   pedestrians across the junction's roads, joining lanes part way along.
+- Crossings, `<junction type="crossing">`, as `RoadNetwork::crossings`:
+  where roads cross at one level without joining, with the stretch of each
+  road from its `<roadSection>` and the lanes there.
 - Junction `<priority>`s, as `RoadNetwork::priorities`: which road of a
   junction gives way to which.
 - An incoming road whose `<link>` leaves out its common junction, which the
@@ -431,6 +434,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `PriorityDropped` | a junction `<priority>` naming a road the load didn't bake |
 | `JunctionReferenceDropped` | a `<junctionReference>` naming a junction the file lacks |
 | `UnknownJunctionGroupType` | a `<junctionGroup>` with a missing `type` or one the spec doesn't allow |
+| `RoadSectionDropped` | a crossing's `<roadSection>` naming a road the load didn't bake, or an end off it |
 | `CrossPathDropped` | a `<crossPath>` naming a road, lane or `s` the load didn't bake |
 | `BoundarySegmentDropped` | a junction `<boundary>` segment naming a road or lane the load didn't bake, or a station more than 1 cm off its road |
 | `BoundaryNotClosed` | a junction `<boundary>` whose segments don't meet |
@@ -466,9 +470,8 @@ below raises an `Ignored` warning, once for each road, junction, or the rest
 of the document, with how many times the file uses it.
 
 Elements it skips: `<vmsGroup>`, a header's `<license>` and
-`<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, and a
-junction's `<roadSection>`s. It skips `<userData>` anywhere but directly on an
-object, which it reads. It also skips the `<validity>`, `<dependency>` and
+`<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere. It skips
+`<userData>` anywhere but directly on an object, which it reads. It also skips the `<validity>`, `<dependency>` and
 `<reference>` of a board sign.
 
 Uses of elements it reads that it ignores:
@@ -476,6 +479,7 @@ Uses of elements it reads that it ignores:
 | Feature | What the crate does |
 | --- | --- |
 | a second `<lanes>` of one layer | leaves it out |
+| a `<roadSection>` of a junction that is not a crossing | leaves it out |
 
 A first `<lanes>` of either layer raises nothing.
 
