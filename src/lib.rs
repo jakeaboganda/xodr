@@ -574,11 +574,17 @@
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:
 //!
-//! - The spec's grid overrides the height of the junction's roads, and a
-//!   joint's `transitionLength` blends it into the roads coming in. The crate
-//!   keeps the roads' own heights, lanes, marks and objects on them alike,
-//!   and raises [`Warning::ElevationGridNotApplied`]. So where a file's roads
-//!   and grid disagree, the lanes and the junction mesh do too.
+//! - The spec says the grid overrides "any elevation values derived from
+//!   any roads" of the junction. The crate stands every road of the junction
+//!   on the grid: its elevation, superelevation and lateral shape give way
+//!   to the grid's height, and its lane heights add to it, as the spec says.
+//!   Lanes, the mesh, road marks, objects and signals on those roads follow.
+//!   Where the grid doesn't reach a point of such a road, which the spec
+//!   forbids inside the boundary, the road's own elevation and
+//!   superelevation hold there. The crate does this for a grid on any
+//!   junction, though the spec gives grids to common junctions only.
+//! - A joint's `transitionLength` is not applied yet: a road coming in meets
+//!   the grid where the grid is, with a step if the two disagree.
 //! - The spec requires the segments to close the boundary. The crate joins
 //!   them straight, and raises [`Warning::BoundaryNotClosed`] where two
 //!   segments end more than 10 cm apart in plan. A boundary of one segment
@@ -1460,7 +1466,7 @@
 //!   crate can't read whole.
 //! - [`Warning::CrossPathDropped`] for a `<crossPath>` whose roads or lanes
 //!   the load lacks.
-//! - [`Warning::ElevationGridNotApplied`], [`Warning::ElevationGridDropped`],
+//! - [`Warning::ElevationGridDropped`],
 //!   [`Warning::BoundaryNotClosed`],
 //!   [`Warning::BoundarySegmentDropped`] and [`Warning::BoundaryClockwise`]
 //!   for a junction's area. See [Junction areas](#junction-areas).

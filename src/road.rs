@@ -4,6 +4,7 @@
 
 use crate::coords::Point;
 use crate::crg::RefPoint;
+use crate::junction::ElevationGrid;
 use crate::{Direction, LaneId, Layer, RoadMarkId};
 
 /// A road's identity: its position in
@@ -235,11 +236,55 @@ pub(crate) struct HeightDef {
 /// A road's height off its reference plane across it, from its
 /// `<lateralProfile>`: its `<shape>`s, and its `<crossSectionSurface>`. The
 /// spec forbids the two together. Where a file gives both, their heights add.
+/// A road of a junction with an `<elevationGrid>` stands on the grid
+/// instead, its [`Ground`].
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Lateral {
     pub profiles: Vec<ShapeProfile>,
     pub surface: Option<CrossSection>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub ground: Option<Box<Ground>>,
+}
+
+/// The ground a road of a junction with an `<elevationGrid>` stands on: the
+/// grid's height under each point of the road, which overrides the road's
+/// own elevation, superelevation and lateral shape, as the spec says. The
+/// road's reference plane is then level at 0, so the ground is its whole
+/// height. Where the grid does not reach, the road's own elevation and
+/// superelevation hold.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub(crate) struct Ground {
+    pub grid: ElevationGrid,
+    /// The road's reference line, to find where `(s, t)` is in plan.
+    pub plan: Vec<GeomRec>,
+    /// The road's own elevation and superelevation, where the grid does not
+    /// reach.
+    pub elevations: Vec<Cubic>,
+    pub superelevations: Vec<Cubic>,
+}
+
+impl Ground {
+    /// The height at `(s, t)` on the road.
+    pub fn height(&self, s: f64, t: f64) -> f64 {
+        let (x, y, hdg) = geom_at(&self.plan, s).pose(s);
+        let (x, y) = (x - t * hdg.sin(), y + t * hdg.cos());
+        self.grid.height_at(x, y).unwrap_or_else(|| {
+            let elevation = active(&self.elevations, s).map_or(0.0, |e| e.eval(s));
+            let bank = active(&self.superelevations, s).map_or(0.0, |e| e.eval(s));
+            elevation + t * bank.sin()
+        })
+    }
+
+    /// Stations a quarter of the grid's spacing apart along the road, so the
+    /// lanes follow the grid's curve.
+    fn knots(&self) -> impl Iterator<Item = f64> + '_ {
+        let end = self.plan.iter().map(|g| g.s + g.length).fold(0.0, f64::max);
+        let step = (self.grid.spacing / 4.0).max(0.25);
+        let count = (end / step).min(10_000.0) as usize;
+        (1..=count).map(move |k| k as f64 * step)
+    }
 }
 
 impl Lateral {
@@ -257,20 +302,22 @@ impl Lateral {
                 .surface
                 .as_ref()
                 .map_or(0.0, |c| c.height(s, t, toward))
+            + self.ground.as_ref().map_or(0.0, |g| g.height(s, t))
     }
 
     /// Whether the road is flat across.
     pub fn is_empty(&self) -> bool {
-        self.profiles.is_empty() && self.surface.is_none()
+        self.profiles.is_empty() && self.surface.is_none() && self.ground.is_none()
     }
 
-    /// Where along the road the height changes pace: each profile's `s`, and
-    /// each cross-section record's start.
+    /// Where along the road the height changes pace: each profile's `s`, each
+    /// cross-section record's start, and steps along a grid.
     pub fn knots(&self) -> impl Iterator<Item = f64> + '_ {
         self.profiles
             .iter()
             .map(|p| p.s)
             .chain(self.surface.iter().flat_map(CrossSection::knots))
+            .chain(self.ground.iter().flat_map(|g| g.knots()))
     }
 }
 
@@ -882,13 +929,24 @@ impl Road {
         let (x, y, heading) = geom_at(&self.geoms, s).pose(s);
         let elevation = active(&self.elevations, s);
         let bank = active(&self.superelevations, s);
+        let (z, grade) = match &self.lateral.ground {
+            Some(ground) => {
+                const DS: f64 = 0.01;
+                let at = |s: f64| ground.height(s, 0.0);
+                (at(s), (at(s + DS) - at(s - DS)) / (2.0 * DS))
+            }
+            None => (
+                elevation.map_or(0.0, |e| e.eval(s)),
+                elevation.map_or(0.0, |e| e.slope(s)),
+            ),
+        };
         RefPoint {
             s,
             x,
             y,
             heading,
-            z: elevation.map_or(0.0, |e| e.eval(s)),
-            grade: elevation.map_or(0.0, |e| e.slope(s)),
+            z,
+            grade,
             bank: bank.map_or(0.0, |e| e.eval(s)),
             bank_rate: bank.map_or(0.0, |e| e.slope(s)),
         }

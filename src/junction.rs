@@ -295,6 +295,12 @@ impl ElevationGrid {
             .and_then(|row| row.at(j))
     }
 
+    /// The height under `(x, y)`, or `None` where the grid does not reach.
+    pub(crate) fn height_at(&self, x: f64, y: f64) -> Option<f64> {
+        let (s, t) = self.locate(x, y);
+        self.height(s, t)
+    }
+
     /// Where `(x, y)` is on the junction's reference line: `s` along it and
     /// `t` to its left.
     fn locate(&self, x: f64, y: f64) -> (f64, f64) {
@@ -351,9 +357,7 @@ impl JunctionArea {
     /// The ground's height under `(x, y)`, from the elevation grid, or
     /// `None` where the junction has no grid or the grid does not reach.
     pub fn height_at(&self, x: f64, y: f64) -> Option<f64> {
-        let grid = self.grid.as_ref()?;
-        let (s, t) = grid.locate(x, y);
-        grid.height(s, t)
+        self.grid.as_ref()?.height_at(x, y)
     }
 
     /// The ground inside the boundary as triangles, split to the grid's
