@@ -29,7 +29,12 @@ jobs:
       # against the scan it replaced. A debug build makes both slow enough
       # that the ratio stops meaning anything.
       - run: cargo test --release --test budgets
-      - run: cargo doc --no-deps --all-features
+      - run: cargo doc --no-deps --workspace --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+      # Build the crate from its own tarball, so a file the package leaves
+      # out shows up here rather than at publish time.
+      - run: cargo package -p xodr
 
   msrv:
     runs-on: ubuntu-latest
@@ -40,7 +45,9 @@ jobs:
       - run: rm rust-toolchain.toml
       - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-features
+      # Tests and benches are left out: criterion, a dev-dependency, needs
+      # a newer Rust. Users build the library, and the tools build here too.
+      - run: cargo check --workspace --all-features
 
   # Export every test map and check the stages with OpenUSD itself, alone,
   # under the sample catalogue, and flattened.
