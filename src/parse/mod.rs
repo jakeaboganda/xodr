@@ -1805,12 +1805,12 @@ fn finite(lane: &Lane) -> bool {
 }
 
 /// The most lane and road CRG one load bakes, in metres: each lane's length
-/// and each road `<CRG>`'s stretch, at [`CRG_COST`], summed over the file. It
-/// is 2,000 km, about six times the lanes of the largest real map the crate
-/// is tried on. The crate samples each every few centimetres to metres, so a small
-/// broken file that repeats a long road's lanes or CRG records would
-/// otherwise need more memory than any machine has. A road past it is
-/// skipped, and a road CRG past it dropped.
+/// and each road `<CRG>`'s stretch, a metre of which counts as eight, summed
+/// over the file. It is 2,000 km, about six times the lanes of the largest
+/// real map the crate is tried on. The crate samples each every few
+/// centimetres to metres, so a small broken file that repeats a long road's
+/// lanes or CRG records would otherwise need more memory than any machine
+/// has. A road past it is skipped, and a road CRG past it dropped.
 pub const MAX_BAKED_LENGTH: f64 = 2_000_000.0;
 
 /// The length of `road`'s lanes, `length` long, summed over its lane
