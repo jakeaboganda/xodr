@@ -289,6 +289,7 @@ let junctionLines = [];      // each junction area's boundary
 let virtualMeshes = [];      // virtual junction stretches and links; userData.virtual is the exported record
 let crossPaths = [];         // the exported cross paths, by lane id
 let junctionGroups = [];     // the exported junction groups
+let crossings = [];          // the exported crossings, each with its road sections
 let railMeshes = [];         // platforms and switches; userData.rail is the exported record
 let walkers = [];            // the marker's branches: {lane, arc, side, dead}, as RoadNetwork::advance gives them
 let walkerMesh;              // a square at each branch of the marker
@@ -465,6 +466,7 @@ async function init() {
   laneLinkOverlaps = data.laneLinkOverlaps ?? [];
   crossPaths = data.crossPaths ?? [];
   junctionGroups = data.junctionGroups ?? [];
+  crossings = data.crossings ?? [];
   roadNeighbors = data.roadNeighbors ?? [];
   buildSidebar();
   buildLegend();
@@ -1675,6 +1677,14 @@ function onHover(ev) {
   }
   if (document.getElementById('normals').checked) {
     rows.push(`normal ${vec3(surfaceNormal(hit))}`);
+  }
+  for (const crossing of crossings) {
+    const section = crossing.sections.find(sec =>
+      sec.lanes.some(c => c.laneId === lane.laneId && s >= c.from && s <= c.to));
+    if (!section) continue;
+    const name = crossing.name ? ` ${escapeHtml(crossing.name)}` : '';
+    rows.push(`<b>crossing</b> ${escapeHtml(crossing.id)}${name}   ` +
+      `s ${section.sStart.toFixed(1)}–${section.sEnd.toFixed(1)} m`);
   }
   for (const st of structures) {
     const c = st.lanes.find(c => c.laneId === lane.laneId && s >= c.from && s <= c.to);

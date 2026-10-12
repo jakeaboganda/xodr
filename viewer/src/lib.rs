@@ -348,6 +348,24 @@ fn build_scene(net: &RoadNetwork, mesh: &Mesh, provenance: &Provenance) -> Value
                 "strip": platform_strip(net, seg),
             }))
             .collect::<Vec<_>>(),
+        "crossings": net
+            .crossings()
+            .iter()
+            .map(|c| {
+                let sections = c.sections.iter().map(|s| {
+                    json!({
+                        "id": s.od_id,
+                        "roadId": net.road(s.road).map(|r| r.od_id()),
+                        "sStart": s.s_start,
+                        "sEnd": s.s_end,
+                        "lanes": s.lanes.iter()
+                            .map(|l| json!({ "laneId": l.lane.0, "from": l.from, "to": l.to }))
+                            .collect::<Vec<_>>(),
+                    })
+                });
+                json!({ "id": c.od_id, "name": c.name, "sections": sections.collect::<Vec<_>>() })
+            })
+            .collect::<Vec<_>>(),
         "junctionGroups": net
             .junction_groups()
             .iter()
