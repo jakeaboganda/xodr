@@ -445,6 +445,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `SpeedLimitDropped` | a `<speed>` whose `max` or `unit` the crate can't read, or whose limit is too large for an `f32` |
 | `AccessDropped` | an `<access>` whose `rule` is neither `allow` nor `deny` |
 | `VisibilityDropped` | a `<visibility>` with a distance the crate can't read |
+| `CrgDropped` | a road or junction `<CRG>` without a `file`, a stretch on the road, a `mode` the crate knows (`global` for a junction's), or a `purpose` of `elevation` or `friction`, or a road one past the 2,000 km budget |
 | `ObjectDropped` | an `<object>` without a readable `s` or `t`, or an `<objectReference>` without one or naming no object |
 | `RepeatDropped` | a `<repeat>` without a readable `s`, `length` or `distance`, or with a negative one of the last two |
 | `MarkingDropped` | an object `<marking>` without a width, naming fewer than two corners or a corner no outline has, or with a `side` the crate doesn't know |

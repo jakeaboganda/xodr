@@ -1106,6 +1106,9 @@
 //! supersedes their elevation. A junction's CRG must be `global`. The importer
 //! reads no junction reference line, so it skips the other modes there.
 //!
+//! A CRG's `purpose` is `elevation` unless it says `friction`. One with any
+//! other purpose is dropped, with a [`Warning::CrgDropped`].
+//!
 //! A friction CRG ignores `zOffset` and `zScale`, as the spec says, and gives
 //! the grid values exactly as the file has them. OpenCRG, like its C-API,
 //! shifts the heights of a file without a `$ROAD_CRG_MODS` block so its
@@ -1482,6 +1485,7 @@
 //!   level. See [Level lanes](#level-lanes).
 //! - [`Warning::VisibilityDropped`] for a `<visibility>` with a distance it
 //!   can't read. See [Lane visibility](#lane-visibility).
+//! - [`Warning::CrgDropped`] for a road or junction `<CRG>` it can't lay.
 //! - [`Warning::ObjectDropped`], [`Warning::RepeatDropped`],
 //!   [`Warning::MarkingDropped`] and [`Warning::StructureDropped`] for an
 //!   object, a repeat, a marking or a tunnel or bridge it can't place.

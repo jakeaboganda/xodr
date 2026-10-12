@@ -671,7 +671,10 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
                     .flat_map(|n| n.children())
                     .filter(|n| n.has_tag_name("CRG"))
                 {
-                    surfaces.extend(road_crg(node, &baked.road, &mut length_left));
+                    match road_crg(node, &baked.road, &mut length_left) {
+                        Some(surface) => surfaces.push(surface),
+                        None => warnings.push(crg_dropped(node, &baked.road.od_id, "")),
+                    }
                 }
                 baked.road.id = RoadId(roads.len());
                 if let Err(rule) = traffic_rule(road) {
@@ -715,7 +718,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             }),
         }
     }
-    surfaces.extend(junction_crgs(root, &topo));
+    surfaces.extend(junction_crgs(root, &topo, &mut warnings));
     let placed = std::mem::take(&mut objects.surfaces);
     let object_surfaces = object_crgs(root, &topo, &surfaces, placed, &mut warnings);
     surfaces.extend(object_surfaces);
@@ -920,19 +923,45 @@ fn road_neighbors(roads: &[(roxmltree::Node, BakedRoad)]) -> (Vec<RoadNeighbor>,
 }
 
 /// Every `<junction>` `<CRG>`, over the lanes of the roads in its junction.
-fn junction_crgs(root: roxmltree::Node, topo: &Topology) -> Vec<CrgSurface> {
+fn junction_crgs(
+    root: roxmltree::Node,
+    topo: &Topology,
+    warnings: &mut Vec<Warning>,
+) -> Vec<CrgSurface> {
     let mut surfaces = Vec::new();
     for junction in root.children().filter(|n| n.has_tag_name("junction")) {
-        let lanes = junction_lanes(root, topo, junction.attribute("id").unwrap_or_default());
+        let id = junction.attribute("id").unwrap_or_default();
+        let lanes = junction_lanes(root, topo, id);
         for node in child(junction, "surface")
             .into_iter()
             .flat_map(|n| n.children())
             .filter(|n| n.has_tag_name("CRG"))
         {
-            surfaces.extend(junction_crg(node, lanes.clone()));
+            match junction_crg(node, lanes.clone()) {
+                Some(surface) => surfaces.push(surface),
+                None => warnings.push(crg_dropped(node, "", id)),
+            }
         }
     }
     surfaces
+}
+
+/// The warning for a road or junction `<CRG>` the crate drops.
+fn crg_dropped(node: roxmltree::Node, road_id: &str, junction_id: &str) -> Warning {
+    Warning::CrgDropped {
+        road_id: road_id.to_string(),
+        junction_id: junction_id.to_string(),
+        file: node.attribute("file").unwrap_or_default().to_string(),
+    }
+}
+
+/// Whether the crate knows a `<CRG>`'s `purpose`: `elevation`, the default,
+/// or `friction`.
+fn known_purpose(node: roxmltree::Node) -> bool {
+    matches!(
+        node.attribute("purpose"),
+        None | Some("elevation" | "friction")
+    )
 }
 
 /// The lanes of every road in the junction `id`.
@@ -2010,11 +2039,14 @@ const CRG_STEP: f64 = 0.25;
 /// in a metre.
 const CRG_COST: f64 = 8.0;
 
-/// A road `<CRG>`, or `None` if it lacks a file, a known mode, or a stretch
-/// of road to lie on, or if its stretch costs more than `length_left`,
-/// which it takes its [`CRG_COST`] from.
+/// A road `<CRG>`, or `None` if it lacks a file, a known mode or purpose,
+/// or a stretch of road to lie on, or if its stretch costs more than
+/// `length_left`, which it takes its [`CRG_COST`] from.
 fn road_crg(node: roxmltree::Node, road: &Road, length_left: &mut f64) -> Option<CrgSurface> {
     node.attribute("file")?;
+    if !known_purpose(node) {
+        return None;
+    }
     let from = attr_f64(node, "sStart")?.max(0.0);
     let to = attr_f64(node, "sEnd")?.min(road.length);
     let cost = (to - from) * CRG_COST;
@@ -2061,7 +2093,7 @@ fn road_crg(node: roxmltree::Node, road: &Road, length_left: &mut f64) -> Option
 /// A `<junction>` `<CRG>` over the lanes of the junction's roads. `None`
 /// unless it is `global`, the one mode with no reference line.
 fn junction_crg(node: roxmltree::Node, lanes: Vec<LaneId>) -> Option<CrgSurface> {
-    if node.attribute("mode") != Some("global") {
+    if node.attribute("mode") != Some("global") || !known_purpose(node) {
         return None;
     }
     Some(crg_surface(node, global_crg(node), lanes, None))
