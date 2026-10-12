@@ -34,6 +34,7 @@ mod junction_areas;
 mod links;
 mod properties;
 mod railway;
+mod records;
 mod road_marks;
 mod signals;
 mod single_side;
@@ -688,6 +689,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
                 warnings.extend(baked.speed_warnings());
                 warnings.extend(baked.access_warnings());
                 warnings.extend(baked.visibility_warnings());
+                warnings.extend(records::check(road));
                 roads.push((road, baked));
             }
             Err(reason) => warnings.push(Warning::RoadSkipped {

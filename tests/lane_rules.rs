@@ -102,12 +102,20 @@ fn old_style_access_at_one_offset_merges_and_one_without_a_rule_is_dropped() {
     );
     assert_eq!(
         prov.warnings,
-        vec![Warning::AccessDropped {
-            road_id: "0".into(),
-            s: 30.0,
-            lane: -2,
-            rule: String::new(),
-        }]
+        vec![
+            Warning::AccessDropped {
+                road_id: "0".into(),
+                s: 30.0,
+                lane: -2,
+                rule: String::new(),
+            },
+            Warning::RecordsOutOfOrder {
+                road_id: "0".into(),
+                record: "material".into(),
+                section: Some(0),
+                lane: Some(-2),
+            }
+        ]
     );
 }
 

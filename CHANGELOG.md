@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Warnings
+
+- `Warning::RecordDropped` for a profile record the crate drops: an
+  `<elevation>`, `<superelevation>`, `<laneOffset>` or road `<type>`
+  without a readable `s`, a `<shape>` without `s` or `t`, or a lane
+  `<width>` or `<border>` without `a`.
+- `Warning::RecordValueUnreadable` for a number of a profile record the
+  file writes but the crate can't read, such as `b="NaN"`. The crate reads
+  it as 0, as before.
+- `Warning::RecordsOutOfOrder` for records of one kind that don't come in
+  ascending order, which the crate sorts, as before. ASAM's own
+  `Ex_Slip_Lane` raises one, for road 66's elevations.
+
 ### Fixes
 
 - A `<repeat>` that runs past the end of its road keeps the copies on the
