@@ -43,8 +43,9 @@
   `None`.
 - `Lane::bank_at` and `Lane::width_at` hold the last value of a profile
   shorter than the centerline. Before, they panicked.
-- `route` reaches a goal lane entered by a lane change only if the change
-  lands behind the goal. Before, it could return a route that ended past
+- `route` stops on the goal lane only where it enters it behind the goal,
+  and a lane change that lands past the goal no longer hides a longer way
+  that lands behind it. Before, it could return a route that ended past
   the goal, or one to a goal behind the start that no loop reaches.
 - The OpenUSD stage escapes a carriage return or other control character in
   a string from the map. Before, a name such as `Sh&#13;ed` wrote a raw one
