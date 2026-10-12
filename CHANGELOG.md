@@ -51,8 +51,8 @@
   and the stage did not parse.
 - In the OpenUSD stage, a skeleton pole that leans holds the board on it,
   a nearer pole object with no prim no longer hides one with a prim, and a
-  board whose width reaches over a lane counts as over traffic, so it gets
-  an arm or a span rather than a roadside pole.
+  board that reaches more than 0.5 m over a lane counts as over traffic, so
+  it gets an arm or a span rather than a roadside pole.
 - `viewer_export` reads a CRG file, and each file it includes, only from
   the map's folder or one under it once links are followed, and only a
   regular file of at most 1 GiB. An include is found beside the file that
