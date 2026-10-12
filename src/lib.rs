@@ -114,7 +114,7 @@
 //! | `<lane><link>` | `id`, `layer` |
 //! | `<junction>` | `id`, `name`, `type`, `mainRoad`, `sStart`, `sEnd`, `orientation` |
 //! | `<connection>` | `id`, `type`, `incomingRoad`, `connectingRoad`, `linkedRoad`, `contactPoint` |
-//! | `<connection><predecessor>`, `<connection><successor>` | `elementId`, `elementS`, `elementDir`, `contactPoint` |
+//! | `<connection><predecessor>`, `<connection><successor>` | `elementType`, `elementId`, `elementS`, `elementDir`, `contactPoint` |
 //! | `<laneLink>` | `from`, `to`, `overlapZone`, `fromLayer`, `toLayer` |
 //! | `<junction><priority>` | `high`, `low` |
 //! | `<road><railroad>` | none |
@@ -143,10 +143,11 @@
 //! | `<signals><signal>` | `id`, `name`, `dynamic`, `orientation`, `s`, `t`, `zOffset`, `hOffset`, `pitch`, `roll`, `country`, `countryRevision`, `type`, `subtype`, `value`, `unit`, `text`, `length`, `width`, `height`, `invalidated`, `temporary` |
 //! | `<signal><positionRoad>` | `roadId`, `s`, `t`, `zOffset`, `hOffset`, `pitch`, `roll` |
 //! | `<signal><positionInertial>` | `x`, `y`, `z`, `hdg`, `pitch`, `roll` |
-//! | `<signal><dependency>` | `id`, `type` |
-//! | `<signal><reference>` | `elementType`, `elementId`, `type` |
+//! | `<signal><dependency>`, and under a `<staticBoard>`, `<vmsBoard>`, `<sign>` or `<displayArea>` | `id`, `type` |
+//! | `<signal><reference>`, and under a `<staticBoard>`, `<vmsBoard>` or `<sign>` | `elementType`, `elementId`, `type` |
+//! | `<sign><positionRoad>`, `<sign><positionInertial>` | as a signal's |
 //! | `<signals><signalReference>` | `id`, `s`, `t`, `orientation` |
-//! | `<signal><semantics>`, `<sign><semantics>` | none |
+//! | `<signal><semantics>`, `<sign><semantics>`, `<roadRegulations><semantics>`, `<signalRegulations><semantics>` | none |
 //! | `<semantics><speed>`, `<semantics><supplementaryDistance>` | `type`, `value`, `unit` |
 //! | `<semantics><supplementaryTime>` | `type`, `value` |
 //! | `<semantics><lane>`, `<semantics><priority>`, `<semantics><supplementaryEnvironment>` | `type` |
@@ -165,7 +166,7 @@
 //! | `<defaultRegulations><roadRegulations>` | `type`, and its `<semantics>` as a signal's |
 //! | `<defaultRegulations><signalRegulations>` | `type`, `subtype`, and its `<semantics>` as a signal's |
 //! | `<vmsGroup><vmsBoardReference>` | `signalId`, `vmsIndex`, `groupIndex` |
-//! | `<validity>`, under `<object>`, `<objectReference>`, `<signal>`, `<signalReference>`, `<tunnel>` and `<bridge>` | `fromLane`, `toLane`, `layer` |
+//! | `<validity>`, under `<object>`, `<objectReference>`, `<signal>`, `<signalReference>`, `<staticBoard>`, `<vmsBoard>`, `<sign>`, `<displayArea>`, `<tunnel>` and `<bridge>` | `fromLane`, `toLane`, `layer` |
 //! | `<object><parkingSpace>` | `access`, `restrictions` |
 //! | `<object><material>` | `surface`, `friction`, `roughness`, `roadMarkColor` |
 //! | `<object><userData>` | `code`, `value` |
@@ -560,9 +561,12 @@
 //! these.
 //!
 //! A sign's own `<validity>`, `<dependency>`s and `<reference>`s override
-//! the signal's, as the spec says: [`BoardSign::lanes`],
+//! its board's, and a `<staticBoard>`'s or a `<vmsBoard>`'s own override the
+//! signal's, as the spec says: [`BoardSign::lanes`],
 //! [`BoardSign::dependencies`] and [`BoardSign::references`] are the sign's
-//! own where it gives them, and the signal's where it does not. A sign's
+//! own where it gives them, else its board's, else the signal's. A sign with
+//! its own `<positionInertial>` or `<positionRoad>` stands there, as a
+//! signal does, rather than on its board. A sign's
 //! dependency may name another sign on its board, as the plates under the
 //! speed sign in the spec's example do, which a [`SignTarget::Sign`] holds.
 //! A link naming nothing the load baked is dropped with a
@@ -577,8 +581,6 @@
 //!   [`DisplayArea::dependencies`]. The spec's example spells the dependency
 //!   `<signalDependency>`. The crate reads `<dependency>`, as the schema
 //!   names a signal's.
-//! - A sign's position off its board, its `<positionRoad>` or
-//!   `<positionInertial>`, is not read.
 //!
 //! Each top-level `<controller>` bakes to a [`Controller`] in
 //! [`RoadNetwork::controllers`], with the signals its `<control>`s name, and

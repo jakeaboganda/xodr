@@ -306,13 +306,23 @@ fn place_signal(
         width: size("width"),
         height: size("height"),
         semantics: semantics(node),
-        boards: boards(node, &board, |n| {
-            let own = validity(n);
-            match own.is_empty() {
-                true => signal_lanes_here.clone(),
-                false => signal_lanes(road, lanes, s, orientation, own),
-            }
-        }),
+        boards: boards(
+            node,
+            &board,
+            |n| {
+                let own = validity(n);
+                let board = n.parent_element().map(validity).unwrap_or_default();
+                match (own.is_empty(), board.is_empty()) {
+                    (true, true) => signal_lanes_here.clone(),
+                    (true, false) => signal_lanes(road, lanes, s, orientation, board),
+                    (false, _) => signal_lanes(road, lanes, s, orientation, own),
+                }
+            },
+            |n| {
+                let at = child(n, "positionRoad")?;
+                standing(at, roads.get(at.attribute("roadId")?)?, orientation)
+            },
+        ),
     });
     out.provenance.push(SignalProvenance {
         signal: id,
@@ -368,8 +378,9 @@ fn signs(node: roxmltree::Node) -> Vec<SignProvenance> {
 /// baked to. A reference to an object names each of them.
 ///
 /// A sign's or a display area's own `<dependency>`s and a sign's own
-/// `<reference>`s override the signal's, as the spec says. One with none
-/// takes the signal's. A sign's dependency may name a signal, or another
+/// `<reference>`s override its board's, and a board's own override the
+/// signal's, as the spec says. One with none takes its board's, and a board
+/// with none the signal's. A sign's dependency may name a signal, or another
 /// sign on its board. Returns each link that names nothing the load baked.
 fn link<'a>(
     node: roxmltree::Node<'a, 'a>,
@@ -422,6 +433,25 @@ fn link<'a>(
         .children()
         .filter(|b| b.has_tag_name("staticBoard") || b.has_tag_name("vmsBoard"));
     for (b, board) in board_nodes.zip(&mut signal.boards) {
+        let board_dependencies: Vec<Dependency> = match children(b, "dependency").next() {
+            None => signal.dependencies.clone(),
+            Some(_) => children(b, "dependency")
+                .filter_map(|d| match named(d.attribute("id")) {
+                    Some(named) => Some(Dependency {
+                        signal: named,
+                        kind: text(d, "type"),
+                    }),
+                    None => {
+                        dropped.push(("dependency", d.attribute("id")));
+                        None
+                    }
+                })
+                .collect(),
+        };
+        let board_references = match children(b, "reference").next() {
+            None => signal.references.clone(),
+            Some(_) => references(b, &mut dropped),
+        };
         match board {
             SignalBoard::Static(signs) => {
                 let sign_nodes: Vec<_> = children(b, "sign").collect();
@@ -429,7 +459,7 @@ fn link<'a>(
                 for (n, sign) in sign_nodes.iter().zip(signs.iter_mut()) {
                     let own: Vec<_> = children(*n, "dependency").collect();
                     sign.dependencies = if own.is_empty() {
-                        (signal.dependencies.iter())
+                        (board_dependencies.iter())
                             .map(|d| SignDependency {
                                 to: SignTarget::Signal(d.signal),
                                 kind: d.kind.clone(),
@@ -457,7 +487,7 @@ fn link<'a>(
                     };
                     sign.references = match children(*n, "reference").next() {
                         Some(_) => references(*n, &mut dropped),
-                        None => signal.references.clone(),
+                        None => board_references.clone(),
                     };
                 }
             }
@@ -466,7 +496,7 @@ fn link<'a>(
                 for (n, area) in area_nodes.zip(message.areas.iter_mut()) {
                     let own: Vec<_> = children(n, "dependency").collect();
                     area.dependencies = if own.is_empty() {
-                        signal.dependencies.clone()
+                        board_dependencies.clone()
                     } else {
                         own.iter()
                             .filter_map(|d| match named(d.attribute("id")) {
@@ -584,14 +614,24 @@ pub(super) fn semantics(node: roxmltree::Node) -> Vec<Semantic> {
 
 /// `node`'s `<staticBoard>`s and `<vmsBoard>`s, in file order, placed on
 /// `board`: `v` across it, to the left of its heading, and `z` up it,
-/// turned by its heading, pitch and roll. `lanes` gives the lanes a sign or
-/// a display area applies to, from its own `<validity>` if it has any.
-/// Their dependencies and references are linked later, by [`link`].
+/// turned by its heading, pitch and roll. A sign with its own
+/// `<positionInertial>` stands there instead, and one with its own
+/// `<positionRoad>` where `elsewhere` puts it. `lanes` gives the lanes a
+/// sign or a display area applies to, from its own `<validity>`, or its
+/// board's, if it has any. Their dependencies and references are linked
+/// later, by [`link`].
 fn boards(
     node: roxmltree::Node,
     board: &Board,
     lanes: impl Fn(roxmltree::Node) -> Vec<LaneId>,
+    elsewhere: impl Fn(roxmltree::Node) -> Option<Board>,
 ) -> Vec<SignalBoard> {
+    let own = |n: roxmltree::Node| {
+        child(n, "positionInertial")
+            .and_then(inertial)
+            .or_else(|| elsewhere(n))
+            .map(|b| b.position)
+    };
     let at = |n: roxmltree::Node| {
         let local = [
             0.0,
@@ -628,7 +668,7 @@ fn boards(
                         unit: sign.attribute("unit").and_then(unit),
                         text: text(sign, "text"),
                         semantics: semantics(sign),
-                        position: at(sign),
+                        position: own(sign).unwrap_or_else(|| at(sign)),
                         width: size(sign, "width"),
                         height: size(sign, "height"),
                         lanes: lanes(sign),
