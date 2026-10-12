@@ -1486,6 +1486,8 @@
 //! - [`Warning::VisibilityDropped`] for a `<visibility>` with a distance it
 //!   can't read. See [Lane visibility](#lane-visibility).
 //! - [`Warning::CrgDropped`] for a road or junction `<CRG>` it can't lay.
+//! - [`Warning::ContactPointMissing`] for a road-to-road link without its
+//!   `contactPoint`, which it joins at the start.
 //! - [`Warning::RoadMarkDropped`] for a road mark the next replaces before
 //!   it paints anything.
 //! - [`Warning::SignalDropped`] for a signal it can't place, and
@@ -1503,9 +1505,10 @@
 //!
 //! An element the crate does not read raises one [`Warning::Ignored`] for
 //! each road, junction, or the rest of the document that uses it, with a
-//! count, so a map with thousands of `<userData>` raises a few. Other things
-//! it drops, such as a lane section under 1 mm long or a signal off the end
-//! of its road, raise none. The crate prints nothing. To log the warnings,
+//! count, so a map with thousands of `<userData>` raises a few. Two drops
+//! raise none, since exporters write them and nothing is lost: a lane section
+//! under 1 mm long inside its road, and a road mark at or past the end of its
+//! lane section. The crate prints nothing. To log the warnings,
 //! print the list.
 //!
 //! # Importer contract

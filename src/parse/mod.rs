@@ -2241,6 +2241,17 @@ fn bake_lanes(
     }
 
     let (predecessor, successor) = links::road_link(road);
+    for (end, target) in [(RoadEnd::Start, &predecessor), (RoadEnd::End, &successor)] {
+        let guessed = target
+            .as_ref()
+            .is_some_and(|t| t.elem == links::ElemType::Road && !t.contact_given && !t.along);
+        if guessed {
+            baked.warnings.push(Warning::ContactPointMissing {
+                road_id: baked.road.od_id.clone(),
+                end,
+            });
+        }
+    }
     topo.roads.insert(
         baked.road.od_id.clone(),
         RoadInfo {

@@ -445,6 +445,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `SpeedLimitDropped` | a `<speed>` whose `max` or `unit` the crate can't read, or whose limit is too large for an `f32` |
 | `AccessDropped` | an `<access>` whose `rule` is neither `allow` nor `deny` |
 | `VisibilityDropped` | a `<visibility>` with a distance the crate can't read |
+| `ContactPointMissing` | a road `<predecessor>` or `<successor>` naming a road without a `contactPoint`. The crate joins that road's start |
 | `RoadMarkDropped` | a `<roadMark>` at the same `sOffset` as the next on its lane, which replaces it. One at or past its section's end goes without a warning |
 | `SignalDropped` | a `<signal>` without a readable `s` or `t`, or off the ends of its road |
 | `SignalLinkDropped` | a signal's `<dependency>` or `<reference>`, a `<signalReference>` or a `<control>` naming a signal or object the load didn't bake, or a `<signalReference>` off its road |
