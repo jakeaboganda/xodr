@@ -4,6 +4,10 @@
 
 ### Warnings
 
+- `Warning::LaneSectionDropped` for a `<laneSection>` that starts past
+  the end of its road, which the crate drops. One under 1 mm long inside
+  the road, which exporters write where two sections meet, still goes
+  without a warning: town07 has 82.
 - `Warning::RecordDropped` for a profile record the crate drops: an
   `<elevation>`, `<superelevation>`, `<laneOffset>` or road `<type>`
   without a readable `s`, a `<shape>` without `s` or `t`, or a lane

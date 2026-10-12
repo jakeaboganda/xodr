@@ -85,3 +85,33 @@ fn records_out_of_order_are_sorted_with_a_warning() {
         r#"road "7", lane section 0, lane -1: <width> records out of order, sorted"#
     );
 }
+
+#[test]
+fn a_lane_section_past_the_road_end_is_dropped_with_a_warning() {
+    let section = |s: &str| {
+        format!(
+            r#"<laneSection s="{s}"><center><lane id="0" type="none"/></center><right>
+            <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+            </right></laneSection>"#
+        )
+    };
+    let xodr = format!(
+        r#"<OpenDRIVE><header/><road id="7" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes>{}{}{}{}</lanes></road></OpenDRIVE>"#,
+        section("0"),
+        section("50"),
+        section("50.0000001"),
+        section("120")
+    );
+    let (net, prov) = load_str_with_provenance(&xodr).unwrap();
+    assert_eq!(net.lanes().len(), 2, "the sub-millimetre section goes quietly");
+    assert_eq!(
+        prov.warnings,
+        [Warning::LaneSectionDropped {
+            road_id: "7".into(),
+            section: 3,
+            s: 120.0,
+        }]
+    );
+}

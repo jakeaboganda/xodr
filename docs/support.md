@@ -445,6 +445,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `SpeedLimitDropped` | a `<speed>` whose `max` or `unit` the crate can't read, or whose limit is too large for an `f32` |
 | `AccessDropped` | an `<access>` whose `rule` is neither `allow` nor `deny` |
 | `VisibilityDropped` | a `<visibility>` with a distance the crate can't read |
+| `LaneSectionDropped` | a `<laneSection>` that starts past the end of its road. One under 1 mm long inside the road goes without a warning |
 | `RecordDropped` | an `<elevation>`, `<superelevation>`, `<laneOffset>` or road `<type>` without a readable `s`, a `<shape>` without a readable `s` or `t`, or a lane `<width>` or `<border>` without a readable `a` |
 | `RecordValueUnreadable` | a number of a profile record that isn't one, such as `b="NaN"`. The crate reads it as 0 |
 | `RecordsOutOfOrder` | records of one kind, such as a lane's `<width>`s, that don't come in ascending order of where they start. The crate sorts them |

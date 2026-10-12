@@ -2125,7 +2125,9 @@ impl BakedRoad {
 ///
 /// Each section runs from its `s` to the next section's, or the road's end.
 /// The spec requires `s`. A section without one, or with a negative one,
-/// starts at 0, as libOpenDRIVE reads it.
+/// starts at 0, as libOpenDRIVE reads it. One under 1 mm long is dropped.
+/// Exporters write many where two sections meet, which lose nothing, so only
+/// one past the road's end raises a [`Warning::LaneSectionDropped`].
 fn bake_lanes(
     road: roxmltree::Node,
     baked: &mut BakedRoad,
@@ -2161,7 +2163,14 @@ fn bake_lanes(
                 .map_or(next, |l| (s_start + l).min(next))
                 .min(length);
             if s_end - s_start < 1e-3 {
-                continue; // zero-length section
+                if s_start > length + 1e-3 {
+                    baked.warnings.push(Warning::LaneSectionDropped {
+                        road_id: baked.road.od_id.clone(),
+                        section: index,
+                        s: s_start,
+                    });
+                }
+                continue;
             }
             let first = topo.metas.len();
             let [left, right] = std::mem::take(&mut def.geoms);
