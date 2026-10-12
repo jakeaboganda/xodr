@@ -73,12 +73,17 @@ const FEATURES: &[Feature] = &[
     Feature {
         name: "<roadSection>",
         path: "roadSection",
-        when: always,
+        when: not_in_a_crossing,
     },
 ];
 
 fn always(_: roxmltree::Node) -> bool {
     true
+}
+
+fn not_in_a_crossing(node: roxmltree::Node) -> bool {
+    node.parent_element()
+        .is_none_or(|p| p.attribute("type") != Some("crossing"))
 }
 
 fn not_on_an_object(node: roxmltree::Node) -> bool {

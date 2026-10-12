@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Crossings
+
+- `RoadNetwork::crossings` gives each `<junction type="crossing">` as a
+  `Crossing`: where roads cross at one level without joining, such as a
+  road and a railway. Each `CrossingSection`, from a `<roadSection>`, has
+  its road, the stretch from `sStart` to `sEnd`, and the part of each lane
+  there. An `sEnd` before its `sStart` reads as the stretch between them.
+  `Warning::RoadSectionDropped` names a section the crate can't place.
+  `<roadSection>` leaves the `Ignored` list, but for one in a junction that
+  is not a crossing, which the spec doesn't allow.
+
 ### Junction elevation grids
 
 - **Breaking:** the roads of a junction with an `<elevationGrid>` stand on

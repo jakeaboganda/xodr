@@ -5,6 +5,7 @@ use crate::coords::{Point, Vector};
 use crate::mesh::Mesh;
 use crate::network::LaneId;
 use crate::road::RoadId;
+use crate::structure::Coverage;
 use crate::{Orientation, RoadEnd};
 
 /// A virtual junction, from a `<junction type="virtual">`: roads that leave
@@ -86,6 +87,38 @@ impl LinkPoint {
             Self::End { road, .. } | Self::Along { road, .. } => road,
         }
     }
+}
+
+/// A crossing, from an OpenDRIVE `<junction type="crossing">`: where two or
+/// more roads cross at one level, such as a road and a railway, and traffic
+/// cannot change from one to the other. It has no connecting roads, only the
+/// stretch of each road where traffic crosses.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Crossing {
+    /// Its `<junction id>`.
+    pub od_id: String,
+    /// Its `name`, empty if it has none.
+    pub name: String,
+    /// Where each road crosses, from its `<roadSection>`s, in file order.
+    pub sections: Vec<CrossingSection>,
+}
+
+/// One road's stretch through a [`Crossing`], from a `<roadSection>`.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CrossingSection {
+    /// Its `id`, empty if it has none.
+    pub od_id: String,
+    /// The road.
+    pub road: RoadId,
+    /// Where the stretch starts along the road's reference line, `sStart`,
+    /// in metres. Never past `s_end`.
+    pub s_start: f64,
+    /// Where it ends, `sEnd`, in metres.
+    pub s_end: f64,
+    /// The part of each of the road's lanes in the stretch.
+    pub lanes: Vec<Coverage>,
 }
 
 /// Junctions that routing should see as one, such as the junctions round a

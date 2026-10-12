@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenDRIVE>
+  <header revMajor="1" revMinor="8" name="crossings"/>
+  <road name="" length="200" id="1" junction="-1">
+    <planView><geometry s="0" x="0" y="0" hdg="0" length="200"><line/></geometry></planView>
+    <lanes><laneSection s="0"><left><lane id="1" type="driving" level="false"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane></left><center><lane id="0" type="none"/></center><right><lane id="-1" type="driving" level="false"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane></right></laneSection></lanes>
+  </road>
+  <road name="" length="300" id="2" junction="-1">
+    <planView><geometry s="0" x="55" y="-150" hdg="1.5707963267948966" length="300"><line/></geometry></planView>
+    <lanes><laneSection s="0"><left></left><center><lane id="0" type="none"/></center><right><lane id="-1" type="rail" level="false"><width sOffset="0" a="1.5" b="0" c="0" d="0"/></lane></right></laneSection></lanes>
+  </road>
+  <junction name="myRailCrossing" type="crossing" id="555">
+    <priority high="2" low="1"/>
+    <roadSection id="0" roadId="1" sStart="50" sEnd="60"/>
+    <roadSection id="1" roadId="2" sStart="160" sEnd="140"/>
+    <roadSection id="2" roadId="99" sStart="0" sEnd="10"/>
+  </junction>
+</OpenDRIVE>

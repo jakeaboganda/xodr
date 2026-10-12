@@ -120,6 +120,7 @@
 //! | `<junctionGroup>` | `id`, `name`, `type` |
 //! | `<junctionGroup><junctionReference>` | `junction` |
 //! | `<junction><crossPath>` | `id`, `crossingRoad`, `roadAtStart`, `roadAtEnd` |
+//! | `<junction><roadSection>` | `id`, `roadId`, `sStart`, `sEnd` |
 //! | `<crossPath><startLaneLink>` | `s`, `from`, `to` |
 //! | `<crossPath><endLaneLink>` | `s`, `from`, `to` |
 //! | `<junction><planView>` | its `<geometry>`s, as a road's |
@@ -245,6 +246,17 @@
 //! that road does not have at its `s`, or an `s` off the road, is dropped
 //! with a [`Warning::CrossPathDropped`]. No other reader to compare against
 //! reads them.
+//!
+//! A `<junction type="crossing">` is where roads cross at one level without
+//! joining, such as a road and a railway. Each is a [`Crossing`] in
+//! [`RoadNetwork::crossings`], with a [`CrossingSection`] for each of its
+//! `<roadSection>`s: the road, the stretch of it from `sStart` to `sEnd`,
+//! and the part of each of its lanes there, as a tunnel's [`Coverage`].
+//! The spec requires both ends. An `sEnd` before its `sStart` reads as the
+//! stretch between them. A section naming a road the load lacks, or an end
+//! off the road, is dropped with a [`Warning::RoadSectionDropped`]. Which
+//! road has priority is in [`RoadNetwork::priorities`], as for any
+//! junction. No other reader to compare against reads crossings.
 //!
 //! A junction's `<priority>`s say which of its roads gives way to which.
 //! Each is a [`Priority`] in [`RoadNetwork::priorities`], and
@@ -1162,15 +1174,16 @@
 //! the warnings for faults.
 //!
 //! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
-//! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere, and a
-//! junction's `<roadSection>`s. It skips `<userData>` anywhere but directly
-//! on an object, which it reads. It
+//! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere. It
+//! skips `<userData>` anywhere but directly on an object, which it reads. It
 //! skips the `validity`, `dependency` and `reference` of a board sign.
 //!
 //! It also ignores these uses of elements it reads:
 //!
 //! - a second `lanes` of one [`Layer`] on a road, which the crate leaves out.
-//!   It keeps the first.
+//!   It keeps the first;
+//! - a `roadSection` of a junction that is not a crossing. The spec gives
+//!   them to crossings alone.
 //!
 //! One omission changes the road you get back, rather than only dropping
 //! detail around it: the center lane, lane 0, never becomes a [`Lane`].
@@ -1473,6 +1486,8 @@
 //! - [`Warning::JunctionReferenceDropped`] and
 //!   [`Warning::UnknownJunctionGroupType`] for a `<junctionGroup>` the
 //!   crate can't read whole.
+//! - [`Warning::RoadSectionDropped`] for a crossing's `<roadSection>` it
+//!   can't place.
 //! - [`Warning::CrossPathDropped`] for a `<crossPath>` whose roads or lanes
 //!   the load lacks.
 //! - [`Warning::ElevationGridDropped`], [`Warning::TransitionDropped`],
@@ -1581,8 +1596,8 @@ pub use geometry::TooFewPoints;
 pub use geometry::{Polyline, Pose, Projection, RoadSample};
 pub use header::Header;
 pub use junction::{
-    CrossPath, CrossPathEnd, ElevationGrid, GridRow, JunctionArea, JunctionGroup,
-    JunctionGroupKind, LinkPoint, MainRoad, VirtualJunction, VirtualLink,
+    CrossPath, CrossPathEnd, Crossing, CrossingSection, ElevationGrid, GridRow, JunctionArea,
+    JunctionGroup, JunctionGroupKind, LinkPoint, MainRoad, VirtualJunction, VirtualLink,
 };
 pub use mesh::{LaneSpan, Mesh, MeshError, MeshSampler};
 pub use network::{

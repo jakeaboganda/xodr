@@ -470,6 +470,14 @@ pub enum Warning {
         /// Its `mode`.
         mode: String,
     },
+    /// A crossing's `<roadSection>` naming a road the load didn't bake, or
+    /// without an `sStart` and `sEnd` on that road. The crate drops it.
+    RoadSectionDropped {
+        /// The `<junction id>`.
+        junction_id: String,
+        /// Its `roadId`.
+        road_id: String,
+    },
     /// A boundary `joint` segment with a `transitionLength`, in a junction
     /// with an `<elevationGrid>`, without a `lane` segment on each side of it
     /// to measure the zone along, or naming a road the load didn't bake. The
@@ -829,6 +837,7 @@ impl Warning {
                 ..
             } => road_id,
             Self::TransitionDropped { .. }
+            | Self::RoadSectionDropped { .. }
             | Self::JunctionReferenceDropped { .. }
             | Self::VirtualJunctionWithoutMainRoad { .. }
             | Self::UnknownJunctionGroupType { .. }
@@ -1118,6 +1127,13 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "junction {junction_id:?}: <crossPath> {cross_path_id:?} dropped, it can't be placed on road {road_id:?}"
+            ),
+            Self::RoadSectionDropped {
+                junction_id,
+                road_id,
+            } => write!(
+                f,
+                "junction {junction_id:?}: <roadSection> on road {road_id:?} can't be placed, dropped"
             ),
             Self::TransitionDropped {
                 junction_id,

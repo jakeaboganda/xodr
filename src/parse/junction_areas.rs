@@ -1,11 +1,13 @@
 //! Junction boundaries, elevation grids and cross paths, placed once every
 //! road is baked.
 
-use super::{attr_f64, attr_i32, child, BakedRoad, Warning};
+use super::{attr_f64, attr_i32, child, coverage, BakedRoad, Warning};
 use crate::coords::Point;
 use crate::junction::{
-    CrossPath, CrossPathEnd, ElevationGrid, GridRow, JunctionArea, JunctionGroup, JunctionGroupKind,
+    CrossPath, CrossPathEnd, Crossing, CrossingSection, ElevationGrid, GridRow, JunctionArea,
+    JunctionGroup, JunctionGroupKind,
 };
+use crate::network::Lane;
 use crate::network::LaneId;
 use crate::road::{Road, RoadSection, Transition};
 use std::collections::HashMap;
@@ -550,4 +552,56 @@ fn walk(points: &[Point], from: [f64; 2], length: f64) -> Option<[f64; 2]> {
         left -= step;
     }
     path.last().copied()
+}
+
+/// Every `<junction type="crossing">`, in file order, with the stretch of
+/// each road its `<roadSection>`s name. A section naming a road the load
+/// didn't bake, or without an `sStart` and `sEnd` on that road, is dropped
+/// with a [`Warning::RoadSectionDropped`]. An `sEnd` before its `sStart`
+/// reads as the stretch between them.
+pub(super) fn crossings(
+    root: roxmltree::Node,
+    roads: &[(roxmltree::Node, BakedRoad)],
+    lanes: &[Lane],
+) -> (Vec<Crossing>, Vec<Warning>) {
+    let road = |id: &str| roads.iter().map(|(_, r)| &r.road).find(|r| r.od_id == id);
+    let (mut out, mut warnings) = (Vec::new(), Vec::new());
+    let junctions = root
+        .children()
+        .filter(|n| n.has_tag_name("junction") && n.attribute("type") == Some("crossing"));
+    for junction in junctions {
+        let od_id = junction.attribute("id").unwrap_or_default().to_string();
+        let mut sections = Vec::new();
+        for node in junction
+            .children()
+            .filter(|n| n.has_tag_name("roadSection"))
+        {
+            let road_id = node.attribute("roadId").unwrap_or_default();
+            let placed = road(road_id).and_then(|r| {
+                let on = |name| station(r, Some(node.attribute(name)?));
+                let (a, b) = (on("sStart")?, on("sEnd")?);
+                let (s_start, s_end) = (a.min(b), a.max(b));
+                Some(CrossingSection {
+                    od_id: node.attribute("id").unwrap_or_default().to_string(),
+                    road: r.id,
+                    s_start,
+                    s_end,
+                    lanes: coverage(r, lanes, (s_start, s_end), &[]),
+                })
+            });
+            match placed {
+                Some(section) => sections.push(section),
+                None => warnings.push(Warning::RoadSectionDropped {
+                    junction_id: od_id.clone(),
+                    road_id: road_id.to_string(),
+                }),
+            }
+        }
+        out.push(Crossing {
+            name: junction.attribute("name").unwrap_or_default().to_string(),
+            od_id,
+            sections,
+        });
+    }
+    (out, warnings)
 }

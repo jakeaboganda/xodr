@@ -27,6 +27,13 @@ cross path, and one naming an `s` past the road's end. Regenerate with
 
     python3 tests/data/cross_paths.py
 
+`crossings.xodr` comes from `crossings.py`, which writes the XML itself.
+It has a railway crossing a road at one level, as a crossing junction with
+the spec's priority, a section with its ends the wrong way round, and one
+naming a road the file lacks. Regenerate with
+
+    python3 tests/data/crossings.py
+
 `cross_sections.xodr` comes from `cross_sections.py`, which writes the XML
 itself. It has a cross-section surface with an offset, both inner strips
 and a relative outer strip, and one with superelevation and a strip mode
