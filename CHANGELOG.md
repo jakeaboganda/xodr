@@ -20,6 +20,8 @@
   segment each side to measure the zone along. `transitionLength` is no
   longer on the `Ignored` list. `UC_5Road_Junction`'s last 0.1 m step,
   where road 411 meets road 323, is gone.
+- `xodr_usd` takes the junction lanes' heights from the crate, grid and
+  blend included, and sets the ground between them on the grid as before.
 
 ### Viewer and OpenUSD
 

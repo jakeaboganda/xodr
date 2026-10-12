@@ -6,9 +6,11 @@
 //!
 //! [`lay`] adds the ground inside the boundary to a junction's lane facets,
 //! as fill. Where the grid covers the junction, it also sets each lane at
-//! its `<height>` alone, since the grid lies under every lane alike and so
-//! decides nothing between them. Once those are wrapped, [`raise`] sets the
-//! wrap on the grid.
+//! its height above the grid. The crate already stands the junction's roads
+//! on the grid, their lane heights and the blend from each road coming in
+//! added, so that is the lane's height less the grid's. Once those are
+//! wrapped, [`raise`] cuts the wrap to the grid's spacing and sets it back
+//! on the grid, so the ground between the lanes follows the grid too.
 
 use std::collections::HashMap;
 
@@ -36,24 +38,26 @@ type Cdt = ConstrainedDelaunayTriangulation<Point2<f64>>;
 /// The facets of a junction with `area`, and whether they are set for
 /// [`raise`]: its `lanes`, and the ground inside the boundary as fill. If
 /// the junction has a grid that gives a height (see [`held`]) at every
-/// lane corner and on the boundary, each lane corner stands at its
-/// `<height>` from `lifts` and the fill at 0, to be raised onto the grid.
+/// lane corner and on the boundary, each lane corner stands at its height
+/// above the grid and the fill at 0, to be raised onto the grid.
 /// Otherwise the lanes keep their own heights and the fill takes the
 /// boundary's.
-pub(crate) fn lay(
-    area: &JunctionArea,
-    lanes: Vec<Facet>,
-    lifts: &[[f32; 3]],
-) -> (Vec<Facet>, bool) {
-    let raised = area.grid.as_ref().is_some_and(|grid| {
-        let on_grid = |p: &Point| held(grid, f64::from(p.x), f64::from(p.y)).is_some();
-        area.boundary.iter().all(on_grid) && lanes.iter().flat_map(|f| &f.corners).all(on_grid)
-    });
+pub(crate) fn lay(area: &JunctionArea, lanes: Vec<Facet>) -> (Vec<Facet>, bool) {
+    let grid = area.grid.as_ref();
+    let ground = |p: &Point| grid.and_then(|g| held(g, f64::from(p.x), f64::from(p.y)));
+    let raised = grid.is_some()
+        && area.boundary.iter().all(|p| ground(p).is_some())
+        && lanes
+            .iter()
+            .flat_map(|f| &f.corners)
+            .all(|p| ground(p).is_some());
     let mut out = if raised {
-        (lanes.into_iter().zip(lifts))
-            .map(|(facet, lift)| Facet {
-                corners: [0, 1, 2]
-                    .map(|k| Point::new(facet.corners[k].x, facet.corners[k].y, lift[k])),
+        (lanes.into_iter())
+            .map(|facet| Facet {
+                corners: facet.corners.map(|p| {
+                    let above = f64::from(p.z) - ground(&p).unwrap_or(0.0);
+                    Point::new(p.x, p.y, above as f32)
+                }),
                 normals: [Vector::Z; 3],
                 ..facet
             })
