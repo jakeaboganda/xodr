@@ -143,8 +143,8 @@
 //! | `<signals><signal>` | `id`, `name`, `dynamic`, `orientation`, `s`, `t`, `zOffset`, `hOffset`, `pitch`, `roll`, `country`, `countryRevision`, `type`, `subtype`, `value`, `unit`, `text`, `length`, `width`, `height`, `invalidated`, `temporary` |
 //! | `<signal><positionRoad>` | `roadId`, `s`, `t`, `zOffset`, `hOffset`, `pitch`, `roll` |
 //! | `<signal><positionInertial>` | `x`, `y`, `z`, `hdg`, `pitch`, `roll` |
-//! | `<signal><dependency>`, and under a `<staticBoard>`, `<vmsBoard>`, `<sign>` or `<displayArea>` | `id`, `type` |
-//! | `<signal><reference>`, and under a `<staticBoard>`, `<vmsBoard>` or `<sign>` | `elementType`, `elementId`, `type` |
+//! | `<signal><dependency>`, `<staticBoard><dependency>`, `<vmsBoard><dependency>`, `<sign><dependency>`, `<displayArea><dependency>` | `id`, `type` |
+//! | `<signal><reference>`, `<staticBoard><reference>`, `<vmsBoard><reference>`, `<sign><reference>` | `elementType`, `elementId`, `type` |
 //! | `<sign><positionRoad>`, `<sign><positionInertial>` | as a signal's |
 //! | `<signals><signalReference>` | `id`, `s`, `t`, `orientation` |
 //! | `<signal><semantics>`, `<sign><semantics>`, `<roadRegulations><semantics>`, `<signalRegulations><semantics>` | none |
@@ -152,7 +152,8 @@
 //! | `<semantics><supplementaryTime>` | `type`, `value` |
 //! | `<semantics><lane>`, `<semantics><priority>`, `<semantics><supplementaryEnvironment>` | `type` |
 //! | `<semantics><prohibited>`, `<semantics><supplementaryAllows>`, `<semantics><supplementaryProhibits>` | none |
-//! | `<animal>`, `<person>`, `<vehicle>` | none, and a `<type>`'s text |
+//! | `<animal>`, `<person>`, `<vehicle>` | none |
+//! | `<person><type>`, `<vehicle><type>` | its text |
 //! | `<semantics><warning>`, `<semantics><routing>`, `<semantics><streetname>`, `<semantics><parking>`, `<semantics><tourist>`, `<semantics><supplementaryExplanatory>` | none |
 //! | `<signal><staticBoard>` | none |
 //! | `<staticBoard><sign>` | `id`, `name`, `country`, `countryRevision`, `type`, `subtype`, `value`, `unit`, `text`, `orientation`, `dynamic`, `invalidated`, `temporary`, `hOffset`, `pitch`, `roll`, `length`, `width`, `height`, `v`, `z` |
