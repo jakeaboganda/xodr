@@ -1316,3 +1316,36 @@ fn marking_paint_past_what_one_load_bakes_is_left_out_with_a_warning() {
         .iter()
         .any(|w| matches!(w, xodr::Warning::TooManyCopies { .. })));
 }
+
+#[test]
+fn a_repeat_s_borders_count_toward_what_one_load_bakes() {
+    let corner = |k, u, v| format!(r#"<cornerLocal id="{k}" u="{u}" v="{v}" height="1"/>"#);
+    let xodr = format!(
+        r#"<OpenDRIVE><header/><road id="1" length="10000" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="10000"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes><objects>
+        <object id="box" type="obstacle" s="0" t="-6"><outlines><outline id="0" closed="true">{}{}{}{}</outline></outlines>
+        <borders>{}</borders>
+        <repeat s="0" length="9999" distance="1" tStart="-6" tEnd="-6"/></object>
+        </objects></road></OpenDRIVE>"#,
+        corner(0, 0.0, 0.0),
+        corner(1, 0.5, 0.0),
+        corner(2, 0.5, 0.5),
+        corner(3, 0.0, 0.5),
+        r#"<border width="0.1" type="concrete" useCompleteOutline="true"/>"#.repeat(60)
+    );
+    let (net, prov) = xodr::load_str_with_provenance(&xodr).unwrap();
+    let pieces: usize = net
+        .objects()
+        .iter()
+        .flat_map(|o| &o.borders)
+        .map(|b| b.pieces.len())
+        .sum();
+    assert!(pieces <= 2_000_000, "{pieces} border pieces");
+    assert!(prov
+        .warnings
+        .iter()
+        .any(|w| matches!(w, xodr::Warning::TooManyCopies { .. })));
+}
