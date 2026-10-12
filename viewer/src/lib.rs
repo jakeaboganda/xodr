@@ -41,6 +41,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 use xodr::opencrg::CrgGrid;
 use xodr::{
@@ -58,12 +59,60 @@ use xodr::{
 mod web;
 
 /// A baked map: the scene the page draws, and what the viewer noticed on
-/// the way that the crate's warnings don't cover.
+/// the way that the crate's warnings don't cover. Write it with
+/// [`Scene::write`].
 pub struct Scene {
-    /// The scene. Its `warnings` table ends with `notes`.
+    /// The scene's tables, every key but `mesh` and `objectMesh`. Its
+    /// `warnings` table ends with `notes`.
     pub json: Value,
+    /// The surface mesh, the scene's `mesh`.
+    pub mesh: Buffers,
+    /// The object mesh with each object's slice of it, the scene's
+    /// `objectMesh`.
+    pub object_mesh: Buffers,
     /// A mesh that is not a valid triangle mesh, or a CRG file that did not load.
     pub notes: Vec<String>,
+}
+
+/// A mesh's positions, normals and indices, flattened into the
+/// [x,y,z, x,y,z, ...] layout a three.js Float32BufferAttribute takes
+/// directly, and for the object mesh, each object's slice. Kept typed, not
+/// as JSON values, as a map's meshes are most of its scene.
+#[derive(Serialize)]
+pub struct Buffers {
+    pub positions: Vec<f32>,
+    pub normals: Vec<f32>,
+    pub indices: Vec<u32>,
+    pub spans: Vec<ObjectSlice>,
+}
+
+/// One object's slice of the object mesh.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObjectSlice {
+    pub object_id: usize,
+    pub vertices: [u32; 2],
+    pub indices: [u32; 2],
+}
+
+impl Scene {
+    /// Write the scene as JSON to `out`.
+    pub fn write(&self, out: impl std::io::Write) -> serde_json::Result<()> {
+        #[derive(Serialize)]
+        struct Out<'a> {
+            #[serde(flatten)]
+            tables: &'a Value,
+            mesh: &'a Buffers,
+            #[serde(rename = "objectMesh")]
+            object_mesh: &'a Buffers,
+        }
+        let out_scene = Out {
+            tables: &self.json,
+            mesh: &self.mesh,
+            object_mesh: &self.object_mesh,
+        };
+        serde_json::to_writer(out, &out_scene)
+    }
 }
 
 /// Bake an OpenDRIVE document into its viewer scene. `crg` reads the
@@ -107,7 +156,7 @@ pub fn bake(
         }
     });
 
-    let mut json = build_scene(&net, &drawn, &object_mesh, &provenance);
+    let mut json = build_scene(&net, &drawn, &provenance);
     json["crg"] = crg_overlay(&net, &mesh, &surface, &loaded);
     if let Some(warnings) = json["warnings"].as_array_mut() {
         warnings.extend(
@@ -116,7 +165,22 @@ pub fn bake(
                 .map(|n| json!({ "message": n, "roadId": null })),
         );
     }
-    Ok(Scene { json, notes })
+    let mut object_buffers = buffers(&object_mesh);
+    object_buffers.spans = object_mesh
+        .objects
+        .iter()
+        .map(|s| ObjectSlice {
+            object_id: s.object.0,
+            vertices: [s.vertices.start, s.vertices.end],
+            indices: [s.indices.start, s.indices.end],
+        })
+        .collect();
+    Ok(Scene {
+        json,
+        mesh: buffers(&drawn),
+        object_mesh: object_buffers,
+        notes,
+    })
 }
 
 /// How far, in metres, the page lifts the temporary lanes off the surface
@@ -147,15 +211,10 @@ fn with_temporary(surface: &Mesh, temporary: &Mesh) -> Mesh {
     out
 }
 
-/// Assemble the viewer scene: flat mesh buffers, the lane table, the object
-/// table, the object mesh, the structure, signal, controller, road mark and
-/// warning tables, and the geo reference.
-fn build_scene(
-    net: &RoadNetwork,
-    mesh: &Mesh,
-    object_mesh: &Mesh,
-    provenance: &Provenance,
-) -> Value {
+/// Assemble the viewer scene's tables: the lane table, the object, structure,
+/// signal, controller, road mark and warning tables, and the geo reference.
+/// `mesh` is the surface the lanes are slices of.
+fn build_scene(net: &RoadNetwork, mesh: &Mesh, provenance: &Provenance) -> Value {
     let lanes: Vec<Value> = mesh
         .lanes
         .iter()
@@ -164,24 +223,19 @@ fn build_scene(
     let objects: Vec<Value> = net
         .objects()
         .iter()
-        .map(|o| object_entry(o, provenance.objects.iter().find(|p| p.object == o.id)))
+        .map(|o| object_entry(o, by_id(&provenance.objects, o.id.0, |p| p.object.0)))
         .collect();
 
     let structures: Vec<Value> = net
         .structures()
         .iter()
-        .map(|s| {
-            structure_entry(
-                s,
-                provenance.structures.iter().find(|p| p.structure == s.id),
-            )
-        })
+        .map(|s| structure_entry(s, by_id(&provenance.structures, s.id.0, |p| p.structure.0)))
         .collect();
 
     let signals: Vec<Value> = net
         .signals()
         .iter()
-        .map(|s| signal_entry(s, provenance.signals.iter().find(|p| p.signal == s.id)))
+        .map(|s| signal_entry(s, by_id(&provenance.signals, s.id.0, |p| p.signal.0)))
         .collect();
 
     let controllers: Vec<Value> = net
@@ -190,7 +244,7 @@ fn build_scene(
         .map(|c| {
             controller_entry(
                 c,
-                provenance.controllers.iter().find(|p| p.controller == c.id),
+                by_id(&provenance.controllers, c.id.0, |p| p.controller.0),
             )
         })
         .collect();
@@ -199,7 +253,7 @@ fn build_scene(
         .road_marks()
         .iter()
         .map(|m| {
-            let prov = provenance.road_marks.iter().find(|p| p.road_mark == m.id);
+            let prov = by_id(&provenance.road_marks, m.id.0, |p| p.road_mark.0);
             let mut entry = road_mark_entry(m, prov);
             let center = prov.filter(|p| p.od_lane_id == 0).and_then(|p| {
                 provenance
@@ -218,25 +272,10 @@ fn build_scene(
         })
         .collect();
 
-    let mut object_buffers = buffers(object_mesh);
-    object_buffers["spans"] = object_mesh
-        .objects
-        .iter()
-        .map(|s| {
-            json!({
-                "objectId": s.object.0,
-                "vertices": [s.vertices.start, s.vertices.end],
-                "indices": [s.indices.start, s.indices.end],
-            })
-        })
-        .collect();
-
     json!({
         "meta": { "generator": "xodr viewer_export", "frame": "OpenDRIVE Z-up metres" },
-        "mesh": buffers(mesh),
         "lanes": lanes,
         "objects": objects,
-        "objectMesh": object_buffers,
         "structures": structures,
         "signals": signals,
         "controllers": controllers,
@@ -381,7 +420,7 @@ fn junction_area(area: &JunctionArea) -> Value {
         "junction": area.od_id,
         "boundary": area.boundary.iter().map(|p| p.to_array()).collect::<Vec<_>>(),
         "grid": area.grid.is_some(),
-        "mesh": buffers(&area.mesh()),
+        "mesh": json!(buffers(&area.mesh())),
     })
 }
 
@@ -598,13 +637,23 @@ fn warning_entry(w: &Warning) -> Value {
     json!({ "message": w.to_string(), "roadId": w.road_id() })
 }
 
-/// A mesh's positions, normals and indices, flattened into the
-/// [x,y,z, x,y,z, ...] layout a three.js Float32BufferAttribute takes
-/// directly.
-fn buffers(mesh: &Mesh) -> Value {
-    let positions: Vec<f32> = mesh.vertices.iter().flat_map(|v| v.to_array()).collect();
-    let normals: Vec<f32> = mesh.normals.iter().flat_map(|n| n.to_array()).collect();
-    json!({ "positions": positions, "normals": normals, "indices": mesh.indices })
+/// `mesh`'s [`Buffers`], with no object slices.
+fn buffers(mesh: &Mesh) -> Buffers {
+    Buffers {
+        positions: mesh.vertices.iter().flat_map(|v| v.to_array()).collect(),
+        normals: mesh.normals.iter().flat_map(|n| n.to_array()).collect(),
+        indices: mesh.indices.clone(),
+        spans: Vec::new(),
+    }
+}
+
+/// The record of `items` for the id `i`. Provenance lists one record per
+/// baked item, in id order, so it is at `i`. Otherwise it is found by a scan.
+fn by_id<T>(items: &[T], i: usize, id: impl Fn(&T) -> usize) -> Option<&T> {
+    match items.get(i) {
+        Some(item) if id(item) == i => Some(item),
+        _ => items.iter().find(|item| id(item) == i),
+    }
 }
 
 /// One object's viewer record: its identity, OpenDRIVE provenance, and
@@ -946,7 +995,7 @@ fn pieces(quads: &[[Point; 4]]) -> Vec<[[f32; 3]; 4]> {
 /// its centerline for cursor projection, and the `laneId`s it leads to and
 /// comes from in its travel direction.
 fn lane_entry(net: &RoadNetwork, provenance: &Provenance, span: &LaneSpan) -> Value {
-    let prov = provenance.lanes.iter().find(|p| p.lane == span.lane);
+    let prov = by_id(&provenance.lanes, span.lane.0, |p| p.lane.0);
     let lane = net.lane(span.lane);
 
     let centerline: Vec<[f32; 3]> = lane

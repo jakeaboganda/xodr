@@ -19,5 +19,9 @@ pub fn bake(xodr: &str, crg: &Function) -> Result<String, JsError> {
         CrgGrid::from_bytes(&Uint8Array::new(&bytes).to_vec()).map_err(|e| e.to_string())
     })
     .map_err(|e| JsError::new(&e))?;
-    Ok(scene.json.to_string())
+    let mut out = Vec::new();
+    scene
+        .write(&mut out)
+        .map_err(|e| JsError::new(&e.to_string()))?;
+    String::from_utf8(out).map_err(|e| JsError::new(&e.to_string()))
 }
