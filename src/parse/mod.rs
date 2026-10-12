@@ -1733,7 +1733,13 @@ fn parse_road(
     }
     if let Some(objects_node) = child(road, "objects") {
         place_objects(objects_node, index, &baked.road, None, objects);
-        place_structures(objects_node, &baked.road, out, structures);
+        place_structures(
+            objects_node,
+            &baked.road,
+            out,
+            structures,
+            &mut baked.warnings,
+        );
     }
     Ok(baked)
 }
@@ -2919,6 +2925,8 @@ struct Faults {
     skeleton_dropped: Cell<bool>,
     /// Whether an `<outline>` could not be placed.
     outline_dropped: Cell<bool>,
+    /// Whether a `<marking>` could not be painted.
+    marking_dropped: Cell<bool>,
     /// Whether a `<curveLocal>` set its `hdg` aside to join up.
     turned: Cell<bool>,
 }
@@ -2953,12 +2961,14 @@ struct Structures {
 /// A structure covers `length` metres of road from `s`, across every lane
 /// there, or across those in its `<validity>` ranges if it has any. It has no
 /// geometry: OpenDRIVE describes neither a tunnel's tube nor a bridge's deck.
-/// One missing `s` or `length`, or with a negative length, is skipped.
+/// One missing `s` or `length`, or with a negative length, is skipped, with a
+/// [`Warning::StructureDropped`] in `warnings`.
 fn place_structures(
     objects_node: roxmltree::Node,
     road: &Road,
     lanes: &[Lane],
     out: &mut Structures,
+    warnings: &mut Vec<Warning>,
 ) {
     for node in objects_node.children() {
         let text = |name| node.attribute(name).unwrap_or_default().to_string();
@@ -2974,9 +2984,17 @@ fn place_structures(
             continue;
         };
         let (Some(s), Some(length)) = (attr_f64(node, "s"), attr_f64(node, "length")) else {
+            warnings.push(Warning::StructureDropped {
+                road_id: road.od_id.clone(),
+                structure_id: text("id"),
+            });
             continue;
         };
         if length < 0.0 {
+            warnings.push(Warning::StructureDropped {
+                road_id: road.od_id.clone(),
+                structure_id: text("id"),
+            });
             continue;
         }
         let validity = validity(node);
@@ -3197,9 +3215,19 @@ fn place_objects<'a>(
         } else {
             None
         };
-        if let Some((object, mut at)) = placed {
-            at.junction = junction;
-            place_object(object, &at, road, out);
+        match placed {
+            Some((object, mut at)) => {
+                at.junction = junction;
+                place_object(object, &at, road, out);
+            }
+            None if node.has_tag_name("object") || node.has_tag_name("objectReference") => {
+                out.warnings.push(Warning::ObjectDropped {
+                    road_id: road.od_id.clone(),
+                    junction_id: junction.unwrap_or_default().to_string(),
+                    object_id: node.attribute("id").unwrap_or_default().to_string(),
+                })
+            }
+            None => {}
         }
     }
 }
@@ -3263,11 +3291,21 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     };
 
     let mut parts = Vec::new();
-    let repeats: Vec<Repeat> = node
+    let repeat_nodes: Vec<_> = node
         .children()
         .filter(|n| n.has_tag_name("repeat"))
-        .filter_map(|n| Repeat::parse(n, at.shift, &base, road))
         .collect();
+    let repeats: Vec<Repeat> = repeat_nodes
+        .iter()
+        .filter_map(|&n| Repeat::parse(n, at.shift, &base, road))
+        .collect();
+    if repeats.len() < repeat_nodes.len() {
+        out.warnings.push(Warning::RepeatDropped {
+            road_id: road.od_id.clone(),
+            junction_id: at.junction.unwrap_or_default().to_string(),
+            object_id: node.attribute("id").unwrap_or_default().to_string(),
+        });
+    }
     for (t_end, reached) in repeats.iter().filter_map(|r| r.missed_end(&base)) {
         out.warnings.push(Warning::RepeatEndMismatch {
             road_id: road.od_id.clone(),
@@ -3456,6 +3494,18 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     }
     if faults.turned.get() {
         out.warnings.push(Warning::CurveHeadingIgnored {
+            road_id: road.od_id.clone(),
+            junction_id: junction_id.clone(),
+            object_id: text("id"),
+        });
+    }
+    let outlines_of = outline_nodes(node);
+    let unclaimed = marking_nodes(node).any(|m| {
+        let named = m.children().any(|n| n.has_tag_name("cornerReference"));
+        named && !outlines_of.iter().any(|o| names_corners_of(&m, o))
+    });
+    if faults.marking_dropped.get() || unclaimed {
+        out.warnings.push(Warning::MarkingDropped {
             road_id: road.od_id.clone(),
             junction_id: junction_id.clone(),
             object_id: text("id"),
@@ -4309,7 +4359,13 @@ fn markings(
         |m: &roxmltree::Node| outlines.iter().find(|o| names_corners_of(m, o)) == Some(&outline);
     marking_nodes(outline)
         .chain(marking_nodes(object).filter(owned))
-        .filter_map(|m| paint(m, &corner_path(m, ring)?, faults))
+        .filter_map(|m| match corner_path(m, ring) {
+            Some(path) => paint(m, &path, faults),
+            None => {
+                faults.marking_dropped.set(true);
+                None
+            }
+        })
         .collect()
 }
 
@@ -4348,12 +4404,15 @@ fn side_markings(
     marking_nodes(object)
         .filter(|m| !m.children().any(|n| n.has_tag_name("cornerReference")))
         .filter_map(|m| {
-            let edge = match m.attribute("side")? {
-                "front" => [corner(u, -v), corner(u, v)],
-                "left" => [corner(u, v), corner(-u, v)],
-                "rear" => [corner(-u, v), corner(-u, -v)],
-                "right" => [corner(-u, -v), corner(u, -v)],
-                _ => return None,
+            let edge = match m.attribute("side") {
+                Some("front") => [corner(u, -v), corner(u, v)],
+                Some("left") => [corner(u, v), corner(-u, v)],
+                Some("rear") => [corner(-u, v), corner(-u, -v)],
+                Some("right") => [corner(-u, -v), corner(u, -v)],
+                _ => {
+                    faults.marking_dropped.set(true);
+                    return None;
+                }
             };
             paint(m, &edge, faults)
         })
@@ -4372,7 +4431,10 @@ fn paint(
     path: &[(Point, Vector)],
     faults: &Faults,
 ) -> Option<(Marking, RoadMarkWeight)> {
-    let width = attr_f64(m, "width").filter(|w| *w > 0.0)?;
+    let Some(width) = attr_f64(m, "width").filter(|w| *w > 0.0) else {
+        faults.marking_dropped.set(true);
+        return None;
+    };
     let raise = attr_f64(m, "zOffset").unwrap_or(PAINT_RAISE) as f32;
     let path: Vec<(Point, Vector)> = path.iter().map(|&(p, up)| (p + up * raise, up)).collect();
     let line = attr_f64(m, "lineLength").unwrap_or(0.0).max(0.0);

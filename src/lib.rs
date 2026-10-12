@@ -1482,6 +1482,9 @@
 //!   level. See [Level lanes](#level-lanes).
 //! - [`Warning::VisibilityDropped`] for a `<visibility>` with a distance it
 //!   can't read. See [Lane visibility](#lane-visibility).
+//! - [`Warning::ObjectDropped`], [`Warning::RepeatDropped`],
+//!   [`Warning::MarkingDropped`] and [`Warning::StructureDropped`] for an
+//!   object, a repeat, a marking or a tunnel or bridge it can't place.
 //! - [`Warning::LaneSectionDropped`] for a lane section that starts past
 //!   the end of its road.
 //! - [`Warning::RecordDropped`] for a profile record without where it
