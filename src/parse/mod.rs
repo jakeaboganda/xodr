@@ -3190,12 +3190,17 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 too_many.set(true);
                 continue;
             };
-            let corners = stations.first().map_or(0, |st| {
-                outlined(st).iter().map(Part::corner_count).sum::<usize>()
-            });
+            let first = match (shaped, stations.first()) {
+                (true, Some(st)) => outlined(st).iter().map(Part::cost).sum(),
+                _ => Cost {
+                    objects: 1,
+                    pieces: 0,
+                },
+            };
+            let corners = first.pieces;
             if corners.saturating_mul(stations.len()) > MAX_OUTLINE_CORNERS
                 || !out.spend(Cost {
-                    objects: stations.len(),
+                    objects: stations.len() * first.objects.max(1),
                     pieces: stations.len() * corners,
                 })
             {
