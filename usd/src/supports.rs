@@ -33,6 +33,10 @@ const ALONG: f32 = 0.5;
 /// traffic.
 const CLEAR: f32 = 0.5;
 
+/// How far, in metres, a board may reach over a lane that carries traffic
+/// and still stand beside the road.
+const OVERHANG: f32 = 0.5;
+
 /// Metres between the spots tried for a foot.
 const STEP: f32 = 0.25;
 
@@ -276,8 +280,9 @@ pub(crate) fn supports(
         let p = signal.position;
         let height = signal.height.unwrap_or(FALLBACK_SIZE);
         let width = signal.width.unwrap_or(FALLBACK_SIZE);
+        let reach = (width / 2.0 - OVERHANG).max(0.0);
         let over = (0..=4).any(|k| {
-            let q = p + Vector::new(-sin, cos, 0.0) * (width * (k as f32 / 4.0 - 0.5));
+            let q = p + Vector::new(-sin, cos, 0.0) * (reach * (k as f32 / 2.0 - 1.0));
             traffic.height_at(q.x, q.y).is_some()
         });
         let member = |g: &Group| {
@@ -648,7 +653,7 @@ fn skeleton_near(lines: &[Vec<SkeletonVertex>], signal: &Signal) -> Option<f32> 
         .filter_map(|w| {
             let (axis, f) = segment_distance((w[0].position, w[1].position), (p, top));
             let r = radius(&w[0]) + (radius(&w[1]) - radius(&w[0])) * f;
-            ((axis - r).max(0.0) <= NEAR).then_some(axis)
+            (axis - r <= NEAR).then_some(axis)
         })
         .reduce(f32::min)
 }
@@ -934,6 +939,14 @@ mod tests {
     fn a_board_reaching_over_a_lane_is_over_traffic() {
         let map = road(2, &sign(1, -7.2, 3.0, 1.0, "+"));
         assert_ne!(kinds(&map), [Kind::Pole]);
+        for t in [-7.1, -7.25] {
+            let map = road(2, &sign(1, t, 0.6, 0.6, "+"));
+            assert_eq!(
+                kinds(&map),
+                [Kind::Pole],
+                "a board at {t} overhangs a little"
+            );
+        }
     }
 
     /// Check that no member of a structure the exporter adds to `map` goes

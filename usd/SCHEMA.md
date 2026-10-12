@@ -187,7 +187,7 @@ carries traffic except types `sidewalk`, `border`, `curb`, `median` and
 
 | `xodr:structure` | Used when | Shape |
 | --- | --- | --- |
-| `pole` | No lane that carries traffic is under the signals. | A pole from the ground to the top of the highest board. |
+| `pole` | No lane that carries traffic is under the signals, past 0.5 m in from a board's edge. | A pole from the ground to the top of the highest board. |
 | `cantilever` | The arm is at most 13 m. The signs are at most 20 m². The arm crosses at most 2 driving lanes. | A pole beside the road, in line with the boards. It rises, bends and runs behind the boards at the height of the highest board's middle. |
 | `gantry` | A cantilever doesn't fit. The span is at most 27.5 m. The signs are at most 55 m². The span crosses at most 5 lanes. | A leg each side of the road, and a box truss 0.6 m deep and 0.8 m high between them. |
 | `spaceFrame` | A gantry doesn't fit either. | A tower of two braced columns each side, and a box truss 1.2 m deep and 1.5 m high. |
