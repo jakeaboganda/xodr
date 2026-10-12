@@ -105,7 +105,11 @@ fn a_lane_section_past_the_road_end_is_dropped_with_a_warning() {
         section("120")
     );
     let (net, prov) = load_str_with_provenance(&xodr).unwrap();
-    assert_eq!(net.lanes().len(), 2, "the sub-millimetre section goes quietly");
+    assert_eq!(
+        net.lanes().len(),
+        2,
+        "the sub-millimetre section goes quietly"
+    );
     assert_eq!(
         prov.warnings,
         [Warning::LaneSectionDropped {

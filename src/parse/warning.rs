@@ -568,6 +568,48 @@ pub enum Warning {
         /// Its `<lane id>`.
         lane: i32,
     },
+    /// An `<object>` without a readable `s` or `t`, or an
+    /// `<objectReference>` without one or naming no `<object>` in the file.
+    /// The crate drops it.
+    ObjectDropped {
+        /// The `<road id>` it is on. Empty for an object of a junction.
+        road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
+        /// Its `id`, or for a reference, the id it names.
+        object_id: String,
+    },
+    /// An object's `<repeat>` without a readable `s`, `length` or
+    /// `distance`, or with a negative `length` or `distance`. The crate
+    /// drops the repeat. An object left with none stands at its own `s`.
+    RepeatDropped {
+        /// The `<road id>` it is on. Empty for an object of a junction.
+        road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+    },
+    /// An object's `<marking>` the crate can't paint: one without a width
+    /// above 0, one whose `<cornerReference>`s name fewer than two corners
+    /// or a corner no outline has, or one with no corners whose `side` is
+    /// not `front`, `rear`, `left` or `right`. The crate drops it.
+    MarkingDropped {
+        /// The `<road id>` it is on. Empty for an object of a junction.
+        road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
+        /// Its `<object id>`.
+        object_id: String,
+    },
+    /// A `<tunnel>` or `<bridge>` without a readable `s` or `length`, or
+    /// with a negative `length`. The crate drops it.
+    StructureDropped {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// Its `id`. Empty if it has none.
+        structure_id: String,
+    },
     /// A `<laneSection>` that starts past the end of its road. The crate
     /// drops it and its lanes. One under 1 mm long inside the road, which
     /// exporters write where two sections meet, is dropped too, without a
@@ -695,6 +737,10 @@ impl Warning {
             | Self::LaneNotLevel { road_id, .. }
             | Self::RecordDropped { road_id, .. }
             | Self::LaneSectionDropped { road_id, .. }
+            | Self::ObjectDropped { road_id, .. }
+            | Self::RepeatDropped { road_id, .. }
+            | Self::MarkingDropped { road_id, .. }
+            | Self::StructureDropped { road_id, .. }
             | Self::RecordValueUnreadable { road_id, .. }
             | Self::RecordsOutOfOrder { road_id, .. }
             | Self::PriorityDropped { road_id, .. }
@@ -1082,6 +1128,40 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} is outside a level lane but not level, held level"
+            ),
+            Self::ObjectDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
+                f,
+                "{}: object {object_id:?} has no readable s or t, or names no object, dropped",
+                place(road_id, junction_id)
+            ),
+            Self::RepeatDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
+                f,
+                "{}: object {object_id:?} has a <repeat> it can't read, dropped",
+                place(road_id, junction_id)
+            ),
+            Self::MarkingDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
+                f,
+                "{}: object {object_id:?} has a <marking> it can't paint, dropped",
+                place(road_id, junction_id)
+            ),
+            Self::StructureDropped {
+                road_id,
+                structure_id,
+            } => write!(
+                f,
+                "road {road_id:?}: tunnel or bridge {structure_id:?} has no readable s or length, dropped"
             ),
             Self::LaneSectionDropped {
                 road_id,

@@ -1429,3 +1429,76 @@ fn a_repeat_far_longer_than_its_road_keeps_the_copies_on_it() {
     assert_eq!(net.objects().len(), 101);
     assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
 }
+
+#[test]
+fn objects_repeats_markings_and_structures_the_crate_drops_raise_warnings() {
+    let objects = r#"<object id="no-t" type="pole" s="10" radius="0.1" height="1"/>
+        <objectReference id="nowhere" s="20" t="0" orientation="none"/>
+        <object id="rep" type="pole" s="30" t="-5" radius="0.1" height="1"><repeat s="30" length="10"/></object>
+        <object id="mark" type="obstacle" s="40" t="-5" length="1" width="1" height="1">
+          <markings><marking side="front" color="white"/></markings></object>"#;
+    let (net, prov) = xodr::load_str_with_provenance(&on_straight_road(objects)).unwrap();
+    let ids: Vec<_> = prov.objects.iter().map(|p| p.od_id.as_str()).collect();
+    assert_eq!(
+        ids,
+        ["rep", "mark"],
+        "a repeat or marking dropped leaves its object"
+    );
+    assert_eq!(net.objects().len(), 2);
+    let road = |id: &str| (String::from("1"), String::new(), String::from(id));
+    let mut seen = Vec::new();
+    for w in &prov.warnings {
+        match w {
+            xodr::Warning::ObjectDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => seen.push((
+                "object",
+                (road_id.clone(), junction_id.clone(), object_id.clone()),
+            )),
+            xodr::Warning::RepeatDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => seen.push((
+                "repeat",
+                (road_id.clone(), junction_id.clone(), object_id.clone()),
+            )),
+            xodr::Warning::MarkingDropped {
+                road_id,
+                junction_id,
+                object_id,
+            } => seen.push((
+                "marking",
+                (road_id.clone(), junction_id.clone(), object_id.clone()),
+            )),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+    assert_eq!(
+        seen,
+        [
+            ("object", road("no-t")),
+            ("object", road("nowhere")),
+            ("repeat", road("rep")),
+            ("marking", road("mark")),
+        ]
+    );
+}
+
+#[test]
+fn a_tunnel_without_a_length_is_dropped_with_a_warning() {
+    let (net, prov) = xodr::load_str_with_provenance(&on_straight_road(
+        r#"<tunnel id="tube" s="50" type="standard"/>"#,
+    ))
+    .unwrap();
+    assert!(net.structures().is_empty());
+    assert_eq!(
+        prov.warnings,
+        [xodr::Warning::StructureDropped {
+            road_id: "1".into(),
+            structure_id: "tube".into(),
+        }]
+    );
+}

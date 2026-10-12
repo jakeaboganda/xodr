@@ -4,6 +4,10 @@
 
 ### Warnings
 
+- `Warning::ObjectDropped`, `Warning::RepeatDropped`,
+  `Warning::MarkingDropped` and `Warning::StructureDropped` for an object,
+  a `<repeat>`, an object `<marking>`, or a tunnel or bridge the crate
+  drops for lacking what places it.
 - `Warning::LaneSectionDropped` for a `<laneSection>` that starts past
   the end of its road, which the crate drops. One under 1 mm long inside
   the road, which exporters write where two sections meet, still goes
