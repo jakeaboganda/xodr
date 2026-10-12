@@ -1482,6 +1482,10 @@
 //!   level. See [Level lanes](#level-lanes).
 //! - [`Warning::VisibilityDropped`] for a `<visibility>` with a distance it
 //!   can't read. See [Lane visibility](#lane-visibility).
+//! - [`Warning::RecordDropped`] for a profile record without where it
+//!   starts, or a lane `<width>` or `<border>` without its `a`,
+//!   [`Warning::RecordValueUnreadable`] for a number of one it reads as 0,
+//!   and [`Warning::RecordsOutOfOrder`] for records it sorts.
 //!
 //! An element the crate does not read raises one [`Warning::Ignored`] for
 //! each road, junction, or the rest of the document that uses it, with a

@@ -568,6 +568,56 @@ pub enum Warning {
         /// Its `<lane id>`.
         lane: i32,
     },
+    /// A profile record the crate can't place: an `<elevation>`,
+    /// `<superelevation>`, `<laneOffset>` or road `<type>` without a
+    /// readable `s`, a `<shape>` without a readable `s` or `t`, or a lane
+    /// `<width>` or `<border>` without a readable `a`. The crate drops it,
+    /// so the record before it runs on.
+    RecordDropped {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// Its element, such as `elevation`.
+        record: String,
+        /// For a record of a lane, the zero-based lane-section index.
+        section: Option<usize>,
+        /// For a record of a lane, its `<lane id>`.
+        lane: Option<i32>,
+        /// Where it starts, its `s` or `sOffset`, if the crate can read it.
+        s: Option<f64>,
+        /// The attribute it lacks, such as `s` or `a`.
+        attribute: String,
+    },
+    /// A number of a profile record, such as an `<elevation>`'s `b`, that
+    /// the file writes but the crate can't read: not a number, or one that
+    /// is not finite, such as `NaN`. The crate reads it as 0, as it reads
+    /// one the file leaves out.
+    RecordValueUnreadable {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// Its element, such as `elevation`.
+        record: String,
+        /// For a record of a lane, the zero-based lane-section index.
+        section: Option<usize>,
+        /// For a record of a lane, its `<lane id>`.
+        lane: Option<i32>,
+        /// Where it starts, its `s` or `sOffset`, if the crate can read it.
+        s: Option<f64>,
+        /// The attribute, such as `b`.
+        attribute: String,
+    },
+    /// Records of one kind, such as a road's `<elevation>`s or a lane's
+    /// `<width>`s, that don't come in the ascending order of where they
+    /// start, as the spec requires. The crate sorts them.
+    RecordsOutOfOrder {
+        /// The `<road id>` they are on.
+        road_id: String,
+        /// Their element, such as `elevation`.
+        record: String,
+        /// For records of a lane, the zero-based lane-section index.
+        section: Option<usize>,
+        /// For records of a lane, its `<lane id>`.
+        lane: Option<i32>,
+    },
 }
 
 /// Why a `<road>` baked nothing.
@@ -631,6 +681,9 @@ impl Warning {
             | Self::RoadLengthMismatch { road_id, .. }
             | Self::LinkGap { road_id, .. }
             | Self::LaneNotLevel { road_id, .. }
+            | Self::RecordDropped { road_id, .. }
+            | Self::RecordValueUnreadable { road_id, .. }
+            | Self::RecordsOutOfOrder { road_id, .. }
             | Self::PriorityDropped { road_id, .. }
             | Self::NeighborDropped { road_id, .. }
             | Self::BoundarySegmentDropped { road_id, .. }
@@ -1017,6 +1070,42 @@ impl fmt::Display for Warning {
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} is outside a level lane but not level, held level"
             ),
+            Self::RecordDropped {
+                road_id,
+                record,
+                section,
+                lane,
+                s,
+                attribute,
+            } => write!(
+                f,
+                "{}: <{record}>{} dropped, it has no readable {attribute}",
+                record_place(road_id, *section, *lane),
+                at_s(*s)
+            ),
+            Self::RecordValueUnreadable {
+                road_id,
+                record,
+                section,
+                lane,
+                s,
+                attribute,
+            } => write!(
+                f,
+                "{}: <{record}>{} has a {attribute} that is not a number, read as 0",
+                record_place(road_id, *section, *lane),
+                at_s(*s)
+            ),
+            Self::RecordsOutOfOrder {
+                road_id,
+                record,
+                section,
+                lane,
+            } => write!(
+                f,
+                "{}: <{record}> records out of order, sorted",
+                record_place(road_id, *section, *lane)
+            ),
         }
     }
 }
@@ -1052,6 +1141,22 @@ impl fmt::Display for RoadSkipReason {
             Self::MapTooLarge => "lanes past the 2,000 km one file may bake",
         })
     }
+}
+
+/// Where a record is, for a warning: its road, and for a record of a lane,
+/// its lane section and lane.
+fn record_place(road_id: &str, section: Option<usize>, lane: Option<i32>) -> String {
+    match (section, lane) {
+        (Some(section), Some(lane)) => {
+            format!("road {road_id:?}, lane section {section}, lane {lane}")
+        }
+        _ => format!("road {road_id:?}"),
+    }
+}
+
+/// ` at s {s} m`, or nothing for a record whose start the crate can't read.
+fn at_s(s: Option<f64>) -> String {
+    s.map_or_else(String::new, |s| format!(" at s {s:.2} m"))
 }
 
 /// Where an object is, for a warning: its road, or its junction.

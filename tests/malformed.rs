@@ -194,6 +194,22 @@ fn non_finite_geometry_and_widths_raise_warnings() {
                 section: 0,
                 lane: -1,
             },
+            Warning::RecordValueUnreadable {
+                road_id: "3".into(),
+                record: "elevation".into(),
+                section: None,
+                lane: None,
+                s: Some(0.0),
+                attribute: "a".into(),
+            },
+            Warning::RecordDropped {
+                road_id: "3".into(),
+                record: "width".into(),
+                section: Some(0),
+                lane: Some(-1),
+                s: Some(0.0),
+                attribute: "a".into(),
+            },
         ]
     );
 }
