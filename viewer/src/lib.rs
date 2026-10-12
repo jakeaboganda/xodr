@@ -48,11 +48,11 @@ use xodr::{
     load_str_with_provenance, Access, Along, Controller, ControllerProvenance, Corner, CrgMode,
     CrgPurpose, CrgSurface, CrossPathEnd, Direction, Extent, JunctionArea, JunctionGroupKind,
     LaneId, LanePosition, LaneSpan, LinePattern, LinkPoint, Marking, Mesh, Object,
-    ObjectProvenance, Orientation, PlatformSegment, Point, Provenance, Referenced, RoadEnd,
-    RoadMark, RoadMarkProvenance, RoadMarkWeight, RoadNetwork, RoadPosition, RoadSurface, RoadUser,
-    Semantic, Shape, Side, SignProvenance, Signal, SignalBoard, SignalProvenance, SpeedLimit,
-    Structure, StructureKind, StructureProvenance, SurfaceHint, SwitchPosition, TrackPoint,
-    VirtualJunction, Warning,
+    ObjectProvenance, Orientation, PlatformSegment, Point, Provenance, Reference, Referenced,
+    RoadEnd, RoadMark, RoadMarkProvenance, RoadMarkWeight, RoadNetwork, RoadPosition, RoadSurface,
+    RoadUser, Semantic, Shape, Side, SignProvenance, SignTarget, Signal, SignalBoard,
+    SignalProvenance, SpeedLimit, Structure, StructureKind, StructureProvenance, SurfaceHint,
+    SwitchPosition, TrackPoint, VirtualJunction, Warning,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -348,6 +348,18 @@ fn build_scene(net: &RoadNetwork, mesh: &Mesh, provenance: &Provenance) -> Value
                 "strip": platform_strip(net, seg),
             }))
             .collect::<Vec<_>>(),
+        "vmsGroups": net
+            .vms_groups()
+            .iter()
+            .map(|g| json!({
+                "id": g.od_id,
+                "boards": g.boards.iter().map(|b| json!({
+                    "signalId": b.signal.0,
+                    "vmsIndex": b.vms_index,
+                    "groupIndex": b.group_index,
+                })).collect::<Vec<_>>(),
+            }))
+            .collect::<Vec<_>>(),
         "crossings": net
             .crossings()
             .iter()
@@ -518,6 +530,12 @@ fn board_entry(index: usize, board: &SignalBoard, own: &[SignProvenance]) -> Val
                     "text": s.text,
                     "position": s.position.to_array(),
                     "semantics": s.semantics.iter().map(semantic_text).collect::<Vec<_>>(),
+                    "lanes": s.lanes.iter().map(|l| l.0).collect::<Vec<_>>(),
+                    "dependencies": s.dependencies.iter().map(|d| match d.to {
+                        SignTarget::Signal(id) => json!({ "signalId": id.0, "type": d.kind }),
+                        SignTarget::Sign(k) => json!({ "sign": k, "type": d.kind }),
+                    }).collect::<Vec<_>>(),
+                    "references": references(&s.references),
                 }))
                 .collect::<Vec<_>>(),
         }),
@@ -530,10 +548,28 @@ fn board_entry(index: usize, board: &SignalBoard, own: &[SignProvenance]) -> Val
             "areas": m
                 .areas
                 .iter()
-                .map(|a| json!({ "index": a.index, "position": a.position.to_array() }))
+                .map(|a| json!({
+                    "index": a.index,
+                    "position": a.position.to_array(),
+                    "lanes": a.lanes.iter().map(|l| l.0).collect::<Vec<_>>(),
+                    "dependencies": a.dependencies.iter()
+                        .map(|d| json!({ "signalId": d.signal.0, "type": d.kind }))
+                        .collect::<Vec<_>>(),
+                }))
                 .collect::<Vec<_>>(),
         }),
     }
+}
+
+/// A signal's, or a sign's, references, by `signalId` and `objectId`.
+fn references(references: &[Reference]) -> Vec<Value> {
+    references
+        .iter()
+        .map(|r| match r.to {
+            Referenced::Signal(id) => json!({ "signalId": id.0, "type": r.kind }),
+            Referenced::Object(id) => json!({ "objectId": id.0, "type": r.kind }),
+        })
+        .collect()
 }
 
 /// A virtual junction's viewer record: its main road and the stretch of it
@@ -847,14 +883,7 @@ fn signal_entry(s: &Signal, prov: Option<&SignalProvenance>) -> Value {
             .iter()
             .map(|d| json!({ "signalId": d.signal.0, "type": d.kind }))
             .collect::<Vec<_>>(),
-        "references": s
-            .references
-            .iter()
-            .map(|r| match r.to {
-                Referenced::Signal(id) => json!({ "signalId": id.0, "type": r.kind }),
-                Referenced::Object(id) => json!({ "objectId": id.0, "type": r.kind }),
-            })
-            .collect::<Vec<_>>(),
+        "references": references(&s.references),
         "lanes": s.lanes.iter().map(|l| l.0).collect::<Vec<_>>(),
         "appliesAt": s.applies_at.iter().map(|p| p.to_array()).collect::<Vec<_>>(),
         "position": s.position.to_array(),
