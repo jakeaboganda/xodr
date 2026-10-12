@@ -3282,10 +3282,10 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         parts
     };
     for repeat in &repeats {
-        if !faults.affords(out, repeat.least_cost()) {
+        if !faults.affords(out, repeat.least_cost(road)) {
             too_many.set(true);
         } else if repeat.distance > 0.0 {
-            let Some(stations) = repeat.stations(&base) else {
+            let Some(stations) = repeat.stations(&base, road) else {
                 too_many.set(true);
                 continue;
             };
@@ -3297,21 +3297,37 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 faults.pieces_left.set(saved.1);
                 faults.painted.set(saved.2);
             };
-            let copy_at = |st: &Station| match (shaped, road.on_road(st.s)) {
-                (true, _) => outlined(st),
-                (false, true) => vec![point(st)],
-                (false, false) => Vec::new(),
+            let copy_at = |st: &Station| match shaped {
+                true => outlined(st),
+                false => vec![point(st)],
             };
-            let probe = stations.iter().find(|st| road.on_road(st.s)).map(copy_at);
-            let one: Cost = probe.iter().flatten().map(Part::cost).sum();
-            let corners: usize = probe.iter().flatten().map(Part::corner_count).sum();
-            let n = stations.iter().filter(|st| road.on_road(st.s)).count();
+            let ends = [stations.first(), stations.last()];
+            let probes: Vec<(Cost, usize)> = ends
+                .into_iter()
+                .flatten()
+                .map(|st| {
+                    let painted = faults.painted.get();
+                    let copy = copy_at(st);
+                    let mut cost: Cost = copy.iter().map(Part::cost).sum();
+                    cost.pieces += faults.painted.get() - painted;
+                    (cost, copy.iter().map(Part::corner_count).sum())
+                })
+                .collect();
+            let least = |f: fn(&(Cost, usize)) -> usize| probes.iter().map(f).min().unwrap_or(0);
+            let one = Cost {
+                objects: least(|p| p.0.objects),
+                pieces: least(|p| p.0.pieces),
+            };
+            let corners = least(|p| p.1);
+            let n = stations.len();
             let guess = Cost {
                 objects: one.objects.saturating_mul(n),
-                pieces: (one.pieces + faults.painted.get() - saved.2).saturating_mul(n),
+                pieces: one.pieces.saturating_mul(n),
             };
+            let probed: usize = probes.iter().map(|p| p.0.pieces).sum();
+            let paint = faults.painted.get() - saved.2;
             restore(out);
-            out.wasted = out.wasted.saturating_add(one.pieces);
+            out.wasted = out.wasted.saturating_add(probed - paint);
             if corners.saturating_mul(n) > MAX_OUTLINE_CORNERS || !faults.affords(out, guess) {
                 too_many.set(true);
                 continue;
@@ -3346,6 +3362,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         }
     }
     if !repeats.iter().any(|r| r.distance > 0.0) {
+        let (painted, left) = (faults.painted.get(), faults.pieces_left.get());
         let mut own = Vec::new();
         if shaped {
             own.extend(outlined(&base));
@@ -3354,7 +3371,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         }
         match faults.spend(out, own.iter().map(Part::cost).sum()) {
             true => parts.extend(own),
-            false => too_many.set(true),
+            false => {
+                let built = faults.painted.get() - painted;
+                out.wasted = out.wasted.saturating_add(built);
+                faults.painted.set(painted);
+                faults.pieces_left.set(left);
+                too_many.set(true);
+            }
         }
     }
 
@@ -3804,28 +3827,45 @@ impl<'a> Repeat<'a> {
     /// The least baking it can cost, known before it is baked: an object
     /// per station, or for a continuous repeat, one object and a section
     /// every [`SWEEP_MAX_STEP`].
-    fn least_cost(&self) -> Cost {
-        let count = |n: f64| n.min(usize::MAX as f64) as usize;
+    fn least_cost(&self, road: &Road) -> Cost {
+        let count = |n: f64| n.clamp(0.0, usize::MAX as f64) as usize;
+        let (first, last) = self.steps(road);
+        let (from, to) = (
+            self.start.max(0.0),
+            (self.start + self.length).min(road.length),
+        );
         match self.distance > 0.0 {
             true => Cost {
-                objects: count(self.length / self.distance),
+                objects: count(last - first + 1.0),
                 pieces: 0,
             },
             false => Cost {
                 objects: 1,
-                pieces: count(self.length / SWEEP_MAX_STEP),
+                pieces: count((to - from) / SWEEP_MAX_STEP),
             },
         }
     }
 
-    /// One station every `distance` metres, both ends included, or `None` if
-    /// that is more than [`MAX_REPEAT_INSTANCES`].
-    fn stations(&self, base: &Station) -> Option<Vec<Station>> {
-        let count = (self.length / self.distance + 1e-9).floor() + 1.0;
-        if count > MAX_REPEAT_INSTANCES {
+    /// The first and last step `k` whose station, `k * distance` along,
+    /// is on `road`. The last is below the first if none is.
+    fn steps(&self, road: &Road) -> (f64, f64) {
+        const EPS: f64 = 1e-9;
+        let ahead = |s: f64| (s - self.start) / self.distance;
+        let last = (self.length / self.distance + EPS).floor();
+        let first = (ahead(0.0) - EPS).ceil().max(0.0);
+        (first, (ahead(road.length) + EPS).floor().min(last))
+    }
+
+    /// One station every `distance` metres, both ends included, on `road`,
+    /// or `None` if that is more than [`MAX_REPEAT_INSTANCES`]. Stations past
+    /// either end of the road, which the spec does not allow, are left out.
+    fn stations(&self, base: &Station, road: &Road) -> Option<Vec<Station>> {
+        let (first, last) = self.steps(road);
+        if last - first + 1.0 > MAX_REPEAT_INSTANCES {
             return None;
         }
-        let stations = (0..count as usize)
+        let steps = first as usize..(last + 1.0).max(first) as usize;
+        let stations = steps
             .map(|k| {
                 let along = k as f64 * self.distance;
                 let f = if self.length > 0.0 {
@@ -3835,6 +3875,7 @@ impl<'a> Repeat<'a> {
                 };
                 self.at(base, f)
             })
+            .filter(|st| road.on_road(st.s))
             .collect();
         Some(stations)
     }
