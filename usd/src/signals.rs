@@ -29,7 +29,7 @@ pub(crate) fn signals(
     let mut classes = BTreeSet::new();
     open(out, 1, "def Scope", "Signals", &[], &[])?;
     for (signal, placement) in net.signals().iter().zip(placements) {
-        let prov = provenance.signals.iter().find(|p| p.signal == signal.id);
+        let prov = crate::by_id(&provenance.signals, signal.id.0, |p| p.signal.0);
         let (width, height) = (signal.width, signal.height);
         let mut tags = vec![
             ("name", Tag::Text(signal.name.clone())),
@@ -192,7 +192,7 @@ pub(crate) fn controllers(
     open(out, 1, "def Scope", "Controllers", &[], &[])?;
     for c in net.controllers() {
         let mut tags = vec![("name", Tag::Text(c.name.clone()))];
-        if let Some(p) = provenance.controllers.iter().find(|p| p.controller == c.id) {
+        if let Some(p) = crate::by_id(&provenance.controllers, c.id.0, |p| p.controller.0) {
             tags.push(("controllerId", Tag::Text(p.od_id.clone())));
         }
         if let Some(sequence) = c.sequence {

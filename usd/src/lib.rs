@@ -356,7 +356,7 @@ fn objects(
             ("name", Tag::Text(object.name.clone())),
         ];
         let mut color = [0.6, 0.6, 0.6];
-        if let Some(p) = provenance.objects.iter().find(|p| p.object == object.id) {
+        if let Some(p) = by_id(&provenance.objects, object.id.0, |p| p.object.0) {
             if !p.fill_type.is_empty() {
                 tags.push(("fillType", Tag::Text(p.fill_type.clone())));
             }
@@ -596,6 +596,15 @@ fn close(out: &mut impl Write, depth: usize) -> io::Result<()> {
 
 fn indent(depth: usize) -> String {
     "    ".repeat(depth)
+}
+
+/// The record of `items` for the id `i`. Provenance lists one record per
+/// baked item, in id order, so it is at `i`. Otherwise it is found by a scan.
+pub(crate) fn by_id<T>(items: &[T], i: usize, id: impl Fn(&T) -> usize) -> Option<&T> {
+    match items.get(i) {
+        Some(item) if id(item) == i => Some(item),
+        _ => items.iter().find(|item| id(item) == i),
+    }
 }
 
 /// The corners of the box around `points`.
