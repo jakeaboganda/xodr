@@ -32,15 +32,8 @@ fn of(road: &str, junction: &str, feature: &str, count: usize) -> (String, Strin
 #[test]
 fn every_ignored_feature_is_counted_where_the_file_uses_it() {
     let want = vec![
-        of("", "", "<userData>", 1),
-        of("", "", "<dataQuality>", 1),
-        of("", "", "<license>", 1),
         of("", "100", "<roadSection>", 2),
-        of("1", "", "<userData>", 3),
         of("1", "", "a repeated <lanes> of one layer", 1),
-        of("2", "", "<userData>", 1),
-        of("3", "", "<userData>", 1),
-        of("5", "", "<userData>", 500),
     ];
     assert_eq!(ignored("tests/data/ignored.xodr"), want);
 }
@@ -82,7 +75,7 @@ fn only_the_ignored_warnings_say_they_are() {
         .iter()
         .filter(|w| w.is_ignored())
         .count();
-    assert_eq!(ignored, 9);
+    assert_eq!(ignored, 2);
     assert!(
         provenance.warnings.len() > ignored,
         "the fixture's boundary doesn't close, which is a fault"
@@ -102,8 +95,8 @@ fn the_message_names_the_place_and_the_count() {
         .filter(|w| matches!(w, Warning::Ignored { .. }))
         .map(|w| w.to_string())
         .collect();
-    assert!(messages.contains(&"road \"5\": <userData> ignored, 500 uses".to_string()));
-    assert!(messages.contains(&"the document: <license> ignored, 1 use".to_string()));
+    assert!(messages
+        .contains(&"road \"1\": a repeated <lanes> of one layer ignored, 1 use".to_string()));
     assert!(messages.contains(&"junction \"100\": <roadSection> ignored, 2 uses".to_string()));
 }
 
@@ -125,9 +118,14 @@ fn road_id_names_the_road_or_nothing() {
 
 #[test]
 fn what_a_vendor_puts_inside_user_data_counts_for_nothing() {
-    let found = ignored("tests/data/ignored.xodr");
-    let road5: Vec<_> = found.iter().filter(|f| f.0 == "5").collect();
-    assert_eq!(road5, [&of("5", "", "<userData>", 500)]);
+    let (_, provenance) = load_file_with_provenance("tests/data/ignored.xodr").unwrap();
+    assert!(provenance.warnings.iter().all(|w| w.road_id() != "5"));
+    let kept = provenance
+        .additional
+        .iter()
+        .filter(|a| a.road_id == "5")
+        .count();
+    assert_eq!(kept, 500, "the user data is kept, and nothing inside it");
 }
 
 #[test]
@@ -136,10 +134,9 @@ fn a_road_or_junction_without_an_id_is_named_so() {
       <road length="20" junction="-1">
         <planView><geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
         <lanes><laneSection s="0"><right><lane id="-1" type="driving"><width sOffset="0" a="3"/></lane></right></laneSection></lanes>
-        <userData code="a"/>
+        <lanes><laneSection s="0"><right><lane id="-1" type="driving"><width sOffset="0" a="3"/></lane></right></laneSection></lanes>
       </road>
-      <junction><userData code="b"/></junction>
-      <userData code="c"/>
+      <junction><roadSection roadId="1" sStart="0" sEnd="5"/></junction>
     </OpenDRIVE>"#;
     let (_, provenance) = load_str_with_provenance(xml).unwrap();
     let messages: Vec<String> = provenance
@@ -151,9 +148,8 @@ fn a_road_or_junction_without_an_id_is_named_so() {
     assert_eq!(
         messages,
         [
-            "the document: <userData> ignored, 1 use",
-            "junction \"(no id)\": <userData> ignored, 1 use",
-            "road \"(no id)\": <userData> ignored, 1 use",
+            "junction \"(no id)\": <roadSection> ignored, 1 use",
+            "road \"(no id)\": a repeated <lanes> of one layer ignored, 1 use",
         ]
     );
 }

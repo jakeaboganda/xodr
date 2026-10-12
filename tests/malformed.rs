@@ -293,17 +293,11 @@ fn a_clean_map_raises_no_warnings() {
 }
 
 #[test]
-fn a_clean_map_raises_only_the_warnings_for_what_it_holds_that_is_ignored() {
+fn a_clean_map_keeps_its_user_data_and_raises_no_warnings() {
     let (_, prov) = load_file_with_provenance("tests/data/e6mini.xodr").unwrap();
-    assert_eq!(
-        prov.warnings,
-        [Warning::Ignored {
-            road_id: "0".into(),
-            junction_id: String::new(),
-            feature: "<userData>".into(),
-            count: 15,
-        }]
-    );
+    assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+    let on_road_0 = prov.additional.iter().filter(|a| a.road_id == "0").count();
+    assert_eq!(on_road_0, 15);
 }
 
 #[test]
