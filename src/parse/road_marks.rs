@@ -295,6 +295,18 @@ fn place_section(
                 .map_or(section.end, |next| section.start + next.s_offset)
                 .min(section.end);
             if end - start < 1e-6 {
+                let superseded = border
+                    .marks
+                    .get(k + 1)
+                    .is_some_and(|next| next.s_offset - mark.s_offset < 1e-6);
+                if superseded && start < section.end {
+                    out.warnings.push(Warning::RoadMarkDropped {
+                        road_id: road.od_id.clone(),
+                        section: section.index,
+                        lane: border.od_lane_id,
+                        s_offset: mark.s_offset,
+                    });
+                }
                 continue;
             }
             let id = RoadMarkId(out.baked.len());

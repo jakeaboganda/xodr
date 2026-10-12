@@ -583,3 +583,27 @@ fn a_mark_too_large_for_an_f32_paints_in_range_or_not_at_all() {
         }]
     );
 }
+
+#[test]
+fn a_road_mark_the_next_replaces_at_once_is_dropped_with_a_warning() {
+    let xodr = r#"<OpenDRIVE><header/><road id="1" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          <roadMark sOffset="0" type="solid" width="0.12"/>
+          <roadMark sOffset="40" type="solid" width="0.12"/>
+          <roadMark sOffset="40" type="broken" width="0.12"/>
+          <roadMark sOffset="100" type="solid" width="0.12"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    let (net, prov) = xodr::load_str_with_provenance(xodr).unwrap();
+    assert_eq!(net.road_marks().len(), 2);
+    assert_eq!(
+        prov.warnings,
+        [xodr::Warning::RoadMarkDropped {
+            road_id: "1".into(),
+            section: 0,
+            lane: -1,
+            s_offset: 40.0,
+        }]
+    );
+}

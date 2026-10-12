@@ -568,6 +568,21 @@ pub enum Warning {
         /// Its `<lane id>`.
         lane: i32,
     },
+    /// A `<roadMark>` whose `sOffset` is the same as the next one's on its
+    /// lane, so the next one replaces it before it paints anything. The
+    /// crate drops it. One at or past the end of its lane section goes
+    /// without a warning: exporters write them there, and a single-side
+    /// section after it may carry it on.
+    RoadMarkDropped {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// The zero-based lane-section index.
+        section: usize,
+        /// The `<lane id>` whose mark it is.
+        lane: i32,
+        /// Its `sOffset`, in metres from the start of its lane section.
+        s_offset: f64,
+    },
     /// A `<signal>` without a readable `s` or `t`, or off the ends of its
     /// road. The crate drops it.
     SignalDropped {
@@ -776,6 +791,7 @@ impl Warning {
             | Self::ObjectDropped { road_id, .. }
             | Self::CrgDropped { road_id, .. }
             | Self::SignalDropped { road_id, .. }
+            | Self::RoadMarkDropped { road_id, .. }
             | Self::SignalLinkDropped { road_id, .. }
             | Self::RepeatDropped { road_id, .. }
             | Self::MarkingDropped { road_id, .. }
@@ -1167,6 +1183,15 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} is outside a level lane but not level, held level"
+            ),
+            Self::RoadMarkDropped {
+                road_id,
+                section,
+                lane,
+                s_offset,
+            } => write!(
+                f,
+                "road {road_id:?}, lane section {section}, lane {lane}: <roadMark> at sOffset {s_offset:.2} m paints nothing, dropped"
             ),
             Self::SignalDropped { road_id, signal_id } => write!(
                 f,
