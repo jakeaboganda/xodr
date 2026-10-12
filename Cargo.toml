@@ -1,6 +1,6 @@
 [package]
 name = "xodr"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 rust-version = "1.85"
 description = "Pure-Rust OpenDRIVE (.xodr) importer: bakes a road network into polylines, a lane graph, and a surface mesh."
