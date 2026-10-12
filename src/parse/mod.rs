@@ -90,9 +90,9 @@ const MAX_OUTLINE_CORNERS: usize = 1_000_000;
 /// from a few kilobytes of file.
 const MAX_OBJECTS: usize = 100_000;
 
-/// The most corners of outlines, vertices of skeletons and sections of
-/// continuous repeats one load bakes for its objects, an
-/// `<objectReference>` counting again. The 60 km A9 test field, lined with
+/// The most corners of outlines, vertices of skeletons, sections of
+/// continuous repeats and pieces of markings and borders one load bakes for
+/// its objects, an `<objectReference>` counting again. The 60 km A9 test field, lined with
 /// guardrails, bakes about 750,000.
 const MAX_OBJECT_PIECES: usize = 2_000_000;
 
@@ -2891,6 +2891,11 @@ impl Frame {
 struct Faults {
     /// Whether a repeat or a dashed marking would make too many copies.
     too_many: Cell<bool>,
+    /// How many pieces it may yet bake, markings included, of what the load
+    /// had left of [`MAX_OBJECT_PIECES`].
+    pieces_left: Cell<usize>,
+    /// How many marking pieces it has painted.
+    painted: Cell<usize>,
     /// The widest gap between one `<curveLocal>` and the next, in metres.
     gap: Cell<f64>,
     /// Whether a `<skeleton>` `<polyline>` could not be placed.
@@ -2899,6 +2904,23 @@ struct Faults {
     outline_dropped: Cell<bool>,
     /// Whether a `<curveLocal>` set its `hdg` aside to join up.
     turned: Cell<bool>,
+}
+
+impl Faults {
+    /// Whether `out` can bake `cost` more, within what this object has left.
+    fn affords(&self, out: &Objects, cost: Cost) -> bool {
+        cost.pieces <= self.pieces_left.get() && out.affords(cost)
+    }
+
+    /// Spend `cost` from `out` and from what this object has left, or
+    /// `false`, spending nothing, if either has too little.
+    fn spend(&self, out: &mut Objects, cost: Cost) -> bool {
+        let fits = cost.pieces <= self.pieces_left.get() && out.spend(cost);
+        if fits {
+            self.pieces_left.set(self.pieces_left.get() - cost.pieces);
+        }
+        fits
+    }
 }
 
 /// The structures baked so far, and the provenance of each, in step.
@@ -3188,7 +3210,10 @@ fn place_objects<'a>(
 /// Each baked object applies to the lanes alongside the stretch of road it
 /// spans, narrowed by `at`'s validity.
 fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Objects) {
-    let faults = Faults::default();
+    let faults = Faults {
+        pieces_left: Cell::new(MAX_OBJECT_PIECES.saturating_sub(out.cost.pieces)),
+        ..Faults::default()
+    };
     let too_many = &faults.too_many;
     let base = Station {
         s: at.s,
@@ -3216,7 +3241,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             extent: extent(st),
         };
         let mut part = Part::new(solid, st, (st.s, st.s));
-        part.markings = side_markings(node, &f, extent(st), too_many);
+        part.markings = side_markings(node, &f, extent(st), &faults);
         part
     };
 
@@ -3251,7 +3276,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         parts
     };
     for repeat in &repeats {
-        if !out.affords(repeat.least_cost()) {
+        if !faults.affords(out, repeat.least_cost()) {
             too_many.set(true);
         } else if repeat.distance > 0.0 {
             let Some(stations) = repeat.stations(&base) else {
@@ -3265,10 +3290,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             };
             let per_station = outlines.len() + usize::from(skeleton.is_some());
             if corners.saturating_mul(stations.len()) > MAX_OUTLINE_CORNERS
-                || !out.spend(Cost {
-                    objects: stations.len() * per_station.max(1),
-                    pieces: stations.len() * corners,
-                })
+                || !faults.spend(
+                    out,
+                    Cost {
+                        objects: stations.len() * per_station.max(1),
+                        pieces: stations.len() * corners,
+                    },
+                )
             {
                 too_many.set(true);
                 continue;
@@ -3281,11 +3309,11 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 }
             }
         } else {
-            let most = MAX_OBJECT_PIECES.saturating_sub(out.cost.pieces);
+            let most = faults.pieces_left.get();
             match sweep(repeat, &base, road, most) {
                 Ok(Some((shape, start, end))) => {
                     let part = Part::new(shape, &start, (start.s, end));
-                    out.spend(part.cost());
+                    faults.spend(out, part.cost());
                     parts.push(part);
                 }
                 Ok(None) => {}
@@ -3300,7 +3328,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         } else if repeats.is_empty() && road.on_road(base.s) {
             own.push(point(&base));
         }
-        match out.spend(own.iter().map(Part::cost).sum()) {
+        match faults.spend(out, own.iter().map(Part::cost).sum()) {
             true => parts.extend(own),
             false => too_many.set(true),
         }
@@ -3361,6 +3389,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             }
         })
         .collect();
+    out.cost.pieces = out.cost.pieces.saturating_add(faults.painted.get());
     if too_many.get() {
         out.warnings.push(Warning::TooManyCopies {
             road_id: road.od_id.clone(),
@@ -3494,7 +3523,6 @@ fn outline_parts(
     road: &Road,
     faults: &Faults,
 ) -> Vec<Part> {
-    let too_many = &faults.too_many;
     let mut parts = Vec::new();
     let mut holes = Vec::new();
     for &outline_node in outlines {
@@ -3507,7 +3535,7 @@ fn outline_parts(
         if matches!(outline_node.attribute("outer"), Some("false" | "0")) {
             holes.push((outline_node, ring));
         } else {
-            parts.push(area(node, outline_node, &ring, st, too_many));
+            parts.push(area(node, outline_node, &ring, st, faults));
         }
     }
     let outer = parts.len();
@@ -3526,7 +3554,7 @@ fn outline_parts(
             if !filled {
                 owner
                     .markings
-                    .extend(markings(node, outline_node, &ring, too_many));
+                    .extend(markings(node, outline_node, &ring, faults));
                 owner
                     .borders
                     .extend(borders(node, outline_node, &ring, true));
@@ -3541,7 +3569,7 @@ fn outline_parts(
             }
         }
         if filled {
-            parts.push(area(node, outline_node, &ring, st, too_many));
+            parts.push(area(node, outline_node, &ring, st, faults));
         }
     }
     parts
@@ -3555,7 +3583,7 @@ fn area(
     outline_node: roxmltree::Node,
     ring: &Ring,
     st: &Station,
-    too_many: &Cell<bool>,
+    faults: &Faults,
 ) -> Part {
     let painted = ring.closed && outline_node.attribute("fillType") == Some("paint");
     let mut part = Part::new(
@@ -3571,7 +3599,7 @@ fn area(
         st,
         ring.stretch,
     );
-    part.markings = markings(node, outline_node, ring, too_many);
+    part.markings = markings(node, outline_node, ring, faults);
     part.borders = borders(node, outline_node, ring, ring.closed);
     part.fill_type = outline_node
         .attribute("fillType")
@@ -3603,15 +3631,17 @@ struct Part {
 
 impl Part {
     /// What baking it costs: one object, and its corners, vertices or
-    /// sections.
+    /// sections, and the pieces of its borders. Its markings are counted as
+    /// they are painted, in [`Faults::painted`].
     fn cost(&self) -> Cost {
         let sections = match &self.shape {
             Shape::Sweep { sections, .. } => sections.len(),
             _ => 0,
         };
+        let borders: usize = self.borders.iter().map(|b| b.pieces.len()).sum();
         Cost {
             objects: 1,
-            pieces: self.corner_count() + sections,
+            pieces: self.corner_count() + sections + borders,
         }
     }
 
@@ -4196,14 +4226,14 @@ fn markings(
     object: roxmltree::Node,
     outline: roxmltree::Node,
     ring: &Ring,
-    too_many: &Cell<bool>,
+    faults: &Faults,
 ) -> Vec<(Marking, RoadMarkWeight)> {
     let outlines = outline_nodes(object);
     let owned =
         |m: &roxmltree::Node| outlines.iter().find(|o| names_corners_of(m, o)) == Some(&outline);
     marking_nodes(outline)
         .chain(marking_nodes(object).filter(owned))
-        .filter_map(|m| paint(m, &corner_path(m, ring)?, too_many))
+        .filter_map(|m| paint(m, &corner_path(m, ring)?, faults))
         .collect()
 }
 
@@ -4230,7 +4260,7 @@ fn side_markings(
     object: roxmltree::Node,
     frame: &Frame,
     extent: Option<Extent>,
-    too_many: &Cell<bool>,
+    faults: &Faults,
 ) -> Vec<(Marking, RoadMarkWeight)> {
     let (u, v) = match extent {
         Some(Extent::Box { length, width, .. }) => (length / 2.0, width / 2.0),
@@ -4249,7 +4279,7 @@ fn side_markings(
                 "right" => [corner(-u, -v), corner(u, -v)],
                 _ => return None,
             };
-            paint(m, &edge, too_many)
+            paint(m, &edge, faults)
         })
         .collect()
 }
@@ -4264,7 +4294,7 @@ fn side_markings(
 fn paint(
     m: roxmltree::Node,
     path: &[(Point, Vector)],
-    too_many: &Cell<bool>,
+    faults: &Faults,
 ) -> Option<(Marking, RoadMarkWeight)> {
     let width = attr_f64(m, "width").filter(|w| *w > 0.0)?;
     let raise = attr_f64(m, "zOffset").unwrap_or(PAINT_RAISE) as f32;
@@ -4288,9 +4318,16 @@ fn paint(
             attr_f64(m, "stopOffset").unwrap_or(0.0),
             (line > 0.0 && space > 0.0).then_some((line, space)),
             width / 2.0,
+            faults.pieces_left.get(),
         )
+        .inspect(|pieces| {
+            faults
+                .pieces_left
+                .set(faults.pieces_left.get() - pieces.len());
+            faults.painted.set(faults.painted.get() + pieces.len());
+        })
         .unwrap_or_else(|| {
-            too_many.set(true);
+            faults.too_many.set(true);
             Vec::new()
         }),
     };
@@ -4335,7 +4372,7 @@ fn borders(
             Some(Border {
                 kind: b.attribute("type").unwrap_or_default().to_string(),
                 width: width as f32,
-                pieces: strip(&path, 0.0, 0.0, None, width / 2.0).unwrap_or_default(),
+                pieces: strip(&path, 0.0, 0.0, None, width / 2.0, usize::MAX).unwrap_or_default(),
             })
         })
         .collect()
@@ -4383,6 +4420,7 @@ fn strip(
     stop: f64,
     dashes: Option<(f64, f64)>,
     half_width: f64,
+    most: usize,
 ) -> Option<Vec<[Point; 4]>> {
     let mut along = vec![0.0];
     for w in path.windows(2) {
@@ -4415,6 +4453,9 @@ fn strip(
             }
             let at = |x: f64| a.lerp(b, ((x - from) / (to - from)) as f32);
             let (p, q) = (at(p), at(q));
+            if pieces.len() == most {
+                return None;
+            }
             pieces.push([p - across, q - across, q + across, p + across]);
         }
     }
@@ -5979,24 +6020,34 @@ mod tests {
         // no length in plan, so no across to measure.
         let up = Point::new(2.0, 0.0, 1.0);
         assert_eq!(
-            ends(&strip(&level(&[a, a, b]), 0.0, 0.0, None, 0.1).unwrap()),
+            ends(&strip(&level(&[a, a, b]), 0.0, 0.0, None, 0.1, usize::MAX).unwrap()),
             [(0.0, 2.0)]
         );
         assert_eq!(
-            ends(&strip(&level(&[a, b, up]), 0.0, 0.0, None, 0.1).unwrap()),
+            ends(&strip(&level(&[a, b, up]), 0.0, 0.0, None, 0.1, usize::MAX).unwrap()),
             [(0.0, 2.0)]
         );
         // A dash across the repeated corner carries on past it.
-        let dashes = strip(&level(&[a, b, b, c]), 1.0, 0.0, Some((2.0, 1.0)), 0.1).unwrap();
+        let dashes = strip(
+            &level(&[a, b, b, c]),
+            1.0,
+            0.0,
+            Some((2.0, 1.0)),
+            0.1,
+            usize::MAX,
+        )
+        .unwrap();
         assert_eq!(ends(&dashes), [(1.0, 2.0), (2.0, 3.0)]);
     }
 
     #[test]
     fn a_strip_of_too_many_dashes_is_refused() {
         let path = level(&[Point::ORIGIN, Point::new(10.0, 0.0, 0.0)]);
-        assert!(strip(&path, 0.0, 0.0, Some((1e-5, 1e-5)), 0.1).is_none());
+        assert!(strip(&path, 0.0, 0.0, Some((1e-5, 1e-5)), 0.1, usize::MAX).is_none());
         assert_eq!(
-            strip(&path, 0.0, 0.0, Some((0.5, 0.5)), 0.1).unwrap().len(),
+            strip(&path, 0.0, 0.0, Some((0.5, 0.5)), 0.1, usize::MAX)
+                .unwrap()
+                .len(),
             10
         );
     }
@@ -6006,12 +6057,12 @@ mod tests {
         let path = level(&[Point::ORIGIN, Point::new(10.0, 0.0, 0.0)]);
         for (start, stop) in [(20.0, 0.0), (0.0, 20.0), (6.0, 6.0)] {
             for dashes in [None, Some((1.0, 1.0))] {
-                let pieces = strip(&path, start, stop, dashes, 0.1).unwrap();
+                let pieces = strip(&path, start, stop, dashes, 0.1, usize::MAX).unwrap();
                 assert!(pieces.is_empty(), "{start}, {stop}, {dashes:?}: {pieces:?}");
             }
         }
         assert_eq!(
-            ends(&strip(&path, 4.0, 4.0, None, 0.1).unwrap()),
+            ends(&strip(&path, 4.0, 4.0, None, 0.1, usize::MAX).unwrap()),
             [(4.0, 6.0)]
         );
     }

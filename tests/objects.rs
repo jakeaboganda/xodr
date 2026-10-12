@@ -1290,3 +1290,29 @@ fn each_outline_of_a_repeat_counts_as_an_object_toward_what_one_load_bakes() {
         }]
     );
 }
+
+#[test]
+fn marking_paint_past_what_one_load_bakes_is_left_out_with_a_warning() {
+    let marked = |i: u32| {
+        format!(
+            r#"<object id="m{i}" type="roadMark" s="1" t="-2"><outlines><outline id="0" closed="false">
+            <cornerLocal id="0" u="0" v="0" height="0"/><cornerLocal id="1" u="95" v="0" height="0"/></outline></outlines>
+            <markings><marking width="0.1" color="white" lineLength="0.0005" spaceLength="0.0005">
+            <cornerReference id="0"/><cornerReference id="1"/></marking></markings></object>"#
+        )
+    };
+    let objects: String = (0..30).map(marked).collect();
+    let (net, prov) = xodr::load_str_with_provenance(&on_straight_road(&objects)).unwrap();
+    let painted: usize = net
+        .objects()
+        .iter()
+        .flat_map(|o| &o.markings)
+        .map(|m| m.pieces.len())
+        .sum();
+    assert_eq!(net.objects().len(), 30, "the outlines stay");
+    assert!(painted <= 2_000_000, "{painted} pieces");
+    assert!(prov
+        .warnings
+        .iter()
+        .any(|w| matches!(w, xodr::Warning::TooManyCopies { .. })));
+}
