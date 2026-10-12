@@ -4,6 +4,9 @@
 
 ### Warnings
 
+- `Warning::CrgDropped` for a road or junction `<CRG>` the crate drops. A
+  `<CRG>` whose `purpose` is neither `elevation` nor `friction` is now
+  dropped too. Before, it was read as an elevation.
 - `Warning::ObjectDropped`, `Warning::RepeatDropped`,
   `Warning::MarkingDropped` and `Warning::StructureDropped` for an object,
   a `<repeat>`, an object `<marking>`, or a tunnel or bridge the crate

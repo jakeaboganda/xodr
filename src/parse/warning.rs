@@ -568,6 +568,21 @@ pub enum Warning {
         /// Its `<lane id>`.
         lane: i32,
     },
+    /// A road or junction `<CRG>` the crate can't lay: one without a `file`,
+    /// a road one without a readable `sStart` or `sEnd`, with a `sEnd` not
+    /// past its `sStart` on the road, or with a `mode` the crate doesn't
+    /// know, a junction one whose `mode` is not `global`, the one mode it
+    /// may have, or one whose `purpose` is neither `elevation` nor
+    /// `friction`. Also a road one past
+    /// [`MAX_BAKED_LENGTH`](crate::MAX_BAKED_LENGTH). The crate drops it.
+    CrgDropped {
+        /// The `<road id>` it is on. Empty for one of a junction.
+        road_id: String,
+        /// The `<junction id>` for one of a junction. Empty otherwise.
+        junction_id: String,
+        /// Its `file`. Empty if it has none.
+        file: String,
+    },
     /// An `<object>` without a readable `s` or `t`, or an
     /// `<objectReference>` without one or naming no `<object>` in the file.
     /// The crate drops it.
@@ -738,6 +753,7 @@ impl Warning {
             | Self::RecordDropped { road_id, .. }
             | Self::LaneSectionDropped { road_id, .. }
             | Self::ObjectDropped { road_id, .. }
+            | Self::CrgDropped { road_id, .. }
             | Self::RepeatDropped { road_id, .. }
             | Self::MarkingDropped { road_id, .. }
             | Self::StructureDropped { road_id, .. }
@@ -1128,6 +1144,15 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} is outside a level lane but not level, held level"
+            ),
+            Self::CrgDropped {
+                road_id,
+                junction_id,
+                file,
+            } => write!(
+                f,
+                "{}: <CRG> {file:?} has no file, stretch, mode or purpose the crate can lay, dropped",
+                place(road_id, junction_id)
             ),
             Self::ObjectDropped {
                 road_id,

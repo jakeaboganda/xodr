@@ -490,3 +490,40 @@ fn road_crg_records_past_the_budget_are_dropped_before_they_are_sampled() {
     assert_eq!(net.lanes().len(), 1);
     assert!(start.elapsed().as_secs() < 30, "took {:?}", start.elapsed());
 }
+
+#[test]
+fn a_crg_the_crate_cannot_lay_is_dropped_with_a_warning() {
+    let xml = road(
+        40.0,
+        LINE,
+        "",
+        r#"<CRG file="ok.crg" sStart="0" sEnd="40" mode="attached"/>
+           <CRG file="nomode.crg" sStart="0" sEnd="40"/>
+           <CRG sStart="0" sEnd="40" mode="attached"/>
+           <CRG file="back.crg" sStart="30" sEnd="10" mode="attached"/>
+           <CRG file="wet.crg" sStart="0" sEnd="40" mode="attached" purpose="wetness"/>"#,
+    );
+    let (net, prov) = xodr::load_str_with_provenance(&xml).unwrap();
+    assert_eq!(net.crg_surfaces().len(), 1);
+    let dropped: Vec<_> = prov
+        .warnings
+        .iter()
+        .map(|w| match w {
+            xodr::Warning::CrgDropped {
+                road_id,
+                junction_id,
+                file,
+            } => (road_id.as_str(), junction_id.as_str(), file.as_str()),
+            other => panic!("unexpected {other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        dropped,
+        [
+            ("1", "", "nomode.crg"),
+            ("1", "", ""),
+            ("1", "", "back.crg"),
+            ("1", "", "wet.crg"),
+        ]
+    );
+}
