@@ -719,9 +719,9 @@ pub enum Warning {
         s: f64,
     },
     /// A profile record the crate can't place: an `<elevation>`,
-    /// `<superelevation>`, `<laneOffset>` or road `<type>` without a
-    /// readable `s`, a `<shape>` without a readable `s` or `t`, or a lane
-    /// `<width>` or `<border>` without a readable `a`. The crate drops it,
+    /// `<superelevation>`, `<crossfall>`, `<laneOffset>` or road `<type>`
+    /// without a readable `s`, a `<shape>` without a readable `s` or `t`, or
+    /// a lane `<width>` or `<border>` without a readable `a`. The crate drops it,
     /// so the record before it runs on.
     RecordDropped {
         /// The `<road id>` it is on.

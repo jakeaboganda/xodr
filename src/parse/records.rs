@@ -46,6 +46,13 @@ const ROAD: &[Kind] = &[
     },
     Kind {
         parent: "lateralProfile",
+        tag: "crossfall",
+        start: &["s"],
+        needed: &["s"],
+        zero: CUBIC,
+    },
+    Kind {
+        parent: "lateralProfile",
         tag: "shape",
         start: &["s", "t"],
         needed: &["s", "t"],

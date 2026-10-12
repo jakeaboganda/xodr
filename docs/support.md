@@ -39,6 +39,9 @@ files declaring 1.4, 1.6 and 1.7.
   middle of a 3.5 m lane on a crown falling 2.5 % at 7 m out. The first
   profile holds before it, where the spec gives 0. Objects, signals and
   road marks stand on the shape as the mesh has it.
+- `<lateralProfile>` crossfalls from OpenDRIVE 1.4, baked as shapes are:
+  the road falls away from its reference line at an angle, on one side or
+  both, as libOpenDRIVE reads it.
 - `<lateralProfile>` cross-section surfaces, baked as shapes are: strips
   of cubics across the road, each coefficient a cubic along it.
 - Level lanes, `level="true"`, kept out of the superelevation and the
@@ -478,7 +481,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `MarkingDropped` | an object `<marking>` without a width, naming fewer than two corners or a corner no outline has, or with a `side` the crate doesn't know |
 | `StructureDropped` | a `<tunnel>` or `<bridge>` without a readable `s` or `length`, or with a negative `length` |
 | `LaneSectionDropped` | a `<laneSection>` that starts past the end of its road. One under 1 mm long inside the road goes without a warning |
-| `RecordDropped` | an `<elevation>`, `<superelevation>`, `<laneOffset>` or road `<type>` without a readable `s`, a `<shape>` without a readable `s` or `t`, or a lane `<width>` or `<border>` without a readable `a` |
+| `RecordDropped` | an `<elevation>`, `<superelevation>`, `<crossfall>`, `<laneOffset>` or road `<type>` without a readable `s`, a `<shape>` without a readable `s` or `t`, or a lane `<width>` or `<border>` without a readable `a` |
 | `RecordValueUnreadable` | a number of a profile record that isn't one, such as `b="NaN"`. The crate reads it as 0 |
 | `RecordsOutOfOrder` | records of one kind, such as a lane's `<width>`s, that don't come in ascending order of where they start. The crate sorts them |
 
