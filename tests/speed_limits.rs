@@ -213,3 +213,26 @@ fn a_speed_the_crate_cannot_read_ends_the_one_before() {
     assert_eq!(net.speed_limit_at(id, 20.0), Some(SpeedLimit::Max(30.0)));
     assert_eq!(net.speed_limit_at(id, 60.0), None);
 }
+
+#[test]
+fn a_road_type_without_a_speed_takes_the_default_regulation() {
+    let xodr = r#"<OpenDRIVE><header><defaultRegulations>
+        <roadRegulations type="rural"><semantics><speed type="maximum" value="90" unit="km/h"/></semantics></roadRegulations>
+        <signalRegulations type="1000001" subType="-1"><semantics><priority type="turnOnRedAllowed"/></semantics></signalRegulations>
+        </defaultRegulations></header>
+        <road id="1" length="100" junction="-1"><type s="0" type="rural"/><type s="50" type="rural"><speed max="70" unit="km/h"/></type>
+        <planView><geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    let net = xodr::load_str(xodr).unwrap();
+    let id = net.lanes()[0].id;
+    let at = |s| match net.speed_limit_at(id, s) {
+        Some(SpeedLimit::Max(v)) => (v * 3.6).round(),
+        other => panic!("{other:?}"),
+    };
+    assert_eq!((at(20.0), at(80.0)), (90.0, 70.0));
+    let rules = &net.header().default_regulations;
+    assert_eq!((rules.roads.len(), rules.signals.len()), (1, 1));
+    assert_eq!(rules.signals[0].subtype, "-1");
+}

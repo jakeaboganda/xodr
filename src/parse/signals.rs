@@ -517,7 +517,7 @@ fn standing(node: roxmltree::Node, road: &Road, orientation: Orientation) -> Opt
 
 /// What `node`'s `<semantics>` say, in file order. A child the spec does not
 /// name is skipped.
-fn semantics(node: roxmltree::Node) -> Vec<Semantic> {
+pub(super) fn semantics(node: roxmltree::Node) -> Vec<Semantic> {
     let text = |n: roxmltree::Node, name| n.attribute(name).unwrap_or_default().to_string();
     let users = |n: roxmltree::Node| -> Vec<RoadUser> {
         n.children()

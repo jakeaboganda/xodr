@@ -5,7 +5,10 @@
 use super::{along, attr_f64, material, BakedRoad, Warning};
 use crate::coords::Point;
 use crate::road::RoadSection;
-use crate::{Access, Along, Lane, LaneId, Material, RoadType, SpeedLimit, Visibility};
+use crate::{
+    Access, Along, DefaultRegulations, Lane, LaneId, Material, RoadType, Semantic, SpeedLimit,
+    Unit, Visibility,
+};
 
 /// A `<speed>` as the file gives it.
 #[derive(Clone, PartialEq)]
@@ -284,9 +287,32 @@ pub(super) fn lane_visibility(lane: roxmltree::Node) -> Vec<(f64, VisibilityDef)
     by_offset(lane, "visibility", |n| Some(VisibilityDef::parse(n)))
 }
 
+/// The maximum speed `semantics` set, from the first `<speed>` of type
+/// `maximum`, in m/s. A unit other than `m/s`, `km/h` or `mph`, or none,
+/// sets nothing.
+pub(super) fn speed_limit(semantics: &[Semantic]) -> Option<SpeedLimit> {
+    semantics.iter().find_map(|s| match s {
+        Semantic::Speed {
+            kind,
+            value: Some(value),
+            unit,
+        } if kind == "maximum" && *value >= 0.0 => {
+            let scale = match unit {
+                Some(Unit::MetrePerSecond) => 1.0,
+                Some(Unit::KilometrePerHour) => 1.0 / 3.6,
+                Some(Unit::MilePerHour) => 0.44704,
+                _ => return None,
+            };
+            Some(SpeedLimit::Max((value * scale) as f32))
+                .filter(|l| matches!(l, SpeedLimit::Max(v) if v.is_finite()))
+        }
+        _ => None,
+    })
+}
+
 /// The [`RoadType`] an OpenDRIVE `<type>` names. An absent or unrecognised
 /// type is [`RoadType::Unknown`].
-fn road_type(od_type: Option<&str>) -> RoadType {
+pub(super) fn road_type(od_type: Option<&str>) -> RoadType {
     match od_type.unwrap_or_default() {
         "rural" => RoadType::Rural,
         "motorway" => RoadType::Motorway,
@@ -326,8 +352,16 @@ pub(super) struct Placed {
 /// holds. A lane's `<rule>`, `<access>` or
 /// `<material>` holds from its `sOffset` to the next of its kind, or to the
 /// end of its lane section.
-pub(super) fn place<'a>(roads: impl Iterator<Item = &'a BakedRoad>, lanes: &[Lane]) -> Placed {
+pub(super) fn place<'a>(
+    roads: impl Iterator<Item = &'a BakedRoad>,
+    lanes: &[Lane],
+    defaults: &DefaultRegulations,
+) -> Placed {
     let mut out = Placed::default();
+    let default_for = |kind: RoadType| {
+        let rule = defaults.roads.iter().find(|r| r.road_type == kind)?;
+        speed_limit(&rule.semantics)
+    };
     for road in roads {
         let type_at = |s: f64| road.types.iter().rev().find(|t| t.s <= s + 1e-9);
         for (sec, sec_def) in road.sections() {
@@ -352,9 +386,11 @@ pub(super) fn place<'a>(roads: impl Iterator<Item = &'a BakedRoad>, lanes: &[Lan
                 let limits = stretches(sec, type_starts.chain(speeds.iter().map(|l| l.0)), |s| {
                     own(s).map_or_else(
                         || {
-                            type_at(s)
-                                .and_then(|t| t.speed.as_ref())
-                                .and_then(SpeedDef::limit)
+                            let kind = type_at(s)?;
+                            match &kind.speed {
+                                Some(speed) => speed.limit(),
+                                None => default_for(kind.kind),
+                            }
                         },
                         |l| l.1,
                     )

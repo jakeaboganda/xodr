@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Regulations
+
+- `Header::default_regulations` gives the header's `<defaultRegulations>`:
+  each `RoadRegulation` and `SignalRegulation`, with its semantics. A
+  road type's default `maximum` speed is the limit where neither the
+  road's `<type>` nor its lanes give one. `<defaultRegulations>` leaves the
+  `Ignored` list.
+
 ### Signal boards
 
 - `RoadNetwork::vms_groups` gives each `<vmsGroup>` as a `VmsGroup`: the
