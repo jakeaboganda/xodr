@@ -64,6 +64,11 @@
 //! | `<header><geoReference>` | its text |
 //! | `<header><offset>` | `x`, `y`, `z`, `hdg` |
 //! | `<include>`, anywhere | `file` |
+//! | `<userData>`, anywhere | `code`, `value` |
+//! | `<dataQuality>`, anywhere | none |
+//! | `<dataQuality><error>` | `xyAbsolute`, `xyRelative`, `zAbsolute`, `zRelative` |
+//! | `<dataQuality><rawData>` | `date`, `source`, `sourceComment`, `postProcessing`, `postProcessingComment` |
+//! | `<header><license>` | `name`, `resource`, `spdxid`, `text` |
 //! | `<road>` | `id`, `name`, `length`, `junction`, `rule` |
 //! | `<road><link>` | `elementType`, `elementId`, `contactPoint`, `elementS`, `elementDir` |
 //! | `<link><neighbor>` | `side`, `elementId`, `direction` |
@@ -1248,11 +1253,7 @@
 //! times the file uses the feature. [`Warning::is_ignored`] tells these from
 //! the warnings for faults.
 //!
-//! The crate skips these elements: a header's `<license>`, and
-//! `<dataQuality>` anywhere. It skips `<userData>` anywhere but directly on
-//! an object, which it reads.
-//!
-//! It also ignores these uses of elements it reads:
+//! It ignores these uses of elements it reads:
 //!
 //! - a second `lanes` of one [`Layer`] on a road, which the crate leaves out.
 //!   It keeps the first;
@@ -1269,6 +1270,14 @@
 //!
 //! The crate keeps some attributes it builds nothing from. It does not use
 //! them to read the map, and it applies none of them. They are here:
+//!
+//! - every `<userData>` and `<dataQuality>`, which the spec lets a file put
+//!   on any element, in [`Provenance::additional`] as an
+//!   [`AdditionalData`], with the path of the element it is on and its
+//!   road. What a vendor puts inside a `<userData>` is its own business: the
+//!   crate reads nothing there, an `<include>` included. An object's
+//!   `<userData>` is in [`Object::user_data`] too;
+//! - the header's `<license>`, in [`Header::license`];
 //!
 //! - the `<header>`, in [`RoadNetwork::header`] as a [`Header`];
 //! - a road's `name` in [`Road::name`], and a junction's in
@@ -1612,7 +1621,7 @@
 //!
 //! An element the crate does not read raises one [`Warning::Ignored`] for
 //! each road, junction, or the rest of the document that uses it, with a
-//! count, so a map with thousands of `<userData>` raises a few. Two drops
+//! count, so a map that uses one thousands of times raises a few. Two drops
 //! raise none, since exporters write them and nothing is lost: a lane section
 //! under 1 mm long inside its road, and a road mark at or past the end of its
 //! lane section. The crate prints nothing. To log the warnings,
@@ -1671,7 +1680,7 @@ pub use crg::{
 pub use geo::{GeoOffset, GeoReference};
 pub use geometry::TooFewPoints;
 pub use geometry::{Polyline, Pose, Projection, RoadSample};
-pub use header::{DefaultRegulations, Header, RoadRegulation, SignalRegulation};
+pub use header::{DefaultRegulations, Header, License, RoadRegulation, SignalRegulation};
 pub use junction::{
     CrossPath, CrossPathEnd, Crossing, CrossingSection, ElevationGrid, GridRow, JunctionArea,
     JunctionGroup, JunctionGroupKind, LinkPoint, MainRoad, VirtualJunction, VirtualLink,
@@ -1689,11 +1698,12 @@ pub use object_mesh::ObjectSpan;
 pub use opencrg;
 pub use parse::{
     load_file, load_file_with_provenance, load_str, load_str_with, load_str_with_provenance,
-    CenterLaneProvenance, ControllerProvenance, CrossPathProvenance, ImportError, IncludeProblem,
-    JunctionControllerProvenance, JunctionProvenance, LaneHeight, LaneLinkOverlap, LaneProvenance,
-    ObjectProvenance, Orientation, PriorityProvenance, Provenance, RoadEnd, RoadMarkProvenance,
-    RoadSkipReason, SignProvenance, SignalProvenance, SignalReferenceProvenance, SkeletonIds,
-    StructureProvenance, Warning, MAX_BAKED_LENGTH, MAX_INCLUDED_BYTES, MAX_LENGTH,
+    Additional, AdditionalData, CenterLaneProvenance, ControllerProvenance, CrossPathProvenance,
+    DataError, DataQuality, ImportError, IncludeProblem, JunctionControllerProvenance,
+    JunctionProvenance, LaneHeight, LaneLinkOverlap, LaneProvenance, ObjectProvenance, Orientation,
+    PriorityProvenance, Provenance, RawData, RoadEnd, RoadMarkProvenance, RoadSkipReason,
+    SignProvenance, SignalProvenance, SignalReferenceProvenance, SkeletonIds, StructureProvenance,
+    Warning, MAX_BAKED_LENGTH, MAX_INCLUDED_BYTES, MAX_LENGTH,
 };
 pub use railway::{
     Partner, Platform, PlatformSegment, Station, Switch, SwitchPosition, TrackPoint,

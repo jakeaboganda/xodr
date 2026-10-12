@@ -38,6 +38,23 @@ pub struct Header {
     /// The rules the map sets once for all its roads and signs, from its
     /// `<defaultRegulations>`.
     pub default_regulations: DefaultRegulations,
+    /// The map's licence, from its `<license>`, if it gives one.
+    pub license: Option<License>,
+}
+
+/// A map's licence, from its header's `<license>`, as the file writes it. A
+/// value it leaves out is empty.
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct License {
+    /// Its full `name`.
+    pub name: String,
+    /// `resource`, a link to its full text.
+    pub resource: String,
+    /// `spdxid`, its SPDX identifier or expression, such as `CC-BY-4.0`.
+    pub spdx_id: String,
+    /// `text`, its full text.
+    pub text: String,
 }
 
 /// The rules a map sets once for all its roads and signs, from its

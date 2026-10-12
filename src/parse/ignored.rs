@@ -21,21 +21,6 @@ struct Feature {
 /// importer ignores". Delete a row once the crate reads the feature.
 const FEATURES: &[Feature] = &[
     Feature {
-        name: "<userData>",
-        path: "**/userData",
-        when: not_on_an_object,
-    },
-    Feature {
-        name: "<dataQuality>",
-        path: "**/dataQuality",
-        when: always,
-    },
-    Feature {
-        name: "<license>",
-        path: "header/license",
-        when: always,
-    },
-    Feature {
         name: "a repeated <lanes> of one layer",
         path: "lanes",
         when: repeats_a_layer,
@@ -47,19 +32,9 @@ const FEATURES: &[Feature] = &[
     },
 ];
 
-fn always(_: roxmltree::Node) -> bool {
-    true
-}
-
 fn not_in_a_crossing(node: roxmltree::Node) -> bool {
     node.parent_element()
         .is_none_or(|p| p.attribute("type") != Some("crossing"))
-}
-
-fn not_on_an_object(node: roxmltree::Node) -> bool {
-    !node
-        .parent_element()
-        .is_some_and(|p| p.has_tag_name("object"))
 }
 
 fn repeats_a_layer(node: roxmltree::Node) -> bool {

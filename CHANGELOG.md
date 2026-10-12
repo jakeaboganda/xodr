@@ -4,6 +4,13 @@
 
 ### Additional data
 
+- **Breaking:** `Provenance::additional` keeps every `<userData>` and
+  `<dataQuality>` in the file, as `AdditionalData` with the path of the
+  element each is on and its road, and `Header::license` the header's
+  `<license>`. A `Provenance` literal needs the new field. All three
+  leave the `Ignored` list, which keeps two features: a repeated `<lanes>`
+  of one layer, and a `<roadSection>` outside a crossing. An `<include>`
+  inside a `<userData>` is a vendor's own and isn't read in.
 - `<include>` reads in the file it names where it stands, as the spec
   says. `load_file` reads included files from the map's folder or one
   under it, `load_str_with` with a function you give, and `load_str`

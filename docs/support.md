@@ -78,6 +78,9 @@ files declaring 1.4, 1.6 and 1.7.
   gives the way back itself.
 - A road's `<neighbor>`s, from OpenDRIVE 1.4, as
   `RoadNetwork::road_neighbors`: the road beside it, and which way it runs.
+- Every `<userData>` and `<dataQuality>`, on any element, in
+  `Provenance::additional` with the path of the element each is on, and
+  the header's `<license>` in `Header::license`. The crate applies none.
 - `<include>`s, read in where they stand. `load_file` reads them from the
   map's folder, `load_str_with` with a function the caller gives, and
   `load_str` not at all, with a warning.
@@ -484,9 +487,6 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 The importer skips what the sections above do not list as read. Each feature
 below raises an `Ignored` warning, once for each road, junction, or the rest
 of the document, with how many times the file uses it.
-
-Elements it skips: a header's `<license>`, and `<dataQuality>` anywhere. It skips
-`<userData>` anywhere but directly on an object, which it reads.
 
 Uses of elements it reads that it ignores:
 

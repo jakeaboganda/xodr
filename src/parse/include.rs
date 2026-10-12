@@ -13,7 +13,8 @@ const MAX_DEPTH: usize = 8;
 /// times, would otherwise grow without bound.
 pub const MAX_INCLUDED_BYTES: usize = 256 << 20;
 
-/// `xml` with each of its `<include>`s replaced by what the file it names
+/// `xml` with each of its `<include>`s, but those inside a `<userData>`,
+/// which holds a vendor's own elements, replaced by what the file it names
 /// holds inside its root, read by `read`, which takes the file's path as the
 /// including file names it, joined to that file's folder. An included file's
 /// root must be the element the `<include>` stands in, as the spec says.
@@ -44,6 +45,7 @@ fn expand_in(
     let includes: Vec<roxmltree::Node> = doc
         .descendants()
         .filter(|n| n.has_tag_name("include") && n.parent_element().is_some())
+        .filter(|n| !n.ancestors().skip(1).any(|a| a.has_tag_name("userData")))
         .collect();
     if includes.is_empty() {
         return Some(xml.to_string());

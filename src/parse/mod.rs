@@ -28,6 +28,7 @@ use crate::{
     StructureId, StructureKind, UserData,
 };
 
+mod additional;
 mod curve_local;
 mod gaps;
 mod ignored;
@@ -43,6 +44,7 @@ mod signals;
 mod single_side;
 mod virtual_junctions;
 mod warning;
+pub use additional::{Additional, AdditionalData, DataError, DataQuality, RawData};
 pub use include::MAX_INCLUDED_BYTES;
 use links::{LaneMeta, RoadInfo, Topology};
 use road_marks::MarkDef;
@@ -520,6 +522,11 @@ pub struct Provenance {
     /// order.
     #[cfg_attr(feature = "serde", serde(default))]
     pub lane_link_overlaps: Vec<LaneLinkOverlap>,
+    /// Every `<userData>` and `<dataQuality>` in the file, in file order,
+    /// with the element each is on. An object's `<userData>` is in
+    /// [`Object::user_data`](crate::Object::user_data) too.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub additional: Vec<AdditionalData>,
     /// What the load dropped, or read against the spec, in file order.
     /// Empty for a clean file.
     pub warnings: Vec<Warning>,
@@ -861,6 +868,7 @@ fn bake(xml: &str, mut warnings: Vec<Warning>) -> Result<(RoadNetwork, Provenanc
         lane_link_overlaps: lane_link_overlaps(root),
         priorities: priority_provenance,
         cross_paths: cross_path_provenance,
+        additional: additional::collect(root),
         warnings,
     };
     Ok((
@@ -1684,6 +1692,7 @@ fn header(root: roxmltree::Node) -> Header {
         default_regulations: child(node, "defaultRegulations")
             .map(default_regulations)
             .unwrap_or_default(),
+        license: additional::license(node),
     }
 }
 
