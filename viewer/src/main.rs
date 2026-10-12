@@ -126,7 +126,11 @@ fn main() -> ExitCode {
 fn export(input: &str, output: &str) -> Result<(), String> {
     let xodr = fs::read_to_string(input).map_err(|e| format!("reading {input}: {e}"))?;
     let dir = map_dir(Path::new(input));
-    let scene = bake(&xodr, |file| load_crg(dir, file))?;
+    let include = |file: &str| {
+        let bytes = read_inside(dir, &dir.join(file)).map_err(|e| e.to_string())?;
+        String::from_utf8(bytes).map_err(|e| e.to_string())
+    };
+    let scene = bake(&xodr, include, |file| load_crg(dir, file))?;
     for note in &scene.notes {
         eprintln!("warning: {input}: {note}");
     }

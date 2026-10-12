@@ -66,8 +66,8 @@
   <div id="view">
     <div id="tip"></div>
     <div id="tools">
-      <button id="openbtn" title="open a .xodr, with any .crg files it uses">open .xodr</button>
-      <input type="file" id="open" accept=".xodr,.crg" multiple hidden>
+      <button id="openbtn" title="open a .xodr, with any .crg and included .xml files it uses">open .xodr</button>
+      <input type="file" id="open" accept=".xodr,.crg,.xml" multiple hidden>
       <label>map <select id="map"></select></label>
       <label>view
         <select id="mode">
@@ -301,7 +301,7 @@ document.getElementById('openbtn').addEventListener('click', () => document.getE
 document.getElementById('open').addEventListener('change', async e => {
   const files = [...e.target.files];
   const maps = files.filter(f => /\.xodr$/i.test(f.name));
-  if (maps.length !== 1) return alert('Open one .xodr, and any .crg files it uses.');
+  if (maps.length !== 1) return alert('Open one .xodr, and any .crg and included .xml files it uses.');
   await openedFiles('readwrite', store => store.put(files, 'files'));
   location.search = '?open=' + encodeURIComponent(maps[0].name);
 });
@@ -347,7 +347,8 @@ async function pickScene() {
 }
 
 // Bake the opened map `name` with the WebAssembly build of the viewer crate,
-// handing it the .crg files opened with it.
+// handing it the .crg files, and the files its <include>s name, opened with
+// it, each found by its name without its folder.
 async function bakeOpened(name) {
   const files = await openedFiles('readonly', store => store.get('files'));
   const map = files?.find(f => f.name === name);
@@ -402,9 +403,10 @@ function headerText(h) {
     ...(rules.roads ?? []).map(r => `default on ${r.road_type.toLowerCase()} roads: ${said(r.semantics)}`),
     ...(rules.signals ?? []).map(r => `default for sign ${r.kind} ${r.subtype}: ${said(r.semantics)}`),
   ];
+  const license = h.license && `license ${[h.license.spdx_id, h.license.name].filter(Boolean).join(' ')}`;
   return [
     h.name && `name ${h.name}`, revision, h.version && `version ${h.version}`,
-    h.date && `date ${h.date}`, h.vendor && `vendor ${h.vendor}`, bounds, ...defaults,
+    h.date && `date ${h.date}`, h.vendor && `vendor ${h.vendor}`, bounds, license, ...defaults,
   ].filter(Boolean).join('\n');
 }
 

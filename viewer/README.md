@@ -31,9 +31,9 @@ the same JSON ahead of time, for maps you want in the page's `map` list.
    matching `wasm-bindgen` CLI.
 
 2. Click `open .xodr` in the toolbar and pick a map. Where the map lays
-   OpenCRG files on its roads, pick them in the same dialog. The page
-   matches them by file name, and lists any it lacks in the sidebar's
-   warnings.
+   OpenCRG files on its roads, or reads in files with `<include>`, pick
+   them in the same dialog. The page matches them by file name, and lists
+   any it lacks in the sidebar's warnings.
 
 To host the page somewhere else, run `sh viewer/build.sh` and serve
 `viewer/web` with any static file server. Browsers load ES modules and
@@ -66,8 +66,9 @@ view. To bake to another path, give one map and the output:
 cargo run --release -p xodr-viewer -- tests/data/objects.xodr /tmp/objects.json
 ```
 
-`viewer_export` reads OpenCRG files, and the files they include, from
-beside the `.xodr` or from a folder under it. It refuses a path or link out
+`viewer_export` reads OpenCRG files, and the files they include, and the
+files a map's `<include>`s name, from beside the `.xodr` or from a folder
+under it. It refuses a path or link out
 of that folder, so a map from elsewhere can't read other files. If a map fails
 to load, `viewer_export` reports it, bakes the others, and exits with an
 error.
@@ -136,7 +137,7 @@ to clear it.
 Under the map's name, the sidebar shows its `<geoReference>` PROJ string
 and `<offset>` as the file gives them. A map without either shows neither.
 Hover the map list for the `<header>`: its name, OpenDRIVE revision,
-version, date, vendor and bounds, and its default regulations for each road
+version, date, vendor, bounds and licence, and its default regulations for each road
 type and sign type. A lane's speed limit is the one a speed sign sets where
 there is one.
 
