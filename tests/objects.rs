@@ -1349,3 +1349,13 @@ fn a_repeat_s_borders_count_toward_what_one_load_bakes() {
         .iter()
         .any(|w| matches!(w, xodr::Warning::TooManyCopies { .. })));
 }
+
+#[test]
+fn a_marked_repeat_running_past_the_road_end_keeps_its_copies_on_the_road() {
+    let boxes = r#"<object id="b" type="obstacle" s="0" t="-6" length="0.5" width="0.5" height="1">
+        <markings><marking side="front" width="0.1" color="white" lineLength="0.01" spaceLength="0.01"/></markings>
+        <repeat s="0" length="90000" distance="1" tStart="-6" tEnd="-6"/></object>"#;
+    let (net, prov) = xodr::load_str_with_provenance(&on_straight_road(boxes)).unwrap();
+    assert_eq!(net.objects().len(), 101);
+    assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+}
