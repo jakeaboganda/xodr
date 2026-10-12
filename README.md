@@ -60,30 +60,35 @@ crate ignores:
 
 ## What it reads
 
-- Road geometry, elevation, superelevation, lateral shape and cross-section
-  surfaces.
+- Road geometry, elevation, superelevation, lateral shape, cross-section
+  surfaces, and the crossfall of OpenDRIVE 1.4.
 - Lanes of every type, with their widths, borders, offsets, heights and
   sections, including sections that give one side of the road, and a
   road's temporary lane layer over its permanent one.
 - Links and junctions, direct junctions included, as a lane graph, in
   right- or left-hand traffic, with reversed and two-way lanes.
-- Junction groups, priorities, boundaries, elevation grids and cross paths,
-  and virtual junctions.
+- Junction groups, priorities, boundaries and cross paths, crossings and
+  virtual junctions. A junction's roads stand on its elevation grid, and
+  each road coming in blends into it.
 - Road neighbors.
-- Road types and speed limits along each lane.
+- Road types and speed limits along each lane, from the map's speed
+  records, its speed limit signs and its default regulations.
 - Lane rules, access, materials and visibility along each lane.
 - Objects, standing upright or following the road, with repeats, outlines
   made of corners or curves, markings, borders, skeletons and surface CRGs,
   on roads and in junctions.
-- Signals, with their meaning and boards, and the controllers that group
-  them.
+- Signals, with their meaning and boards, each sign on a board with its
+  own lanes and links, the controllers that group them, and the message
+  boards on one gantry.
 - Road marks.
 - Tunnels and bridges.
 - Railway switches and stations.
 - OpenCRG surfaces, for the height, normal and friction under a wheel.
 - The geo reference: the PROJ string and offset, kept unapplied.
-- The header, road and junction names, and the other descriptive
-  attributes of a map, kept for the caller.
+- The header, its licence, road and junction names, the `<userData>` and
+  `<dataQuality>` on any element, and the other descriptive attributes of a
+  map, kept for the caller.
+- Included files, read in where an `<include>` names them.
 
 It keeps each road. A caller can turn `(road, s, t)` or `(lane, s, offset)`
 into a point on the road surface, turn a point back into a position, and move
