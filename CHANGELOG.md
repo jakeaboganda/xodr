@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- A `<repeat>` that runs past the end of its road keeps the copies on the
+  road, and only they count toward what one load bakes. Before, a repeat
+  far longer than its road was refused whole.
+- A `<repeat>` whose copies grow or shrink is sized by the smaller of its
+  end copies. Before, one that shrank from a large first copy could be
+  refused though it fit.
+- An object refused for its size no longer counts the paint of its
+  markings against the load, so the objects after it keep theirs.
+
 ## 0.6.1 - 2026-10-12
 
 ### Fixes

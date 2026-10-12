@@ -1359,3 +1359,73 @@ fn a_marked_repeat_running_past_the_road_end_keeps_its_copies_on_the_road() {
     assert_eq!(net.objects().len(), 101);
     assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
 }
+
+/// An open outline along `u` from 0 to 95 m, `v` metres across, with
+/// `markings` dashed markings each painting 95,000 dashes along it, and
+/// `extra` more corners beyond its end.
+fn painted(id: &str, v: f64, markings: usize, extra: usize) -> String {
+    let corner =
+        |k: usize, u: f64| format!(r#"<cornerLocal id="{k}" u="{u}" v="{v}" height="0"/>"#);
+    let corners: String = (2..2 + extra)
+        .map(|k| corner(k, 95.0 + k as f64 * 1e-3))
+        .collect();
+    let marking = r#"<marking width="0.1" color="white" lineLength="0.0005" spaceLength="0.0005">
+        <cornerReference id="0"/><cornerReference id="1"/></marking>"#;
+    format!(
+        r#"<object id="{id}" type="roadMark" s="1" t="-2"><outlines><outline id="0" closed="false">
+        {}{}{corners}</outline></outlines><markings>{}</markings></object>"#,
+        corner(0, 0.0),
+        corner(1, 95.0),
+        marking.repeat(markings)
+    )
+}
+
+#[test]
+fn an_object_refused_for_its_corners_leaves_its_paint_to_the_next() {
+    let objects = [
+        painted("x", -2.0, 19, 0),
+        painted("a", -4.0, 1, 100_001),
+        painted("b", -6.0, 2, 0),
+    ]
+    .concat();
+    let (net, prov) = xodr::load_str_with_provenance(&on_straight_road(&objects)).unwrap();
+    let paint: Vec<usize> = net
+        .objects()
+        .iter()
+        .map(|o| o.markings.iter().map(|m| m.pieces.len()).sum())
+        .collect();
+    assert_eq!(paint, [19 * 95_000, 2 * 95_000]);
+    assert_eq!(
+        prov.warnings,
+        [xodr::Warning::TooManyCopies {
+            road_id: "1".into(),
+            object_id: "a".into(),
+        }]
+    );
+}
+
+#[test]
+fn a_repeat_whose_copies_shrink_is_sized_by_its_smallest() {
+    let boxes = |from: f64, to: f64| {
+        format!(
+            r#"<object id="b" type="obstacle" s="0" t="-6" length="0.5" width="{from}" height="1">
+            <markings><marking side="front" width="0.1" color="white" lineLength="0.01" spaceLength="0.01"/></markings>
+            <repeat s="0" length="100" distance="1" tStart="-6" tEnd="-6" widthStart="{from}" widthEnd="{to}"/></object>"#
+        )
+    };
+    for (from, to) in [(0.01, 400.0), (400.0, 0.01)] {
+        let (net, prov) =
+            xodr::load_str_with_provenance(&on_straight_road(&boxes(from, to))).unwrap();
+        assert_eq!(net.objects().len(), 101, "width {from} to {to}");
+        assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+    }
+}
+
+#[test]
+fn a_repeat_far_longer_than_its_road_keeps_the_copies_on_it() {
+    let posts = r#"<object id="p" type="pole" s="0" t="-5" height="1" radius="0.1">
+        <repeat s="0" length="200000" distance="1" tStart="-5" tEnd="-5"/></object>"#;
+    let (net, prov) = xodr::load_str_with_provenance(&on_straight_road(posts)).unwrap();
+    assert_eq!(net.objects().len(), 101);
+    assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+}
