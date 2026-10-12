@@ -39,7 +39,6 @@ fn every_ignored_feature_is_counted_where_the_file_uses_it() {
         of("", "", "<defaultRegulations>", 1),
         of("", "", "<vmsGroup>", 1),
         of("", "100", "<roadSection>", 2),
-        of("", "100", "<segment transitionLength>", 2),
         of("1", "", "<userData>", 3),
         of("1", "", "<include>", 1),
         of("1", "", "a repeated <lanes> of one layer", 1),
@@ -90,7 +89,7 @@ fn only_the_ignored_warnings_say_they_are() {
         .iter()
         .filter(|w| w.is_ignored())
         .count();
-    assert_eq!(ignored, 17);
+    assert_eq!(ignored, 16);
     assert!(
         provenance.warnings.len() > ignored,
         "the fixture's boundary doesn't close, which is a fault"

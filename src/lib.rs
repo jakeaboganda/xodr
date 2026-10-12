@@ -125,7 +125,7 @@
 //! | `<junction><planView>` | its `<geometry>`s, as a road's |
 //! | `<junction><objects>` | its `<object>`s and `<objectReference>`s, as a road's |
 //! | `<junction><boundary>` | none |
-//! | `<boundary><segment>` | `type`, `roadId`, `boundaryLane`, `sStart`, `sEnd`, `contactPoint`, `jointLaneStart`, `jointLaneEnd` |
+//! | `<boundary><segment>` | `type`, `roadId`, `boundaryLane`, `sStart`, `sEnd`, `contactPoint`, `jointLaneStart`, `jointLaneEnd`, `transitionLength` |
 //! | `<junction><elevationGrid>` | `sStart`, `gridSpacing` |
 //! | `<elevationGrid><elevation>` | `left`, `center`, `right` |
 //! | `<objects><object>` | `id`, `type`, `subtype`, `name`, `dynamic`, `invalidated`, `temporary`, `orientation`, `validLength`, `s`, `t`, `zOffset`, `hdg`, `pitch`, `roll`, `perpToRoad`, `length`, `width`, `height`, `radius` |
@@ -583,8 +583,18 @@
 //!   forbids inside the boundary, the road's own elevation and
 //!   superelevation hold there. The crate does this for a grid on any
 //!   junction, though the spec gives grids to common junctions only.
-//! - A joint's `transitionLength` is not applied yet: a road coming in meets
-//!   the grid where the grid is, with a step if the two disagree.
+//! - Where a road comes in at a `joint` with a `transitionLength` above 0,
+//!   the height blends from the road into the grid over the spec's zone: the
+//!   four-sided polygon from the joint to the points `transitionLength`
+//!   along the `lane` segments either side, with the spec's cubic from the
+//!   road's height and slope at the joint to the grid's. The spec divides
+//!   the two slopes by the zone's depth to scale them to the cubic. The
+//!   crate multiplies, which is what makes the cubic meet each slope, and
+//!   reads it as a slip in the text. The road's height at the joint is its
+//!   reference surface there, its elevation and superelevation, not its
+//!   lane heights, which the junction's lanes add on top. A joint without a
+//!   `lane` segment each side gets no zone, with a
+//!   [`Warning::TransitionDropped`].
 //! - The spec requires the segments to close the boundary. The crate joins
 //!   them straight, and raises [`Warning::BoundaryNotClosed`] where two
 //!   segments end more than 10 cm apart in plan. A boundary of one segment
@@ -1160,8 +1170,7 @@
 //! It also ignores these uses of elements it reads:
 //!
 //! - a second `lanes` of one [`Layer`] on a road, which the crate leaves out.
-//!   It keeps the first;
-//! - a boundary segment's `transitionLength` above 0.
+//!   It keeps the first.
 //!
 //! One omission changes the road you get back, rather than only dropping
 //! detail around it: the center lane, lane 0, never becomes a [`Lane`].
@@ -1466,7 +1475,7 @@
 //!   crate can't read whole.
 //! - [`Warning::CrossPathDropped`] for a `<crossPath>` whose roads or lanes
 //!   the load lacks.
-//! - [`Warning::ElevationGridDropped`],
+//! - [`Warning::ElevationGridDropped`], [`Warning::TransitionDropped`],
 //!   [`Warning::BoundaryNotClosed`],
 //!   [`Warning::BoundarySegmentDropped`] and [`Warning::BoundaryClockwise`]
 //!   for a junction's area. See [Junction areas](#junction-areas).

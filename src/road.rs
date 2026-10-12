@@ -263,6 +263,99 @@ pub(crate) struct Ground {
     /// reach.
     pub elevations: Vec<Cubic>,
     pub superelevations: Vec<Cubic>,
+    /// Where roads come into the junction, the zones that blend each into
+    /// the grid.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub transitions: Vec<Transition>,
+}
+
+/// The zone where a road comes into a junction, from a boundary `joint`
+/// segment with a `transitionLength`, where the height blends from the road
+/// into the grid, as the spec's section 12.11.2 gives it.
+///
+/// The zone is the four-sided polygon from `corners[0]` to `corners[1]`
+/// along the joint, then `corners[2]` and `corners[3]`, `transitionLength`
+/// along the boundary's `lane` segments either side. A point in it is
+/// `k` along the joint and `l` from the joint to the far side. Its height is
+/// the cubic in `l` from the road's height and slope at the joint to the
+/// grid's on the far side.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub(crate) struct Transition {
+    pub corners: [[f64; 2]; 4],
+    /// The road's height at the joint, and its slope into the junction, in
+    /// metres per metre, at even steps of `k` from 0 to 1.
+    pub road: Vec<(f64, f64)>,
+}
+
+impl Transition {
+    /// The height at `(x, y)` on `grid`, or `None` outside the zone or where
+    /// the grid does not reach its far side.
+    fn height(&self, grid: &ElevationGrid, x: f64, y: f64) -> Option<f64> {
+        let (k, l) = self.locate(x, y)?;
+        let [p0, p1, p2, p3] = self.corners;
+        let lerp =
+            |a: [f64; 2], b: [f64; 2], f: f64| [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+        let (a, b) = (lerp(p0, p1, k), lerp(p3, p2, k));
+        let length = (b[0] - a[0]).hypot(b[1] - a[1]);
+        if length < 1e-9 {
+            return None;
+        }
+        let (ux, uy) = ((b[0] - a[0]) / length, (b[1] - a[1]) / length);
+        let (z_a, slope_a) = self.road_at(k);
+        let z_b = grid.height_at(b[0], b[1])?;
+        const STEP: f64 = 0.05;
+        let back = grid.height_at(b[0] - ux * STEP, b[1] - uy * STEP)?;
+        let (m_a, m_b) = (slope_a * length, (z_b - back) / STEP * length);
+        let c = -3.0 * z_a + 3.0 * z_b - 2.0 * m_a - m_b;
+        let d = 2.0 * z_a - 2.0 * z_b + m_a + m_b;
+        Some(z_a + m_a * l + c * l * l + d * l * l * l)
+    }
+
+    /// The road's height and slope at `k` along the joint.
+    fn road_at(&self, k: f64) -> (f64, f64) {
+        let last = self.road.len().saturating_sub(1);
+        let at = (k.clamp(0.0, 1.0) * last as f64).min(last as f64);
+        let (i, f) = (at.floor() as usize, at.fract());
+        let (a, b) = (self.road[i], self.road[(i + 1).min(last)]);
+        (a.0 + (b.0 - a.0) * f, a.1 + (b.1 - a.1) * f)
+    }
+
+    /// Where `(x, y)` is in the zone, as `(k, l)` each from 0 to 1, or `None`
+    /// outside it. Solves the spec's bilinear `P = P0 + k (P1 - P0) +
+    /// l (P3 - P0) + k l (P2 - P3 - P1 + P0)`.
+    fn locate(&self, x: f64, y: f64) -> Option<(f64, f64)> {
+        const EPS: f64 = 1e-9;
+        let [p0, p1, p2, p3] = self.corners;
+        let e = [p1[0] - p0[0], p1[1] - p0[1]];
+        let f = [p3[0] - p0[0], p3[1] - p0[1]];
+        let g = [p0[0] - p1[0] + p2[0] - p3[0], p0[1] - p1[1] + p2[1] - p3[1]];
+        let h = [x - p0[0], y - p0[1]];
+        let cross = |a: [f64; 2], b: [f64; 2]| a[0] * b[1] - a[1] * b[0];
+        let (k2, k1, k0) = (cross(g, f), cross(e, f) + cross(h, g), cross(h, e));
+        let ls: Vec<f64> = if k2.abs() < EPS {
+            if k1.abs() < EPS {
+                return None;
+            }
+            vec![-k0 / k1]
+        } else {
+            let disc = k1 * k1 - 4.0 * k0 * k2;
+            if disc < 0.0 {
+                return None;
+            }
+            let root = disc.sqrt();
+            vec![(-k1 - root) / (2.0 * k2), (-k1 + root) / (2.0 * k2)]
+        };
+        ls.into_iter().find_map(|l| {
+            let den = [e[0] + g[0] * l, e[1] + g[1] * l];
+            let k = match den[0].abs() > den[1].abs() {
+                true => (h[0] - f[0] * l) / den[0],
+                false => (h[1] - f[1] * l) / den[1],
+            };
+            let inside = |v: f64| (-EPS..=1.0 + EPS).contains(&v);
+            (inside(k) && inside(l)).then_some((k.clamp(0.0, 1.0), l.clamp(0.0, 1.0)))
+        })
+    }
 }
 
 impl Ground {
@@ -270,11 +363,17 @@ impl Ground {
     pub fn height(&self, s: f64, t: f64) -> f64 {
         let (x, y, hdg) = geom_at(&self.plan, s).pose(s);
         let (x, y) = (x - t * hdg.sin(), y + t * hdg.cos());
-        self.grid.height_at(x, y).unwrap_or_else(|| {
-            let elevation = active(&self.elevations, s).map_or(0.0, |e| e.eval(s));
-            let bank = active(&self.superelevations, s).map_or(0.0, |e| e.eval(s));
-            elevation + t * bank.sin()
-        })
+        let blended = self
+            .transitions
+            .iter()
+            .find_map(|zone| zone.height(&self.grid, x, y));
+        blended
+            .or_else(|| self.grid.height_at(x, y))
+            .unwrap_or_else(|| {
+                let elevation = active(&self.elevations, s).map_or(0.0, |e| e.eval(s));
+                let bank = active(&self.superelevations, s).map_or(0.0, |e| e.eval(s));
+                elevation + t * bank.sin()
+            })
     }
 
     /// Stations a quarter of the grid's spacing apart along the road, so the

@@ -20,10 +20,10 @@
     <connection id="0" incomingRoad="1" connectingRoad="10" contactPoint="start"><laneLink from="-1" to="-1"/></connection>
     <connection id="1" incomingRoad="2" connectingRoad="10" contactPoint="end"><laneLink from="1" to="1"/></connection>
     <planView><geometry s="0" x="18" y="0" hdg="0" length="14"><line/></geometry></planView>
-    <boundary><segment type="lane" roadId="10" boundaryLane="-1" sStart="start" sEnd="end"/><segment type="joint" roadId="2" contactPoint="start" jointLaneStart="-1" jointLaneEnd="1"/><segment type="lane" roadId="10" boundaryLane="1" sStart="end" sEnd="start"/><segment type="joint" roadId="1" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1"/></boundary>
+    <boundary><segment type="lane" roadId="10" boundaryLane="-1" sStart="start" sEnd="end"/><segment type="joint" roadId="2" contactPoint="start" jointLaneStart="-1" jointLaneEnd="1"/><segment type="lane" roadId="10" boundaryLane="1" sStart="end" sEnd="start"/><segment type="joint" roadId="1" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1" transitionLength="2"/></boundary>
     <elevationGrid sStart="0" gridSpacing="4"><elevation left="0.0" center="0.0" right="0.0"/><elevation left="0.0" center="0.2" right="0.0"/><elevation left="0.0" center="0.2" right="0.0"/><elevation left="0.0" center="0.0" right="0.0"/></elevationGrid>
   </junction>
   <junction id="8">
-    <boundary><segment type="joint" roadId="1" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1"/><segment type="lane" roadId="10" boundaryLane="1" sStart="end" sEnd="start"/><segment type="joint" roadId="2" contactPoint="start" jointLaneStart="-1" jointLaneEnd="1"/><segment type="lane" roadId="99" boundaryLane="-1" sStart="start" sEnd="end"/></boundary>
+    <boundary><segment type="joint" roadId="1" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1" transitionLength="2"/><segment type="lane" roadId="10" boundaryLane="1" sStart="end" sEnd="start"/><segment type="joint" roadId="2" contactPoint="start" jointLaneStart="-1" jointLaneEnd="1"/><segment type="lane" roadId="99" boundaryLane="-1" sStart="start" sEnd="end"/></boundary>
   </junction>
 </OpenDRIVE>

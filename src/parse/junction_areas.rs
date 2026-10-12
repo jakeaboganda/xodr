@@ -7,7 +7,8 @@ use crate::junction::{
     CrossPath, CrossPathEnd, ElevationGrid, GridRow, JunctionArea, JunctionGroup, JunctionGroupKind,
 };
 use crate::network::LaneId;
-use crate::road::{Road, RoadSection};
+use crate::road::{Road, RoadSection, Transition};
+use std::collections::HashMap;
 
 /// How far apart in plan, in metres, two boundary segments may leave off and
 /// begin before the boundary counts as open.
@@ -415,4 +416,138 @@ fn across(road: &Road, node: roxmltree::Node) -> Option<Vec<Point>> {
         points.reverse();
     }
     Some(points)
+}
+
+/// The zones where roads come into each junction with an elevation grid
+/// and a boundary, by `<junction id>`: one for each `joint` segment with a
+/// `transitionLength` above 0, from [`transition`]. A joint without a `lane`
+/// segment on each side to measure the zone along raises a
+/// [`Warning::TransitionDropped`].
+pub(super) fn transitions(
+    root: roxmltree::Node,
+    roads: &[(roxmltree::Node, BakedRoad)],
+    grids: &HashMap<String, ElevationGrid>,
+) -> (HashMap<String, Vec<Transition>>, Vec<Warning>) {
+    let road = |id: &str| roads.iter().map(|(_, r)| &r.road).find(|r| r.od_id == id);
+    let (mut out, mut warnings) = (HashMap::new(), Vec::new());
+    for junction in root.children().filter(|n| n.has_tag_name("junction")) {
+        let od_id = junction.attribute("id").unwrap_or_default();
+        let (Some(_), Some(boundary)) = (grids.get(od_id), child(junction, "boundary")) else {
+            continue;
+        };
+        let segments: Vec<(roxmltree::Node, Vec<Point>)> = boundary
+            .children()
+            .filter(|n| n.has_tag_name("segment"))
+            .filter_map(|node| {
+                let r = road(node.attribute("roadId")?)?;
+                let points = match node.attribute("type")? {
+                    "lane" => along(r, node)?,
+                    "joint" => across(r, node)?,
+                    _ => return None,
+                };
+                (!points.is_empty()).then_some((node, points))
+            })
+            .collect();
+        let mut zones = Vec::new();
+        for (i, (node, joint)) in segments.iter().enumerate() {
+            let length = attr_f64(*node, "transitionLength").filter(|l| *l > 0.0);
+            let (Some(length), Some("joint")) = (length, node.attribute("type")) else {
+                continue;
+            };
+            let n = segments.len();
+            let sides = [&segments[(i + n - 1) % n], &segments[(i + 1) % n]];
+            let lanes: Vec<&[Point]> = sides
+                .iter()
+                .filter(|(s, _)| s.attribute("type") == Some("lane"))
+                .map(|(_, points)| &points[..])
+                .collect();
+            let incoming = node.attribute("roadId").and_then(road);
+            match (incoming, &lanes[..]) {
+                (Some(incoming), [a, b]) if n > 2 => {
+                    let contact = node.attribute("contactPoint");
+                    zones.extend(transition(incoming, contact, joint, [a, b], length));
+                }
+                _ => warnings.push(Warning::TransitionDropped {
+                    junction_id: od_id.to_string(),
+                    road_id: node.attribute("roadId").unwrap_or_default().to_string(),
+                }),
+            }
+        }
+        if !zones.is_empty() {
+            out.insert(od_id.to_string(), zones);
+        }
+    }
+    (out, warnings)
+}
+
+/// The zone where `road` comes into a junction at the boundary `joint`, at
+/// its `contact` end, measured `length` along the boundary's `lanes`
+/// segments either side of the joint.
+fn transition(
+    road: &Road,
+    contact: Option<&str>,
+    joint: &[Point],
+    lanes: [&[Point]; 2],
+    length: f64,
+) -> Option<Transition> {
+    const STEPS: usize = 16;
+    let plan = |p: &Point| [f64::from(p.x), f64::from(p.y)];
+    let (p0, p1) = (plan(joint.first()?), plan(joint.last()?));
+    let reach = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]);
+    let nearest_end = |points: &[Point], to: [f64; 2]| {
+        let (first, last) = (plan(points.first()?), plan(points.last()?));
+        Some(reach(first, to).min(reach(last, to)))
+    };
+    let [a, b] = lanes;
+    let (by_p1, by_p0) = match nearest_end(a, p1)? <= nearest_end(b, p1)? {
+        true => (a, b),
+        false => (b, a),
+    };
+    let (p2, p3) = (walk(by_p1, p1, length)?, walk(by_p0, p0, length)?);
+    let (s, into) = match contact {
+        Some("end") => (road.length, 1.0),
+        _ => (0.0, -1.0),
+    };
+    let station = road.station(s);
+    let (sin, cos) = station.heading.sin_cos();
+    let samples = (0..=STEPS)
+        .map(|k| {
+            let k = k as f64 / STEPS as f64;
+            let at =
+                |u: [f64; 2], v: [f64; 2]| [u[0] + (v[0] - u[0]) * k, u[1] + (v[1] - u[1]) * k];
+            let (a, b) = (at(p0, p1), at(p3, p2));
+            let t = (a[0] - station.x) * -sin + (a[1] - station.y) * cos;
+            let z = f64::from(road.raised(s, t, 0.0).0.z);
+            let across = reach(a, b).max(1e-9);
+            let toward = ((b[0] - a[0]) * cos + (b[1] - a[1]) * sin) * into / across;
+            (z, station.grade * into * toward)
+        })
+        .collect();
+    Some(Transition {
+        corners: [p0, p1, p2, p3],
+        road: samples,
+    })
+}
+
+/// The point `length` along `points` from whichever end is nearer `from`.
+fn walk(points: &[Point], from: [f64; 2], length: f64) -> Option<[f64; 2]> {
+    let plan = |p: &Point| [f64::from(p.x), f64::from(p.y)];
+    let reach = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]);
+    let mut path: Vec<[f64; 2]> = points.iter().map(plan).collect();
+    if reach(*path.last()?, from) < reach(path[0], from) {
+        path.reverse();
+    }
+    let mut left = length;
+    for w in path.windows(2) {
+        let step = reach(w[0], w[1]);
+        if step >= left && step > 0.0 {
+            let f = left / step;
+            return Some([
+                w[0][0] + (w[1][0] - w[0][0]) * f,
+                w[0][1] + (w[1][1] - w[0][1]) * f,
+            ]);
+        }
+        left -= step;
+    }
+    path.last().copied()
 }

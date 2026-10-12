@@ -470,6 +470,16 @@ pub enum Warning {
         /// Its `mode`.
         mode: String,
     },
+    /// A boundary `joint` segment with a `transitionLength`, in a junction
+    /// with an `<elevationGrid>`, without a `lane` segment on each side of it
+    /// to measure the zone along, or naming a road the load didn't bake. The
+    /// road meets the grid with no zone between them.
+    TransitionDropped {
+        /// The `<junction id>`.
+        junction_id: String,
+        /// The joint's `roadId`.
+        road_id: String,
+    },
     /// A junction `<boundary>` `<segment>` naming no baked road, a lane its
     /// road does not have, a `type` other than `lane` or `joint`, or an
     /// `sStart`, `sEnd` or `contactPoint` off its road. The crate drops it,
@@ -818,7 +828,8 @@ impl Warning {
                 incoming_road_id: road_id,
                 ..
             } => road_id,
-            Self::JunctionReferenceDropped { .. }
+            Self::TransitionDropped { .. }
+            | Self::JunctionReferenceDropped { .. }
             | Self::VirtualJunctionWithoutMainRoad { .. }
             | Self::UnknownJunctionGroupType { .. }
             | Self::ElevationGridDropped { .. }
@@ -1107,6 +1118,13 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "junction {junction_id:?}: <crossPath> {cross_path_id:?} dropped, it can't be placed on road {road_id:?}"
+            ),
+            Self::TransitionDropped {
+                junction_id,
+                road_id,
+            } => write!(
+                f,
+                "junction {junction_id:?}: the joint of road {road_id:?} has a transitionLength but no lane segment each side, so no transition"
             ),
             Self::ElevationGridDropped { junction_id } => write!(
                 f,

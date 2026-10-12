@@ -31,12 +31,15 @@ fn a_boundary_runs_counter_clockwise_round_its_segments_on_the_road_surface() {
         "{}",
         area(&seven.boundary)
     );
+    // Road 1 blends into the grid from x = 20, so the corners there stand
+    // at its height, 0 m, and so does the grid at x = 30.
     let corners = [(20.0, -3.5), (30.0, -3.5), (30.0, 3.5), (20.0, 3.5)];
     for (x, y) in corners {
         assert!(
-            seven.boundary.iter().any(|p| (p.x - x).abs() < 1e-4
-                && (p.y - y).abs() < 1e-4
-                && (f64::from(p.z) - seven.height_at(x.into(), y.into()).unwrap()).abs() < 1e-4),
+            seven
+                .boundary
+                .iter()
+                .any(|p| (p.x - x).abs() < 1e-4 && (p.y - y).abs() < 1e-4 && p.z.abs() < 1e-4),
             "no corner at ({x}, {y})"
         );
     }
@@ -78,7 +81,7 @@ fn the_mesh_covers_the_boundary_at_the_grids_height() {
 }
 
 #[test]
-fn the_roads_of_a_junction_stand_on_its_grid() {
+fn the_roads_of_a_junction_stand_on_its_grid_past_the_transition() {
     let (net, prov) = load_file_with_provenance(FIXTURE).unwrap();
     let grid = &net.junction_areas()[0];
     let on_road_10: Vec<_> = prov.lanes.iter().filter(|p| p.road_id == "10").collect();
@@ -86,7 +89,7 @@ fn the_roads_of_a_junction_stand_on_its_grid() {
     let mut top = 0.0_f32;
     for p in on_road_10 {
         let lane = net.lane(p.lane).unwrap();
-        for point in lane.center.points() {
+        for point in lane.center.points().iter().filter(|p| p.x >= 22.0) {
             let want = grid.height_at(point.x.into(), point.y.into()).unwrap() as f32;
             assert!((point.z - want).abs() < 1e-4, "{point:?} not at {want}");
             top = top.max(point.z);
@@ -220,5 +223,56 @@ fn a_boundary_segment_off_its_road_is_dropped_with_a_warning() {
     assert!(prov.warnings.contains(&Warning::BoundarySegmentDropped {
         junction_id: "7".into(),
         road_id: "10".into(),
+    }));
+}
+
+#[test]
+fn a_road_coming_in_blends_into_the_grid_over_its_transition_length() {
+    let (net, prov) = load_file_with_provenance(FIXTURE).unwrap();
+    let grid = &net.junction_areas()[0];
+    let lane = prov
+        .lanes
+        .iter()
+        .find(|p| p.road_id == "10" && p.od_id == -1)
+        .unwrap();
+    let points = net.lane(lane.lane).unwrap().center.points();
+    let at_x = |x: f32| {
+        points
+            .iter()
+            .min_by(|a, b| (a.x - x).abs().total_cmp(&(b.x - x).abs()))
+            .copied()
+            .unwrap()
+    };
+    let start = at_x(20.0);
+    assert!(
+        start.z.abs() < 1e-4,
+        "it starts at road 1's height: {start:?}"
+    );
+    let grid_z = |p: xodr::Point| grid.height_at(p.x.into(), p.y.into()).unwrap() as f32;
+    assert!(grid_z(start) > 0.05, "the grid would have stepped up there");
+    for p in points.iter().filter(|p| p.x >= 22.0) {
+        assert!(
+            (p.z - grid_z(*p)).abs() < 1e-4,
+            "{p:?} is past the zone, on the grid"
+        );
+    }
+    let inside: Vec<_> = points.iter().filter(|p| p.x > 20.0 && p.x < 22.0).collect();
+    assert!(!inside.is_empty());
+    assert!(
+        inside.windows(2).all(|w| w[1].z >= w[0].z - 1e-5),
+        "it rises smoothly"
+    );
+}
+
+#[test]
+fn a_transition_without_lane_segments_beside_it_is_dropped_with_a_warning() {
+    let xodr = std::fs::read_to_string(FIXTURE).unwrap().replace(
+        r#"<segment type="lane" roadId="10" boundaryLane="1" sStart="end" sEnd="start"/><segment type="joint" roadId="1""#,
+        r#"<segment type="joint" roadId="1""#,
+    );
+    let (_, prov) = xodr::load_str_with_provenance(&xodr).unwrap();
+    assert!(prov.warnings.contains(&Warning::TransitionDropped {
+        junction_id: "7".into(),
+        road_id: "1".into(),
     }));
 }

@@ -655,14 +655,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
         let cost = lane_length(road, length);
         let parsed = match cost > length_left {
             true => Err(RoadSkipReason::MapTooLarge),
-            false => parse_road(
-                road,
-                (&index, &grids),
-                &mut lanes,
-                &mut objects,
-                &mut structures,
-                &mut topo,
-            ),
+            false => parse_road(road, &grids, &mut lanes, &mut structures, &mut topo),
         };
         match parsed {
             Ok(mut baked) => {
@@ -704,6 +697,20 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     }
     if lanes.is_empty() {
         return Err(ImportError::Malformed("no lanes found".into()));
+    }
+    let (zones, zone_warnings) = junction_areas::transitions(root, &roads, &grids);
+    warnings.extend(zone_warnings);
+    for (_, baked) in roads.iter_mut() {
+        let zones = baked.road.junction.as_ref().and_then(|j| zones.get(j));
+        if let (Some(zones), Some(ground)) = (zones, baked.road.lateral.ground.as_mut()) {
+            ground.transitions = zones.clone();
+            resample(&baked.road, &mut lanes);
+        }
+    }
+    for (node, baked) in &roads {
+        if let Some(objects_node) = child(*node, "objects") {
+            place_objects(objects_node, &index, &baked.road, None, &mut objects);
+        }
     }
     for junction in root.children().filter(|n| n.has_tag_name("junction")) {
         let Some(objects_node) = child(junction, "objects") else {
@@ -1653,11 +1660,11 @@ fn geo_reference(root: roxmltree::Node) -> GeoReference {
     }
 }
 
-/// Bakes one `<road>`: its lanes into `out`, its objects into `objects`,
-/// looking up what its `<objectReference>`s name in `index`, and its tunnels
-/// and bridges over its lanes into `structures`. Returns the road, for
-/// placing what the file puts on it later. Its id is 0 until the caller
-/// sets it.
+/// Bakes one `<road>`: its lanes into `out`, standing on the grid in
+/// `grids` of its junction if it has one, and its tunnels and bridges over
+/// its lanes into `structures`. Returns the road, for placing what the file
+/// puts on it later, its objects included. Its id is 0 until the caller sets
+/// it.
 ///
 /// A road the importer cannot interpret is *skipped*, not fatal, and the
 /// reason returned. That covers no length, no `<planView>` and no supported
@@ -1667,9 +1674,8 @@ fn geo_reference(root: roxmltree::Node) -> GeoReference {
 /// no lanes at all, so a thoroughly broken file is never silently accepted.
 fn parse_road(
     road: roxmltree::Node,
-    (index, grids): (&ObjectIndex, &Grids),
+    grids: &Grids,
     out: &mut Vec<Lane>,
-    objects: &mut Objects,
     structures: &mut Structures,
     topo: &mut Topology,
 ) -> Result<BakedRoad, RoadSkipReason> {
@@ -1742,6 +1748,7 @@ fn parse_road(
                 plan: geoms.clone(),
                 elevations: std::mem::take(&mut elevations),
                 superelevations: std::mem::take(&mut superelevations),
+                transitions: Vec::new(),
             })),
             ..Lateral::default()
         };
@@ -1777,7 +1784,6 @@ fn parse_road(
         return Err(RoadSkipReason::OutOfRange);
     }
     if let Some(objects_node) = child(road, "objects") {
-        place_objects(objects_node, index, &baked.road, None, objects);
         place_structures(
             objects_node,
             &baked.road,
@@ -1787,6 +1793,33 @@ fn parse_road(
         );
     }
     Ok(baked)
+}
+
+/// Sample the lanes of `road` again into `lanes`, where they are, after its
+/// height changed: the same stations, borders and lanes, at its new height.
+fn resample(road: &Road, lanes: &mut [Lane]) {
+    for section in &road.sections {
+        for (side, sign) in [(&section.left, 1.0), (&section.right, -1.0)] {
+            let shapes = side_shapes(
+                road,
+                (section.layer, side),
+                sign,
+                section.start,
+                &section.stations,
+            );
+            for (lane, shape) in side.iter().zip(shapes) {
+                let id = section.lanes.iter().find(|(od_id, _)| *od_id == lane.id);
+                let (Some(&(_, id)), Some(shape)) = (id, shape) else {
+                    continue;
+                };
+                let baked = &mut lanes[id.0];
+                baked.center = shape.center;
+                baked.width = shape.width;
+                baked.widths = shape.widths;
+                baked.bank = shape.bank;
+            }
+        }
+    }
 }
 
 /// Each junction's elevation grid, by its `<junction id>`.
@@ -2333,6 +2366,66 @@ fn layer_nodes<'a>(
     (permanent, temporary)
 }
 
+/// Where one lane lies: its centerline, its width or width profile, and its
+/// bank, as a [`Lane`] holds them.
+struct LaneShape {
+    center: Polyline,
+    width: f32,
+    widths: Vec<f32>,
+    bank: Vec<f32>,
+}
+
+/// The [`LaneShape`] of each lane of `side`, from its center outward, at
+/// `sample_s`, or `None` for one whose centerline can't be made.
+fn side_shapes(
+    road: &Road,
+    (layer, side): (Layer, &[LaneGeom]),
+    sign: f64,
+    s_start: f64,
+    sample_s: &[f64],
+) -> Vec<Option<LaneShape>> {
+    let road_bank: Vec<f64> = sample_s
+        .iter()
+        .map(|&s| active(&road.superelevations, s).map_or(0.0, |e| e.eval(s)))
+        .collect();
+    let level_bank = unless_flat(road_bank.iter().map(|&b| b as f32).collect());
+    let across = side_across(road, layer, side, sign, s_start, sample_s);
+    let heights = side_height_rows(
+        road,
+        (layer, side),
+        sign,
+        s_start,
+        sample_s,
+        &road_bank,
+        &across,
+    );
+    side.iter()
+        .zip(&across)
+        .zip(&heights)
+        .enumerate()
+        .map(|(k, ((lane, borders), heights))| {
+            let held = side[..=k].iter().any(|l| l.level);
+            let (points, headings) = sample_lane(road, borders, heights, sign, sample_s);
+            // Anchor the ends on the true curve tangents so this section's ribs
+            // line up with its neighbours'.
+            let (&start_tangent, &end_tangent) = (headings.first()?, headings.last()?);
+            let center = Polyline::try_new_with_tangents(points, start_tangent, end_tangent)?;
+            let tilted = !lane.heights.is_empty() || !road.lateral.is_empty() || held;
+            let (width, widths) = width_profile(borders, tilted.then_some(&heights[..]));
+            let bank = match tilted {
+                true => lane_bank(borders, heights, sign, &road_bank),
+                false => level_bank.clone(),
+            };
+            Some(LaneShape {
+                center,
+                width,
+                widths,
+                bank,
+            })
+        })
+        .collect()
+}
+
 /// Append each lane of one section as a `Lane` spanning `[s_start, s_end]`,
 /// and return the stations they are sampled at, from [`sample_positions`].
 /// Malformed individual lanes are skipped, not fatal (real files).
@@ -2365,11 +2458,6 @@ fn emit_section(
         .chain(road.lateral.knots())
         .collect();
     let sample_s = sample_positions(s_start, s_end, &bends, &knots);
-    let road_bank: Vec<f64> = sample_s
-        .iter()
-        .map(|&s| active(&road.superelevations, s).map_or(0.0, |e| e.eval(s)))
-        .collect();
-    let level_bank = unless_flat(road_bank.iter().map(|&b| b as f32).collect());
     for (defs, side) in [(&def.left, &section.left), (&def.right, &section.right)] {
         let is_left = side.first().map(|l| l.id > 0).unwrap_or(false);
         let sign = if is_left { 1.0 } else { -1.0 };
@@ -2378,34 +2466,15 @@ fn emit_section(
         // kind, direction). Consecutive ones are lateral neighbors (lane-change
         // edges), subject to the tests below.
         let mut emitted: Vec<(LaneId, usize, LaneType, Direction)> = Vec::new();
-        let across = side_across(road, section.layer, side, sign, s_start, &sample_s);
-        let heights = side_height_rows(
-            road,
-            (section.layer, side),
-            sign,
-            s_start,
-            &sample_s,
-            &road_bank,
-            &across,
-        );
-        let lanes = defs.iter().zip(side).zip(&across).zip(&heights);
-        for (k, (((def, lane), borders), heights)) in lanes.enumerate() {
+        let shapes = side_shapes(road, (section.layer, side), sign, s_start, &sample_s);
+        for ((def, lane), shape) in defs.iter().zip(side).zip(shapes) {
             let kind = def.kind;
             let direction = def
                 .direction
                 .as_ref()
                 .map_or(LaneDirection::Standard, |d| *d)
                 .apply(side_direction);
-            let held = side[..=k].iter().any(|l| l.level);
-            let (points, headings) = sample_lane(road, borders, heights, sign, &sample_s);
-            // Anchor the ends on the true curve tangents so this section's ribs
-            // line up with its neighbours'.
-            let (Some(&start_tangent), Some(&end_tangent)) = (headings.first(), headings.last())
-            else {
-                continue;
-            };
-            let Some(center) = Polyline::try_new_with_tangents(points, start_tangent, end_tangent)
-            else {
+            let Some(shape) = shape else {
                 continue;
             };
             let id = LaneId(topo.next_id);
@@ -2425,21 +2494,15 @@ fn emit_section(
                 flags: def.flags,
             });
             emitted.push((id, out.len(), kind, direction));
-            let tilted = !lane.heights.is_empty() || !road.lateral.is_empty() || held;
-            let (width, widths) = width_profile(borders, tilted.then_some(&heights[..]));
             out.push(Lane {
                 id,
                 kind,
                 layer: section.layer,
                 direction,
-                center,
-                width,
-                widths,
-                bank: if tilted {
-                    lane_bank(borders, heights, sign, &road_bank)
-                } else {
-                    level_bank.clone()
-                },
+                center: shape.center,
+                width: shape.width,
+                widths: shape.widths,
+                bank: shape.bank,
                 // Filled by links::resolve once all lanes are registered.
                 successors: Vec::new(),
                 predecessors: Vec::new(),
