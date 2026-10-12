@@ -1,0 +1,6 @@
+<lanes>
+  <laneSection s="0">
+    <center><lane id="0" type="none"/></center>
+    <right><include file="lane.xml"/></right>
+  </laneSection>
+</lanes>

@@ -26,11 +26,6 @@ const FEATURES: &[Feature] = &[
         when: not_on_an_object,
     },
     Feature {
-        name: "<include>",
-        path: "**/include",
-        when: always,
-    },
-    Feature {
         name: "<dataQuality>",
         path: "**/dataQuality",
         when: always,

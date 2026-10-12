@@ -472,6 +472,14 @@ pub enum Warning {
         /// Its `mode`.
         mode: String,
     },
+    /// An `<include>` the crate can't read in. The document goes on without
+    /// what it names.
+    IncludeDropped {
+        /// Its `file`, as the document writes it.
+        file: String,
+        /// Why.
+        problem: IncludeProblem,
+    },
     /// A crossing's `<roadSection>` naming a road the load didn't bake, or
     /// without an `sStart` and `sEnd` on that road. The crate drops it.
     RoadSectionDropped {
@@ -762,6 +770,44 @@ pub enum Warning {
     },
 }
 
+/// Why an `<include>` was left out.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
+pub enum IncludeProblem {
+    /// It has no `file`.
+    NoFile,
+    /// The file couldn't be read, for the reason given, such as a document
+    /// read from a string, with no folder to read from.
+    Unreadable(String),
+    /// The file includes, at some depth, the file that includes it.
+    Cycle,
+    /// Includes nest more than 8 deep.
+    TooDeep,
+    /// Reading it would take the document past
+    /// [`MAX_INCLUDED_BYTES`](crate::MAX_INCLUDED_BYTES).
+    TooLarge,
+    /// The file isn't well-formed XML, or nests its elements more than 256
+    /// deep, its own includes read in.
+    NotXml,
+    /// The file's root isn't the element the `<include>` stands in.
+    WrongRoot,
+}
+
+impl fmt::Display for IncludeProblem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoFile => f.write_str("it names no file"),
+            Self::Unreadable(why) => write!(f, "{why}"),
+            Self::Cycle => f.write_str("it includes itself"),
+            Self::TooDeep => f.write_str("includes nest more than 8 deep"),
+            Self::TooLarge => f.write_str("the includes read in more than 256 MiB"),
+            Self::NotXml => f.write_str("it isn't well-formed XML, or nests too deep"),
+            Self::WrongRoot => f.write_str("its root isn't the element the <include> is in"),
+        }
+    }
+}
+
 /// Why a `<road>` baked nothing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -857,6 +903,7 @@ impl Warning {
                 ..
             } => road_id,
             Self::TransitionDropped { .. }
+            | Self::IncludeDropped { .. }
             | Self::RoadSectionDropped { .. }
             | Self::JunctionReferenceDropped { .. }
             | Self::VirtualJunctionWithoutMainRoad { .. }
@@ -1160,6 +1207,9 @@ impl fmt::Display for Warning {
                 f,
                 "junction {junction_id:?}: <crossPath> {cross_path_id:?} dropped, it can't be placed on road {road_id:?}"
             ),
+            Self::IncludeDropped { file, problem } => {
+                write!(f, "<include> of {file:?} left out: {problem}")
+            }
             Self::RoadSectionDropped {
                 junction_id,
                 road_id,

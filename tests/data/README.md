@@ -27,6 +27,11 @@ cross path, and one naming an `s` past the road's end. Regenerate with
 
     python3 tests/data/cross_paths.py
 
+`include/main.xodr` is written by hand. Its plan view and lanes come from
+included files in `include/parts/`, the lanes through a nested include. It
+also names a missing file, one with the wrong root, one out of its folder,
+and one that includes itself.
+
 `crossings.xodr` comes from `crossings.py`, which writes the XML itself.
 It has a railway crossing a road at one level, as a crossing junction with
 the spec's priority, a section with its ends the wrong way round, and one

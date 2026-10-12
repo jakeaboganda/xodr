@@ -33,12 +33,10 @@ fn of(road: &str, junction: &str, feature: &str, count: usize) -> (String, Strin
 fn every_ignored_feature_is_counted_where_the_file_uses_it() {
     let want = vec![
         of("", "", "<userData>", 1),
-        of("", "", "<include>", 1),
         of("", "", "<dataQuality>", 1),
         of("", "", "<license>", 1),
         of("", "100", "<roadSection>", 2),
         of("1", "", "<userData>", 3),
-        of("1", "", "<include>", 1),
         of("1", "", "a repeated <lanes> of one layer", 1),
         of("2", "", "<userData>", 1),
         of("3", "", "<userData>", 1),
@@ -84,7 +82,7 @@ fn only_the_ignored_warnings_say_they_are() {
         .iter()
         .filter(|w| w.is_ignored())
         .count();
-    assert_eq!(ignored, 11);
+    assert_eq!(ignored, 9);
     assert!(
         provenance.warnings.len() > ignored,
         "the fixture's boundary doesn't close, which is a fault"
