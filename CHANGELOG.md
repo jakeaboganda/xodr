@@ -76,6 +76,9 @@
   object past it is left out with `Warning::TooManyCopies`. Before, a few
   kilobytes of repeats or references to one object used gigabytes.
 - A road `<CRG>` with no `file` is dropped, as its documentation said.
+- A document whose elements nest more than 256 deep is an
+  `ImportError::Malformed`. Before, one nested tens of thousands deep
+  overflowed the XML parser's stack and aborted the process.
 
 ## 0.6.0 - 2026-10-11
 

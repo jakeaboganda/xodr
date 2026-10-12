@@ -630,6 +630,11 @@ pub fn load_file_with_provenance(
 /// carries the id of what it describes.
 pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), ImportError> {
     let cleaned = sanitize(xml);
+    if deeper_than(&cleaned, MAX_DEPTH) {
+        return Err(ImportError::Malformed(format!(
+            "elements nested more than {MAX_DEPTH} deep"
+        )));
+    }
     let doc = roxmltree::Document::parse(cleaned.as_ref())?;
     let root = doc.root_element();
     let mut lanes = Vec::new();
@@ -991,6 +996,69 @@ fn object_crgs(
             object.surface
         })
         .collect()
+}
+
+/// The deepest the crate lets elements nest. The XML parser recurses once
+/// for each level, so a file nested tens of thousands deep would overflow
+/// the stack. OpenDRIVE nests about ten deep, vendor `<userData>` a little
+/// more.
+const MAX_DEPTH: usize = 256;
+
+/// Whether elements in `xml` nest more than `limit` deep, from a scan of its
+/// tags that skips comments, CDATA, processing instructions, the doctype and
+/// quoted attribute values.
+fn deeper_than(xml: &str, limit: usize) -> bool {
+    let b = xml.as_bytes();
+    let find = |from: usize, pat: &[u8]| {
+        b[from.min(b.len())..]
+            .windows(pat.len())
+            .position(|w| w == pat)
+            .map_or(b.len(), |k| from + k + pat.len())
+    };
+    let (mut i, mut depth) = (0, 0usize);
+    while let Some(k) = b[i..].iter().position(|&c| c == b'<') {
+        let at = i + k + 1;
+        let rest = &b[at..];
+        i = if rest.starts_with(b"/") {
+            depth = depth.saturating_sub(1);
+            find(at, b">")
+        } else if rest.starts_with(b"!--") {
+            find(at, b"-->")
+        } else if rest.starts_with(b"![CDATA[") {
+            find(at, b"]]>")
+        } else if rest.starts_with(b"?") {
+            find(at, b"?>")
+        } else if rest.starts_with(b"!") {
+            let close = find(at, b">");
+            match b[at..close].contains(&b'[') {
+                true => find(at, b"]>"),
+                false => close,
+            }
+        } else {
+            let mut j = at;
+            let mut quote = None;
+            while j < b.len() {
+                match (quote, b[j]) {
+                    (None, b'"' | b'\'') => quote = Some(b[j]),
+                    (Some(q), c) if c == q => quote = None,
+                    (None, b'>') => break,
+                    _ => {}
+                }
+                j += 1;
+            }
+            if b.get(j.wrapping_sub(1)) != Some(&b'/') {
+                depth += 1;
+                if depth > limit {
+                    return true;
+                }
+            }
+            j + 1
+        };
+        if i >= b.len() {
+            break;
+        }
+    }
+    false
 }
 
 /// Make a real-world document parseable: strip a UTF-8 BOM and remove the
@@ -4407,6 +4475,19 @@ fn child<'a>(node: roxmltree::Node<'a, 'a>, tag: &str) -> Option<roxmltree::Node
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nesting_is_measured_by_tags_alone() {
+        let deep = |n| format!("{}{}", "<a>".repeat(n), "</a>".repeat(n));
+        assert!(!deeper_than(&deep(3), 3));
+        assert!(deeper_than(&deep(4), 3));
+        let flat =
+            r#"<r><a/><a x="1>2"/><!-- <a><a><a><a> --><![CDATA[<a><a><a><a>]]><?p <a><a>?></r>"#;
+        assert!(!deeper_than(flat, 1));
+        let doctype = r#"<!DOCTYPE r [<!ENTITY e "x">]><r><a><b/></a></r>"#;
+        assert!(!deeper_than(doctype, 2));
+        assert!(deeper_than(doctype, 1));
+    }
     use crate::coords::Vector;
 
     // A straight 40 m road climbing at 4%, one right (forward) driving lane.
