@@ -343,6 +343,31 @@ pub struct DisplayArea {
     pub dependencies: Vec<Dependency>,
 }
 
+/// The variable message boards on one gantry, from a `<vmsGroup>`, which a
+/// scenario treats as one display.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct VmsGroup {
+    /// Its `id`, empty if it has none.
+    pub od_id: String,
+    /// Each board in it, from its `<vmsBoardReference>`s, in file order.
+    pub boards: Vec<VmsBoardReference>,
+}
+
+/// One board of a [`VmsGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct VmsBoardReference {
+    /// The signal the board is on.
+    pub signal: SignalId,
+    /// Which of the signal's boards it is, its `vmsIndex`, as the file
+    /// numbers them, if the file gives a whole number.
+    pub vms_index: Option<i32>,
+    /// Its place in the group, its `groupIndex`, if the file gives a whole
+    /// number.
+    pub group_index: Option<i32>,
+}
+
 /// A group of signals that always show the same state, such as the lights of
 /// one approach to a junction. The map does not say what they show, or when.
 #[derive(Debug, Clone, PartialEq)]

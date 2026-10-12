@@ -153,6 +153,8 @@
 //! | `<controller>`, at the top level | `id`, `name`, `sequence` |
 //! | `<controller><control>` | `signalId`, `type` |
 //! | `<junction><controller>` | `id`, `type`, `sequence` |
+//! | `<vmsGroup>` | `id` |
+//! | `<vmsGroup><vmsBoardReference>` | `signalId`, `vmsIndex`, `groupIndex` |
 //! | `<validity>`, under `<object>`, `<objectReference>`, `<signal>`, `<signalReference>`, `<tunnel>` and `<bridge>` | `fromLane`, `toLane`, `layer` |
 //! | `<object><parkingSpace>` | `access`, `restrictions` |
 //! | `<object><material>` | `surface`, `friction`, `roughness`, `roadMarkColor` |
@@ -574,6 +576,11 @@
 //! `<controller>` list names controllers that switch in step there. A
 //! [`RoadNetwork`] has no list of junctions, so each entry is in the
 //! [`ControllerProvenance`] of the controller it names.
+//!
+//! Each `<vmsGroup>` is a [`VmsGroup`] in [`RoadNetwork::vms_groups`]: the
+//! variable message boards on one gantry, each by its signal and its
+//! `vmsIndex` and `groupIndex`, as the file numbers them. A reference naming
+//! no placed signal is dropped, with a [`Warning::SignalLinkDropped`].
 //!
 //! # Junction areas
 //!
@@ -1193,7 +1200,7 @@
 //! times the file uses the feature. [`Warning::is_ignored`] tells these from
 //! the warnings for faults.
 //!
-//! The crate skips these elements: `<vmsGroup>`, a header's `<license>` and
+//! The crate skips these elements: a header's `<license>` and
 //! `<defaultRegulations>`, `<dataQuality>` and `<include>` anywhere. It
 //! skips `<userData>` anywhere but directly on an object, which it reads.
 //!
@@ -1648,6 +1655,6 @@ pub use road_mark::{
 pub use signal::{
     BoardSign, Control, Controller, ControllerId, Dependency, DisplayArea, MessageBoard, Reference,
     Referenced, RoadUser, Semantic, SignDependency, SignTarget, Signal, SignalBoard, SignalId,
-    Unit,
+    Unit, VmsBoardReference, VmsGroup,
 };
 pub use structure::{Coverage, Structure, StructureId, StructureKind};

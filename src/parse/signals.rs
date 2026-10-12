@@ -14,7 +14,7 @@ use crate::road::{Road, Validity};
 use crate::{
     BoardSign, Control, Controller, ControllerId, Dependency, Direction, DisplayArea, Lane, LaneId,
     MessageBoard, ObjectId, Reference, Referenced, RoadUser, Semantic, SignDependency, SignTarget,
-    Signal, SignalBoard, SignalId, Unit,
+    Signal, SignalBoard, SignalId, Unit, VmsBoardReference, VmsGroup,
 };
 
 /// The signals and controllers baked so far, and the provenance of each, in
@@ -25,6 +25,7 @@ pub(super) struct Signals {
     pub provenance: Vec<SignalProvenance>,
     pub controllers: Vec<Controller>,
     pub controller_provenance: Vec<ControllerProvenance>,
+    pub vms_groups: Vec<VmsGroup>,
     pub warnings: Vec<Warning>,
 }
 
@@ -107,7 +108,40 @@ pub(super) fn place(
         }
     }
     place_controllers(root, &placed, &mut out);
+    place_vms_groups(root, &placed, &mut out);
     out
+}
+
+/// Bake every `<vmsGroup>` into `out`, with each board it references by its
+/// signal. A reference naming no placed signal is dropped, with a
+/// [`Warning::SignalLinkDropped`].
+fn place_vms_groups(root: roxmltree::Node, placed: &HashMap<String, SignalId>, out: &mut Signals) {
+    let index = |n: roxmltree::Node, name| n.attribute(name)?.trim().parse().ok();
+    for node in root.children().filter(|n| n.has_tag_name("vmsGroup")) {
+        let mut boards = Vec::new();
+        for reference in node
+            .children()
+            .filter(|n| n.has_tag_name("vmsBoardReference"))
+        {
+            let named = reference.attribute("signalId");
+            match named.and_then(|id| placed.get(id)) {
+                Some(&signal) => boards.push(VmsBoardReference {
+                    signal,
+                    vms_index: index(reference, "vmsIndex"),
+                    group_index: index(reference, "groupIndex"),
+                }),
+                None => out.warnings.push(link_dropped(
+                    "",
+                    "vmsBoardReference",
+                    named.unwrap_or_default(),
+                )),
+            }
+        }
+        out.vms_groups.push(VmsGroup {
+            od_id: node.attribute("id").unwrap_or_default().to_string(),
+            boards,
+        });
+    }
 }
 
 /// Bake every top-level `<controller>` into `out`, and tell each signal it
