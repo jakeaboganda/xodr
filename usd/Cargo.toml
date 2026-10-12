@@ -2,6 +2,7 @@
 name = "xodr-usd"
 version = "0.0.0"
 edition = "2021"
+rust-version = "1.85"
 publish = false
 description = "Exports an OpenDRIVE map baked by xodr as an OpenUSD stage."
 license = "MIT OR Apache-2.0"
