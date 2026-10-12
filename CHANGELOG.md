@@ -44,6 +44,10 @@
 
 ### Signal boards
 
+- A `<staticBoard>`'s or `<vmsBoard>`'s own `<validity>`, `<dependency>`s
+  and `<reference>`s, which the schema gives them, stand between the
+  signal's and its signs' and display areas'. A sign with its own
+  `<positionInertial>` or `<positionRoad>` stands there, not on its board.
 - `RoadNetwork::vms_groups` gives each `<vmsGroup>` as a `VmsGroup`: the
   variable message boards on one gantry, each a `VmsBoardReference` to its
   signal with its `vmsIndex` and `groupIndex`. A reference naming no signal
@@ -62,6 +66,9 @@
 
 ### Crossings
 
+- A deprecated `<connection type="virtual">`'s `<predecessor>` or
+  `<successor>`, or a road link with an `elementS`, whose `elementType`
+  isn't `road` is dropped, with `Warning::VirtualLinkDropped`.
 - `RoadNetwork::crossings` gives each `<junction type="crossing">` as a
   `Crossing`: where roads cross at one level without joining, such as a
   road and a railway. Each `CrossingSection`, from a `<roadSection>`, has

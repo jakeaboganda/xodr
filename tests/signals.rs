@@ -626,3 +626,40 @@ fn a_vms_group_names_the_boards_on_one_gantry() {
         }]
     );
 }
+
+#[test]
+fn a_board_s_own_links_stand_between_its_signs_and_the_signal() {
+    let xodr = BOARDS
+        .replace(
+            "<staticBoard>",
+            r#"<staticBoard><validity fromLane="1" toLane="1"/><dependency id="post" type="board"/>"#,
+        )
+        .replace(
+            r#"value="22000600"/>"#,
+            r#"value="22000600"><positionInertial x="10" y="20" z="3" hdg="0"/></sign>"#,
+        )
+        .replace(
+            r#"<sign id="536" country="DE" type="1010" subtype="51" v="-0.75" z="0.9" width="0.420" height="0.231"/>"#,
+            r#"<sign id="536" country="DE" type="1010" subtype="51" v="-0.75" z="0.9" width="0.420" height="0.231">
+               <positionRoad roadId="1" s="40" t="-9" zOffset="1"/></sign>"#,
+        );
+    let (net, prov) = xodr::load_str_with_provenance(&xodr).unwrap();
+    let left = prov.lanes.iter().find(|p| p.od_id == 1).unwrap().lane;
+    let (board, _) = find(&net, &prov, "534");
+    let (post, _) = find(&net, &prov, "post");
+    let xodr::SignalBoard::Static(signs) = &board.boards[0] else {
+        panic!("{:?}", board.boards);
+    };
+    assert_eq!(signs[1].lanes, [left], "a plate takes its board's lanes");
+    assert_eq!(
+        signs[1].dependencies,
+        [xodr::SignDependency {
+            to: xodr::SignTarget::Signal(post.id),
+            kind: "board".into()
+        }]
+    );
+    assert_eq!(signs[0].lanes.len(), 1, "the speed sign keeps its own");
+    assert_eq!(signs[2].position, Point::new(10.0, 20.0, 3.0));
+    assert!((signs[1].position.x - 40.0).abs() < 1e-4 && (signs[1].position.z - 1.0).abs() < 1e-4);
+    assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+}
