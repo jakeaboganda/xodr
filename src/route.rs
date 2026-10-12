@@ -45,10 +45,15 @@ impl RoadNetwork {
     }
 
     /// Shortest lane path from `start` to `goal`, each a lane and a distance
-    /// along its centerline (Dijkstra), with how the route enters each lane:
-    /// successor edges cost the traversed lane's length, lane-change edges a
-    /// flat penalty. The route stops on the goal lane only where it enters it
+    /// along its centerline, with how the route enters each lane: successor
+    /// edges cost the traversed lane's length, lane-change edges a flat
+    /// penalty. The route stops on the goal lane only where it enters it
     /// behind the goal. `None` if unreachable.
+    ///
+    /// Where a lane change lands decides where the next one can, so the
+    /// search is over labels, each a way into a lane with its cost and where
+    /// it enters, and drops a label only for one as cheap that enters no
+    /// later.
     fn lane_path(
         &self,
         (start, start_s): (LaneId, f32),
@@ -59,31 +64,83 @@ impl RoadNetwork {
         if start == goal && ahead(goal_lane.direction, start_s, goal_s) {
             return Some(vec![(start, Entry::Change)]);
         }
-        let origin = Node {
-            lane: start,
-            entry: Entry::Change,
-            stops: false,
-        };
-        let stops = |next: Node, at: Option<f32>| {
-            next.lane == goal && at.is_none_or(|at| ahead(goal_lane.direction, at, goal_s))
-        };
         let mut search = Search::default();
-        search.dist.insert(origin, 0.0);
-        search.entered.insert(origin, start_s);
-        search.heap.push(State {
-            cost: 0.0,
-            node: origin,
-        });
-        while let Some(State { cost, node }) = search.heap.pop() {
-            if cost > *search.dist.get(&node).unwrap_or(&f32::INFINITY) {
-                continue; // a stale, longer entry
+        search.add(
+            self,
+            Label {
+                lane: start,
+                entry: Entry::Change,
+                at: start_s,
+                stops: false,
+                cost: 0.0,
+                prev: None,
+            },
+        );
+        while let Some(State { label, .. }) = search.heap.pop() {
+            if search.dropped[label] {
+                continue;
             }
-            if node.stops {
-                return Some(reconstruct(&search.prev, origin, node));
+            if search.labels[label].stops {
+                return Some(search.path(label));
             }
-            search.expand(self, node, cost, policy, stops);
+            for mut next in self.edges(&search.labels[label], policy) {
+                next.prev = Some(label);
+                if next.lane == goal && ahead(goal_lane.direction, next.at, goal_s) {
+                    search.add(
+                        self,
+                        Label {
+                            stops: true,
+                            ..next
+                        },
+                    );
+                }
+                search.add(self, next);
+            }
         }
         None
+    }
+
+    /// The labels one edge on from `from`: a successor entered at the start
+    /// of its travel, or a neighbour entered beside the point
+    /// [`LANE_CHANGE_DIST`] on, as [`Self::sample_route`] drives it. Each is
+    /// yet to be linked to `from`.
+    fn edges(&self, from: &Label, policy: LayerPolicy) -> Vec<Label> {
+        let Some(l) = self.lane(from.lane) else {
+            return Vec::new();
+        };
+        let len = l.center.length();
+        let label = |lane, entry, at, cost| Label {
+            lane,
+            entry,
+            at,
+            stops: false,
+            cost,
+            prev: None,
+        };
+        let successors = l.successors.iter().filter_map(|&n| {
+            let next = self.lane(n)?;
+            let at = match next.direction {
+                Direction::Backward => next.center.length(),
+                _ => 0.0,
+            };
+            Some(label(n, Entry::Start, at, from.cost + len))
+        });
+        let changes = l.neighbors.iter().filter_map(|&n| {
+            let next = self.lane(n)?;
+            let forward = match l.direction {
+                Direction::Forward => true,
+                Direction::Backward => false,
+                Direction::Both => self.nearer_end(l, Some(&n)),
+            };
+            let travel_end = if forward { len } else { 0.0 };
+            let exit = advance(from.at, travel_end, LANE_CHANGE_DIST);
+            let at = next.center.project(l.center.point_at(exit)).s;
+            Some(label(n, Entry::Change, at, from.cost + LANE_CHANGE_COST))
+        });
+        successors
+            .chain(changes)
+            .filter(|next| self.lane(next.lane).is_some_and(|n| policy.admits(n)))
+            .collect()
     }
 
     /// Sample the lane path into points: each lane's centerline traversed in its
@@ -185,19 +242,6 @@ fn push_dedup(pts: &mut Vec<Point>, p: Point) {
     }
 }
 
-/// The lanes of the path from `origin` to `goal` through `prev`, with how
-/// the route enters each.
-fn reconstruct(prev: &HashMap<Node, Node>, origin: Node, goal: Node) -> Vec<(LaneId, Entry)> {
-    let mut path = vec![(goal.lane, goal.entry)];
-    let mut cur = goal;
-    while cur != origin {
-        cur = prev[&cur];
-        path.push((cur.lane, cur.entry));
-    }
-    path.reverse();
-    path
-}
-
 /// How the route enters a lane: at the start of its travel from the lane
 /// before, or part way along from a lane change. The start lane counts as
 /// entered by a change, at the start.
@@ -207,113 +251,94 @@ enum Entry {
     Change,
 }
 
-/// A lane, how the route enters it, and whether the route stops on it at
-/// the goal. Where a stop is possible the search keeps both, so an entry
-/// past the goal never blocks one behind it.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-struct Node {
+/// One way into a lane the search has found: how and where along its
+/// centerline it enters, whether the route stops there at the goal, what it
+/// costs, and the label it came from.
+#[derive(Clone, Copy)]
+struct Label {
     lane: LaneId,
     entry: Entry,
+    at: f32,
     stops: bool,
+    cost: f32,
+    prev: Option<usize>,
 }
 
-impl Node {
-    /// The key that orders nodes of equal cost, for deterministic paths.
-    fn key(&self) -> (usize, Entry, bool) {
-        (self.lane.0, self.entry, self.stops)
-    }
-}
+/// The most labels the search keeps for one lane, entry and stop, so a
+/// network of many parallel lanes stays cheap.
+const MAX_LABELS: usize = 8;
 
-/// A Dijkstra search's state: the best cost to each node, the node it was
-/// reached from, where along its lane each node entered by a change is
-/// entered, and the frontier.
+/// A label search's state: every label, whether each was dropped for a
+/// better one, the labels kept for each lane, entry and stop, and the
+/// frontier.
 #[derive(Default)]
 struct Search {
-    dist: HashMap<Node, f32>,
-    prev: HashMap<Node, Node>,
-    entered: HashMap<Node, f32>,
+    labels: Vec<Label>,
+    dropped: Vec<bool>,
+    kept: HashMap<(LaneId, Entry, bool), Vec<usize>>,
     heap: BinaryHeap<State>,
 }
 
 impl Search {
-    /// Relax the edges out of `node`, reached at `cost`: successors cost the
-    /// lane's length, lane changes a flat penalty. A lane change drives
-    /// [`LANE_CHANGE_DIST`] on, then enters the neighbour beside that point,
-    /// as [`RoadNetwork::sample_route`] drives it. `stops(next, at)` says
-    /// whether entering `next`, at `at` for a lane change, reaches the goal.
-    fn expand(
-        &mut self,
-        net: &RoadNetwork,
-        node: Node,
-        cost: f32,
-        policy: LayerPolicy,
-        stops: impl Fn(Node, Option<f32>) -> bool,
-    ) {
-        let Some(l) = net.lane(node.lane) else { return };
-        let len = l.center.length();
-        let entered = self.entered.get(&node).copied();
-        let successors = l
-            .successors
-            .iter()
-            .map(|&n| (n, Entry::Start, cost + len, None));
-        let changes = l.neighbors.iter().filter_map(|&n| {
-            let next = net.lane(n)?;
-            let forward = match l.direction {
-                Direction::Forward => true,
-                Direction::Backward => false,
-                Direction::Both => net.nearer_end(l, Some(&n)),
-            };
-            let (travel_start, travel_end) = if forward { (0.0, len) } else { (len, 0.0) };
-            let exit = advance(
-                entered.unwrap_or(travel_start),
-                travel_end,
-                LANE_CHANGE_DIST,
-            );
-            let at = next.center.project(l.center.point_at(exit)).s;
-            Some((n, Entry::Change, cost + LANE_CHANGE_COST, Some(at)))
-        });
-        for (lane, entry, nd, at) in successors.chain(changes).collect::<Vec<_>>() {
-            if !net.lane(lane).is_some_and(|n| policy.admits(n)) {
-                continue;
-            }
-            let next = Node {
-                lane,
-                entry,
-                stops: false,
-            };
-            let ends = [
-                next,
-                Node {
-                    stops: true,
-                    ..next
-                },
-            ];
-            for next in ends.into_iter().filter(|n| !n.stops || stops(*n, at)) {
-                if nd < *self.dist.get(&next).unwrap_or(&f32::INFINITY) {
-                    self.dist.insert(next, nd);
-                    self.prev.insert(next, node);
-                    if let Some(at) = at {
-                        self.entered.insert(next, at);
-                    }
-                    self.heap.push(State {
-                        cost: nd,
-                        node: next,
-                    });
-                }
-            }
+    /// Keep `label` unless one kept for its lane is as cheap and enters no
+    /// later along its travel, dropping those it beats in turn. One that
+    /// beats none is left out once [`MAX_LABELS`] are kept.
+    fn add(&mut self, net: &RoadNetwork, label: Label) {
+        let Some(lane) = net.lane(label.lane) else {
+            return;
+        };
+        let beats = |a: &Label, b: &Label| a.cost <= b.cost && ahead(lane.direction, a.at, b.at);
+        let kept = self
+            .kept
+            .entry((label.lane, label.entry, label.stops))
+            .or_default();
+        if kept.iter().any(|&k| beats(&self.labels[k], &label)) {
+            return;
         }
+        kept.retain(|&k| {
+            let beaten = beats(&label, &self.labels[k]);
+            self.dropped[k] |= beaten;
+            !beaten
+        });
+        if kept.len() >= MAX_LABELS {
+            return;
+        }
+        let id = self.labels.len();
+        kept.push(id);
+        self.labels.push(label);
+        self.dropped.push(false);
+        self.heap.push(State {
+            cost: label.cost,
+            label: id,
+            key: (label.lane.0, label.entry, label.stops, id),
+        });
+    }
+
+    /// The lanes from the first label to `label`, with how the route enters
+    /// each.
+    fn path(&self, label: usize) -> Vec<(LaneId, Entry)> {
+        let mut path = Vec::new();
+        let mut cur = Some(label);
+        while let Some(k) = cur {
+            let l = &self.labels[k];
+            path.push((l.lane, l.entry));
+            cur = l.prev;
+        }
+        path.reverse();
+        path
     }
 }
 
-/// A Dijkstra frontier entry, ordered as a min-heap on cost (ties by lane id,
-/// for deterministic paths).
+/// A frontier entry, ordered as a min-heap on cost, ties broken by lane,
+/// entry, stop and label for deterministic paths.
 struct State {
     cost: f32,
-    node: Node,
+    label: usize,
+    key: (usize, Entry, bool, usize),
 }
 impl PartialEq for State {
     fn eq(&self, o: &Self) -> bool {
-        self.cost == o.cost && self.node == o.node
+        self.cmp(o) == Ordering::Equal
     }
 }
 impl Eq for State {}
@@ -321,7 +346,7 @@ impl Ord for State {
     fn cmp(&self, o: &Self) -> Ordering {
         o.cost
             .total_cmp(&self.cost)
-            .then_with(|| self.node.key().cmp(&o.node.key()))
+            .then_with(|| o.key.cmp(&self.key))
     }
 }
 impl PartialOrd for State {
@@ -464,6 +489,21 @@ mod tests {
         ]);
         let route = net.route(Point::new(50.0, 0.0, 0.0), Point::new(20.0, 0.0, 0.0));
         ends_at(route, 20.0, 0.0);
+    }
+
+    #[test]
+    fn a_lane_change_entered_past_where_the_next_one_must_start_hides_no_route() {
+        // Driving A 85 -> X 95 -> G 100 passes the goal at G 60. Round the
+        // loop, A 0 -> X 10 -> G 20 reaches it.
+        let at = |y: f32| [[0.0, y, 0.0], [100.0, y, 0.0]];
+        let net = RoadNetwork::new(vec![
+            lane(0, &at(0.0), Direction::Forward, &[1], &[2]),
+            lane(1, &loop_back(0.0), Direction::Forward, &[0], &[]),
+            lane(2, &at(-3.5), Direction::Forward, &[], &[0, 3]),
+            lane(3, &at(-7.0), Direction::Forward, &[], &[2]),
+        ]);
+        let route = net.route(Point::new(85.0, 0.0, 0.0), Point::new(60.0, -7.0, 0.0));
+        ends_at(route, 60.0, -7.0);
     }
 
     #[test]
