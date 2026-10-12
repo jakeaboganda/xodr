@@ -75,11 +75,6 @@ const FEATURES: &[Feature] = &[
         path: "roadSection",
         when: always,
     },
-    Feature {
-        name: "<segment transitionLength>",
-        path: "boundary/segment",
-        when: blends,
-    },
 ];
 
 fn always(_: roxmltree::Node) -> bool {
@@ -97,12 +92,6 @@ fn repeats_a_layer(node: roxmltree::Node) -> bool {
     node.prev_siblings()
         .skip(1)
         .any(|n| n.has_tag_name("lanes") && temporary(&n) == temporary(&node))
-}
-
-fn blends(node: roxmltree::Node) -> bool {
-    node.attribute("transitionLength")
-        .and_then(|v| v.trim().parse::<f64>().ok())
-        .is_some_and(|v| v > 0.0)
 }
 
 /// What a `<road>` or `<junction>` without an `id` is called in a warning.

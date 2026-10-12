@@ -13,6 +13,13 @@
   `UC_5Road_Junction`, 19 lane links that joined lanes 0.9 to 1 m apart in
   height now meet.
 - **Breaking:** `Warning::ElevationGridNotApplied` is gone.
+- A boundary `joint`'s `transitionLength` blends the road coming in into
+  the grid, over the spec's zone and with its cubic. The spec divides the
+  slopes by the zone's depth. The crate multiplies, which makes the cubic
+  meet them. `Warning::TransitionDropped` names a joint without a `lane`
+  segment each side to measure the zone along. `transitionLength` is no
+  longer on the `Ignored` list. `UC_5Road_Junction`'s last 0.1 m step,
+  where road 411 meets road 323, is gone.
 
 ### Viewer and OpenUSD
 

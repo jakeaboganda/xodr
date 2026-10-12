@@ -81,7 +81,8 @@ files declaring 1.4, 1.6 and 1.7.
 - Junction `<boundary>`s and `<elevationGrid>`s, as
   `RoadNetwork::junction_areas`: the ring round a junction's ground, and
   the height of that ground, with a mesh of it. The junction's roads stand
-  on the grid, as the spec says, their lane heights added to it.
+  on the grid, as the spec says, their lane heights added to it, and a
+  joint's `transitionLength` blends each road coming in into the grid.
 - Railway `<switch>`es and `<station>`s, as `RoadNetwork::switches` and
   `RoadNetwork::stations`, each on the roads of its tracks. A switch keeps its
   partner's id and name.
@@ -435,6 +436,7 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `BoundaryNotClosed` | a junction `<boundary>` whose segments don't meet |
 | `BoundaryClockwise` | a junction `<boundary>` that runs clockwise |
 | `ElevationGridDropped` | a junction `<elevationGrid>` the crate can't place |
+| `TransitionDropped` | a boundary `joint` with a `transitionLength`, in a junction with a grid, without a `lane` segment each side |
 | `VirtualJunctionWithoutMainRoad` | a virtual junction without a `mainRoad` and stretch on a baked road |
 | `VirtualLinkDropped` | a virtual junction link the crate can't place |
 | `VirtualLaneDropped` | a lane pair of a virtual link that names a lane its road doesn't have there |
@@ -474,10 +476,8 @@ Uses of elements it reads that it ignores:
 | Feature | What the crate does |
 | --- | --- |
 | a second `<lanes>` of one layer | leaves it out |
-| a boundary `<segment>`'s `transitionLength` above 0 | no blending |
 
-A first `<lanes>` of either layer and a `transitionLength` of 0 raise
-nothing.
+A first `<lanes>` of either layer raises nothing.
 
 The importer reads a lane section's `<center>` for the road marks on the
 center line, and for the lane's `id`, `type`, `level` and `<link>`, which are

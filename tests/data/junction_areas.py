@@ -8,7 +8,8 @@ across the 10 m between.
 
 Junction 7's boundary runs counter-clockwise round the 10 m by 7 m between
 them: along road 10's lane -1, across road 2's start, back along road 10's
-lane 1, and across road 1's end. Its reference line runs 14 m along +X from
+lane 1, and across road 1's end, where a 2 m transitionLength blends road
+1 into the grid. Its reference line runs 14 m along +X from
 (18, 0), and its elevation grid, 4 m apart, has four rows of three points
 across, 0 m at the ends and a 0.2 m hump on the line in the middle two.
 
@@ -51,15 +52,16 @@ def lane_segment(road, lane, start, end):
     return f'<segment type="lane" roadId="{road}" boundaryLane="{lane}" sStart="{start}" sEnd="{end}"/>'
 
 
-def joint(road, contact, start, end):
-    return f'<segment type="joint" roadId="{road}" contactPoint="{contact}" jointLaneStart="{start}" jointLaneEnd="{end}"/>'
+def joint(road, contact, start, end, transition=None):
+    blend = f' transitionLength="{transition}"' if transition else ""
+    return f'<segment type="joint" roadId="{road}" contactPoint="{contact}" jointLaneStart="{start}" jointLaneEnd="{end}"{blend}/>'
 
 
 BOUNDARY = [
     lane_segment(10, -1, "start", "end"),
     joint(2, "start", -1, 1),
     lane_segment(10, 1, "end", "start"),
-    joint(1, "end", 1, -1),
+    joint(1, "end", 1, -1, 2),
 ]
 
 roads = [
