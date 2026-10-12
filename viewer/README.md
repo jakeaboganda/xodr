@@ -299,8 +299,7 @@ gaps between a junction's connecting roads are filled. Hover the ground to
 read its junction, the point and its height. The `junctions` checkbox
 hides both.
 
-The crate does not move the junction's roads onto the grid, so where a
-file's roads and grid disagree, the ground shows above or below the roads.
+The junction's roads stand on the grid, so the ground meets their lanes.
 
 ## Virtual junctions
 

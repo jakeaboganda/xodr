@@ -80,9 +80,8 @@ files declaring 1.4, 1.6 and 1.7.
   `RoadNetwork::road_neighbors`: the road beside it, and which way it runs.
 - Junction `<boundary>`s and `<elevationGrid>`s, as
   `RoadNetwork::junction_areas`: the ring round a junction's ground, and
-  the height of that ground, with a mesh of it. The grid does not replace
-  the height of the junction's roads, as the spec says it does, and a
-  warning says so.
+  the height of that ground, with a mesh of it. The junction's roads stand
+  on the grid, as the spec says, their lane heights added to it.
 - Railway `<switch>`es and `<station>`s, as `RoadNetwork::switches` and
   `RoadNetwork::stations`, each on the roads of its tracks. A switch keeps its
   partner's id and name.
@@ -436,7 +435,6 @@ warnings for faults, as `warnings.iter().filter(|w| !w.is_ignored())` does.
 | `BoundaryNotClosed` | a junction `<boundary>` whose segments don't meet |
 | `BoundaryClockwise` | a junction `<boundary>` that runs clockwise |
 | `ElevationGridDropped` | a junction `<elevationGrid>` the crate can't place |
-| `ElevationGridNotApplied` | every junction `<elevationGrid>`, since the crate doesn't move the junction's roads onto it |
 | `VirtualJunctionWithoutMainRoad` | a virtual junction without a `mainRoad` and stretch on a baked road |
 | `VirtualLinkDropped` | a virtual junction link the crate can't place |
 | `VirtualLaneDropped` | a lane pair of a virtual link that names a lane its road doesn't have there |

@@ -37,11 +37,6 @@ pub(super) fn place(
             continue;
         }
         let ring = boundary.map_or_else(Vec::new, |b| ring(&od_id, b, &road, &mut warnings));
-        if grid.is_some() {
-            warnings.push(Warning::ElevationGridNotApplied {
-                junction_id: od_id.clone(),
-            });
-        }
         out.push(JunctionArea {
             od_id,
             boundary: ring,
@@ -198,7 +193,7 @@ pub(super) fn cross_paths(
 /// The spec requires `sStart`, and every row's `center`. A missing `sStart`
 /// is 0, and a row without a `center` is skipped, as are the heights in a
 /// list that are not numbers.
-fn grid(junction: roxmltree::Node, node: roxmltree::Node) -> Option<ElevationGrid> {
+pub(super) fn grid(junction: roxmltree::Node, node: roxmltree::Node) -> Option<ElevationGrid> {
     let geometries: Vec<_> = child(junction, "planView")?
         .children()
         .filter(|n| n.has_tag_name("geometry"))

@@ -470,15 +470,6 @@ pub enum Warning {
         /// Its `mode`.
         mode: String,
     },
-    /// A junction's `<elevationGrid>`. The spec says it overrides the height
-    /// of the junction's roads, and blends into the roads coming in. The
-    /// crate keeps the roads' own heights, and gives the grid's in
-    /// [`JunctionArea::height_at`](crate::JunctionArea::height_at) and its
-    /// [`JunctionArea::mesh`](crate::JunctionArea::mesh).
-    ElevationGridNotApplied {
-        /// The `<junction id>`.
-        junction_id: String,
-    },
     /// A junction `<boundary>` `<segment>` naming no baked road, a lane its
     /// road does not have, a `type` other than `lane` or `joint`, or an
     /// `sStart`, `sEnd` or `contactPoint` off its road. The crate drops it,
@@ -830,7 +821,6 @@ impl Warning {
             Self::JunctionReferenceDropped { .. }
             | Self::VirtualJunctionWithoutMainRoad { .. }
             | Self::UnknownJunctionGroupType { .. }
-            | Self::ElevationGridNotApplied { .. }
             | Self::ElevationGridDropped { .. }
             | Self::JunctionObjectsDropped { .. }
             | Self::BoundaryNotClosed { .. }
@@ -1117,10 +1107,6 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "junction {junction_id:?}: <crossPath> {cross_path_id:?} dropped, it can't be placed on road {road_id:?}"
-            ),
-            Self::ElevationGridNotApplied { junction_id } => write!(
-                f,
-                "junction {junction_id:?}: <elevationGrid> read, but the junction's roads keep their own heights"
             ),
             Self::ElevationGridDropped { junction_id } => write!(
                 f,

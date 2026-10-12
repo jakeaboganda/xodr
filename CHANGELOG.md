@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Junction elevation grids
+
+- **Breaking:** the roads of a junction with an `<elevationGrid>` stand on
+  it, as the spec says the grid overrides the heights of the junction's
+  roads. Their elevation, superelevation and lateral shape give way to the
+  grid's height, and their lane heights add to it. Lanes, the mesh, road
+  marks, objects and signals on them follow. Where the grid doesn't reach,
+  the road's own elevation and superelevation hold. In ASAM's
+  `UC_5Road_Junction`, 19 lane links that joined lanes 0.9 to 1 m apart in
+  height now meet.
+- **Breaking:** `Warning::ElevationGridNotApplied` is gone.
+
 ### Viewer and OpenUSD
 
 - `viewer_export` keeps meshes as typed buffers, written with `f32`

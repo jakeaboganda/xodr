@@ -34,10 +34,9 @@ fn a_boundary_runs_counter_clockwise_round_its_segments_on_the_road_surface() {
     let corners = [(20.0, -3.5), (30.0, -3.5), (30.0, 3.5), (20.0, 3.5)];
     for (x, y) in corners {
         assert!(
-            seven
-                .boundary
-                .iter()
-                .any(|p| (p.x - x).abs() < 1e-4 && (p.y - y).abs() < 1e-4 && p.z.abs() < 1e-6),
+            seven.boundary.iter().any(|p| (p.x - x).abs() < 1e-4
+                && (p.y - y).abs() < 1e-4
+                && (f64::from(p.z) - seven.height_at(x.into(), y.into()).unwrap()).abs() < 1e-4),
             "no corner at ({x}, {y})"
         );
     }
@@ -79,11 +78,25 @@ fn the_mesh_covers_the_boundary_at_the_grids_height() {
 }
 
 #[test]
-fn the_crate_warns_that_the_grid_leaves_the_roads_as_they_are() {
-    let (_, warnings) = areas();
-    assert!(warnings.contains(&Warning::ElevationGridNotApplied {
-        junction_id: "7".into()
-    }));
+fn the_roads_of_a_junction_stand_on_its_grid() {
+    let (net, prov) = load_file_with_provenance(FIXTURE).unwrap();
+    let grid = &net.junction_areas()[0];
+    let on_road_10: Vec<_> = prov.lanes.iter().filter(|p| p.road_id == "10").collect();
+    assert_eq!(on_road_10.len(), 2);
+    let mut top = 0.0_f32;
+    for p in on_road_10 {
+        let lane = net.lane(p.lane).unwrap();
+        for point in lane.center.points() {
+            let want = grid.height_at(point.x.into(), point.y.into()).unwrap() as f32;
+            assert!((point.z - want).abs() < 1e-4, "{point:?} not at {want}");
+            top = top.max(point.z);
+        }
+    }
+    assert!(top > 0.1, "the lanes rise over the grid's hump, to {top}");
+    assert!(!prov
+        .warnings
+        .iter()
+        .any(|w| w.to_string().contains("elevationGrid")));
 }
 
 #[test]

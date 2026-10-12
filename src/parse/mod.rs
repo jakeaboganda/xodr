@@ -16,8 +16,8 @@ use crate::crg::Stretch;
 use crate::object::orient;
 use crate::road::{
     active, along, height_at, is_valid, side_borders, side_heights, CrossSection, Cubic, GeomRec,
-    GeomShape, HeightDef, LaneBorders, LaneExtent, LaneGeom, Lateral, Road, RoadId, RoadSection,
-    ShapeProfile, Strip, TrafficRule, Validity,
+    GeomShape, Ground, HeightDef, LaneBorders, LaneExtent, LaneGeom, Lateral, Road, RoadId,
+    RoadSection, ShapeProfile, Strip, TrafficRule, Validity,
 };
 use crate::{
     Border, ControllerId, Corner, Coverage, CrgAlong, CrgMode, CrgObject, CrgPose, CrgPurpose,
@@ -644,6 +644,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
     let mut surfaces = Vec::new();
     let mut topo = Topology::default();
     let index = object_index(root);
+    let grids = junction_grids(root);
     let mut roads = Vec::new();
     let mut warnings = Vec::new();
     let mut length_left = MAX_BAKED_LENGTH;
@@ -656,7 +657,7 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
             true => Err(RoadSkipReason::MapTooLarge),
             false => parse_road(
                 road,
-                &index,
+                (&index, &grids),
                 &mut lanes,
                 &mut objects,
                 &mut structures,
@@ -1666,7 +1667,7 @@ fn geo_reference(root: roxmltree::Node) -> GeoReference {
 /// no lanes at all, so a thoroughly broken file is never silently accepted.
 fn parse_road(
     road: roxmltree::Node,
-    index: &ObjectIndex,
+    (index, grids): (&ObjectIndex, &Grids),
     out: &mut Vec<Lane>,
     objects: &mut Objects,
     structures: &mut Structures,
@@ -1712,6 +1713,7 @@ fn parse_road(
         surface: child(road, "lateralProfile")
             .and_then(|n| child(n, "crossSectionSurface"))
             .map(|n| cross_section(n, &road_id, &mut warnings)),
+        ground: None,
     };
     if lateral.surface.is_some() && (!lateral.profiles.is_empty() || !superelevations.is_empty()) {
         warnings.push(Warning::CrossSectionWithShape {
@@ -1728,13 +1730,26 @@ fn parse_road(
     let temporary_lane_offsets = temporary
         .map(|n| cubics_in(n, "laneOffset", "s"))
         .unwrap_or_default();
+    let junction = road
+        .attribute("junction")
+        .filter(|j| !j.is_empty() && *j != "-1")
+        .map(String::from);
+    let (mut lateral, mut elevations, mut superelevations) = (lateral, elevations, superelevations);
+    if let Some(grid) = junction.as_ref().and_then(|j| grids.get(j)) {
+        lateral = Lateral {
+            ground: Some(Box::new(Ground {
+                grid: grid.clone(),
+                plan: geoms.clone(),
+                elevations: std::mem::take(&mut elevations),
+                superelevations: std::mem::take(&mut superelevations),
+            })),
+            ..Lateral::default()
+        };
+    }
     let mut baked = BakedRoad {
         road: Road {
             id: RoadId(0),
-            junction: road
-                .attribute("junction")
-                .filter(|j| !j.is_empty() && *j != "-1")
-                .map(String::from),
+            junction,
             od_id: road_id,
             name: road.attribute("name").unwrap_or_default().to_string(),
             length,
@@ -1772,6 +1787,21 @@ fn parse_road(
         );
     }
     Ok(baked)
+}
+
+/// Each junction's elevation grid, by its `<junction id>`.
+type Grids = HashMap<String, crate::ElevationGrid>;
+
+/// The `<elevationGrid>` of each junction that has one the crate can place,
+/// for the roads of the junction to stand on.
+fn junction_grids(root: roxmltree::Node) -> Grids {
+    root.children()
+        .filter(|n| n.has_tag_name("junction"))
+        .filter_map(|j| {
+            let grid = junction_areas::grid(j, child(j, "elevationGrid")?)?;
+            Some((j.attribute("id")?.to_string(), grid))
+        })
+        .collect()
 }
 
 /// One `<planView><geometry>` record, or `None` for one the crate can't
