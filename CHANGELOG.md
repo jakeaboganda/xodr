@@ -71,10 +71,11 @@
   one with hundreds of long `<CRG>` records, used gigabytes of memory.
 - One load bakes at most 100,000 objects and 2,000,000 outline corners,
   skeleton vertices, sweep sections and marking and border pieces, an
-  `<objectReference>` counting again. That is room for three rows of posts every 2 m along a 60 km
-  highway, and over twice the guardrails of the 60 km A9 test field. An
-  object past it is left out with `Warning::TooManyCopies`. Before, a few
-  kilobytes of repeats or references to one object used gigabytes.
+  `<objectReference>` counting again. That is room for three rows of posts
+  every 2 m along a 60 km highway, and over twice the guardrails of the 60
+  km A9 test field. An object past it is left out with
+  `Warning::TooManyCopies`. Before, a few kilobytes of repeats or
+  references to one object used gigabytes.
 - A road `<CRG>` with no `file` is dropped, as its documentation said.
 - A document whose elements nest more than 256 deep is an
   `ImportError::Malformed`. Before, one nested tens of thousands deep

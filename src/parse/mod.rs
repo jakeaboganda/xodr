@@ -3283,31 +3283,29 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
                 too_many.set(true);
                 continue;
             };
-            let on_road = stations.iter().find(|st| road.on_road(st.s));
-            let corners = match (shaped, on_road) {
-                (true, Some(st)) => outlined(st).iter().map(Part::corner_count).sum(),
-                _ => 0,
-            };
-            let per_station = outlines.len() + usize::from(skeleton.is_some());
-            if corners.saturating_mul(stations.len()) > MAX_OUTLINE_CORNERS
-                || !faults.spend(
-                    out,
-                    Cost {
-                        objects: stations.len() * per_station.max(1),
-                        pieces: stations.len() * corners,
-                    },
-                )
-            {
-                too_many.set(true);
-                continue;
-            }
+            let saved = (out.cost, faults.pieces_left.get(), faults.painted.get());
+            let mut copies = Vec::new();
+            let mut corners = 0;
             for st in stations {
-                if shaped {
-                    parts.extend(outlined(&st));
-                } else if road.on_road(st.s) {
-                    parts.push(point(&st));
+                let copy = match (shaped, road.on_road(st.s)) {
+                    (true, _) => outlined(&st),
+                    (false, true) => vec![point(&st)],
+                    (false, false) => Vec::new(),
+                };
+                corners += copy.iter().map(Part::corner_count).sum::<usize>();
+                if corners > MAX_OUTLINE_CORNERS
+                    || !faults.spend(out, copy.iter().map(Part::cost).sum())
+                {
+                    (out.cost, ..) = saved;
+                    faults.pieces_left.set(saved.1);
+                    faults.painted.set(saved.2);
+                    too_many.set(true);
+                    copies.clear();
+                    break;
                 }
+                copies.extend(copy);
             }
+            parts.extend(copies);
         } else {
             let most = faults.pieces_left.get();
             match sweep(repeat, &base, road, most) {
