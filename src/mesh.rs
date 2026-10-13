@@ -453,8 +453,10 @@ impl RoadNetwork {
             for i in 0..n as u32 - 1 {
                 let l0 = base + i * 2;
                 let (r0, l1, r1) = (l0 + 1, l0 + 2, l0 + 3);
-                for [a, b, c] in [[l0, r0, r1], [l0, r1, l1]] {
-                    let at = |i: u32| mesh.vertices[i as usize];
+                let at = |i: u32| mesh.vertices[i as usize];
+                for [a, b, c] in
+                    quad(at(l0), at(r0), at(r1), at(l1)).map(|t| t.map(|k| [l0, r0, r1, l1][k]))
+                {
                     if !no_area(at(a), at(b), at(c)) {
                         mesh.indices.extend_from_slice(&[a, b, c]);
                     }
@@ -467,6 +469,21 @@ impl RoadNetwork {
             });
         }
         mesh
+    }
+}
+
+/// The two triangles of the quad `[l0, r0, r1, l1]` between two ribs, as
+/// corners 0 to 3 of it. Split along `l0`-`r1`, unless a rib pinched at a
+/// corner leaves the quad concave there, so that a triangle would face down
+/// in plan. Then along `r0`-`l1`, which a quad with one reflex corner always
+/// splits cleanly.
+fn quad(l0: Point, r0: Point, r1: Point, l1: Point) -> [[usize; 3]; 2] {
+    let up =
+        |a: Point, b: Point, c: Point| (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) >= 0.0;
+    if up(l0, r0, r1) && up(l0, r1, l1) {
+        [[0, 1, 2], [0, 2, 3]]
+    } else {
+        [[0, 1, 3], [1, 2, 3]]
     }
 }
 
