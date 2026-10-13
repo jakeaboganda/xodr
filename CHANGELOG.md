@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Meshes
+
+- A lane whose `<laneOffset>` kinks sharply no longer folds a triangle of
+  the surface mesh over. Where a rib pinched at a corner leaves a quad
+  concave, the crate splits it along its other diagonal. ASAM's
+  `UC_5Road_Junction` road 82 had three.
+
 ### Older files
 
 - `<crossfall>` from OpenDRIVE 1.4, which libOpenDRIVE and CARLA read: the

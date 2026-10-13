@@ -175,3 +175,37 @@ fn a_tight_curve_is_sampled_finely_enough_to_look_round() {
     let anywhere = worst_turn(&net, |_| true);
     assert!(anywhere < 0.3, "a lane turns {anywhere} rad at a sample");
 }
+
+#[test]
+fn a_sharp_kink_in_the_lane_offset_folds_no_triangle() {
+    // Road 82's <laneOffset> turns from -0.176 to +0.248 m/m at s = 7, so its
+    // lanes turn about 24 degrees there, across two samples centimetres apart.
+    let offset =
+        |s: f64, a: f64, b: f64| format!(r#"<laneOffset s="{s}" a="{a}" b="{b}" c="0" d="0"/>"#);
+    let lane = |id: i32| {
+        format!(
+            r#"<lane id="{id}" type="driving"><width sOffset="0" a="3.7" b="0" c="0" d="0"/></lane>"#
+        )
+    };
+    let net = xodr::load_str(&format!(
+        r#"<OpenDRIVE><header/><road id="82" length="20" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="-1.4363693224820402" length="20"><line/></geometry></planView>
+        <lanes>{}{}<laneSection s="0"><left>{}</left><center><lane id="0" type="none"/></center>
+        <right>{}{}</right></laneSection></lanes></road></OpenDRIVE>"#,
+        offset(0.0, -2.5, -0.17644285714285715),
+        offset(7.0, -3.7351, 0.24787142857142858),
+        lane(1),
+        lane(-1),
+        lane(-2)
+    ))
+    .unwrap();
+    let mesh = net.surface_mesh();
+    for t in mesh.indices.chunks(3) {
+        let [a, b, c] = [0, 1, 2].map(|k| mesh.vertices[t[k] as usize]);
+        let twice_area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+        assert!(
+            twice_area >= -1e-6,
+            "a folded triangle at {a:?} {b:?} {c:?}"
+        );
+    }
+}
