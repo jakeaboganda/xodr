@@ -33,6 +33,7 @@ mod curve_local;
 mod gaps;
 mod ignored;
 mod include;
+mod introduced;
 mod junction_areas;
 mod links;
 mod properties;
@@ -42,6 +43,7 @@ mod regulations;
 mod road_marks;
 mod signals;
 mod single_side;
+mod versions;
 mod virtual_junctions;
 mod warning;
 pub use additional::{Additional, AdditionalData, DataError, DataQuality, RawData};
@@ -816,6 +818,7 @@ fn bake(xml: &str, mut warnings: Vec<Warning>) -> Result<(RoadNetwork, Provenanc
     // surface it rather than reconstructing lane-id order downstream.
     warnings.append(&mut objects.warnings);
     warnings.extend(ignored::place(root));
+    warnings.extend(versions::place(root));
     let provenance = Provenance {
         center_lanes: roads
             .iter()

@@ -38,7 +38,10 @@
 //! and its geo reference in [`RoadNetwork::geo_reference`]. That includes
 //! `revMajor` and `revMinor`, which it does not use to decide how to read the
 //! file. It never rejects a file for its version. Whether a file loads
-//! depends only on whether it uses the elements below.
+//! depends only on whether it uses the elements below. Where a file uses an
+//! element or attribute that OpenDRIVE 1.8 or 1.9 introduced but declares an
+//! older `revMinor`, the importer reads it all the same and raises a
+//! [`Warning::NewerThanDeclared`], since the header is what is wrong.
 //!
 //! Two of those elements are not in ASAM OpenDRIVE 1.9.0, the current
 //! revision: a lane's `<visibility>` and a road's `<neighbor>`. The crate
