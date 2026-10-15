@@ -37,6 +37,31 @@ pub enum Warning {
         /// How many times the file uses it there.
         count: usize,
     },
+    /// The file uses an element or attribute that a newer OpenDRIVE than its
+    /// header's `revMinor` introduced, such as a `<boundary>` in a file that
+    /// declares 1.6. The crate reads it all the same; the header is what is
+    /// wrong. The warning comes once per feature for each road, junction, or
+    /// the rest of the document, with the number of uses, as
+    /// [`Self::Ignored`] does. The crate knows what 1.8 and 1.9 introduced,
+    /// from the revision history of the 1.9 specification, so a file that
+    /// declares 1.9, no version, or one it can't read raises none.
+    NewerThanDeclared {
+        /// The `<road id>` it is on, or `(no id)` for a road without one.
+        /// Empty for a feature of a junction or of the rest of the document.
+        road_id: String,
+        /// The `<junction id>` it is on, or `(no id)` for a junction without
+        /// one. Empty for a feature of a road or of the rest of the document.
+        junction_id: String,
+        /// The feature: an element such as `<boundary>`, or an element and
+        /// one of its attributes, such as `<signal length>`.
+        feature: String,
+        /// The `revMinor` of the OpenDRIVE 1 that introduced it.
+        introduced: u32,
+        /// The `revMinor` the header declares.
+        declared: u32,
+        /// How many times the file uses it there.
+        count: usize,
+    },
     /// A `<road>` baked nothing, and everything on it went with it.
     RoadSkipped {
         /// Its `<road id>`.
@@ -894,6 +919,7 @@ impl Warning {
             | Self::UnknownStripMode { road_id, .. }
             | Self::StripDropped { road_id, .. }
             | Self::Ignored { road_id, .. }
+            | Self::NewerThanDeclared { road_id, .. }
             | Self::LaneLinkDropped {
                 incoming_road_id: road_id,
                 ..
@@ -919,6 +945,28 @@ impl Warning {
 impl fmt::Display for Warning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NewerThanDeclared {
+                road_id,
+                junction_id,
+                feature,
+                introduced,
+                declared,
+                count,
+            } => {
+                let place = if !road_id.is_empty() {
+                    format!("road {road_id:?}")
+                } else if !junction_id.is_empty() {
+                    format!("junction {junction_id:?}")
+                } else {
+                    "the document".to_string()
+                };
+                let uses = if *count == 1 { "use" } else { "uses" };
+                write!(
+                    f,
+                    "{place} uses {feature} ({count} {uses}), which OpenDRIVE 1.{introduced} \
+                     introduced, but the header declares 1.{declared}; read anyway"
+                )
+            }
             Self::Ignored {
                 road_id,
                 junction_id,

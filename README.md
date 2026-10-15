@@ -94,7 +94,9 @@ It keeps each road. A caller can turn `(road, s, t)` or `(lane, s, offset)`
 into a point on the road surface, turn a point back into a position, and move
 a position along the lanes.
 
-It loads a file whatever OpenDRIVE version it declares. Where it drops part
+It loads a file whatever OpenDRIVE version it declares. If the file uses
+something newer than that version, it still reads it, and warns that the
+header is out of date. Where it drops part
 of a bad file, it says so in `Provenance::warnings`. It also warns about each
 feature it ignores, so a map that breaks no rule can still have warnings.
 `Warning::is_ignored` tells those from faults.

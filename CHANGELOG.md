@@ -119,6 +119,11 @@
 
 ### Warnings
 
+- `Warning::NewerThanDeclared` for an element or attribute that OpenDRIVE 1.8
+  or 1.9 introduced, in a file whose header declares an older `revMinor`. The
+  crate reads it anyway. It comes once per feature for each road, junction,
+  or the rest of the document, with a count. A file with no version raises
+  none.
 - `Warning::ContactPointMissing` for a road-to-road link without the
   `contactPoint` the spec requires. The crate still joins the start.
 - `Warning::RoadMarkDropped` for a `<roadMark>` at the same `sOffset` as
