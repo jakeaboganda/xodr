@@ -3,15 +3,12 @@
 [![CI](https://github.com/jakeaboganda/xodr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jakeaboganda/xodr/actions/workflows/ci.yml?query=branch%3Amain)
 [![MSRV 1.85](https://img.shields.io/badge/MSRV-1.85-blue)](https://github.com/jakeaboganda/xodr/blob/main/Cargo.toml)
 
-A pure-Rust OpenDRIVE (`.xodr`) importer. It reads a map once and turns it
-into lanes made of points, a lane graph in the direction traffic drives, and
-a triangle mesh of the road surface. It also reads the OpenCRG (`.crg`)
-files a map lays on its roads.
+A pure-Rust OpenDRIVE (`.xodr`) importer. It turns a map into lanes, a lane
+graph, and a mesh of the road surface. It also reads the OpenCRG (`.crg`)
+files a map uses.
 
-No C++ dependency, no bindings, no `unsafe`.
-
-Up to 0.4.1 this crate was called `libopendrive`. It was renamed because
-that name is easily confused with libOpenDRIVE, a C++ library.
+No C++, no bindings, no `unsafe`. Up to 0.4.1 the crate was called
+`libopendrive`.
 
 ```rust
 use xodr::{load_file, Point};
@@ -36,96 +33,55 @@ mesh.validate()?;
 
 ## What it builds
 
-Each picture is a test map in the [viewer](viewer/README.md). Click one for
-what the crate does there.
+Test maps in the [viewer](viewer/README.md). Click a picture for details.
 
 | | |
 | --- | --- |
 | [![Temporary lanes, tinted amber, over the permanent lanes of a road](docs/images/lane-layers.png)](docs/support.md#lane-layers) | [![Two posts on a banked road: one plumb, one leaning with the road](docs/images/object-poses.png)](docs/support.md#objects) |
-| **Lane layers.** A road's temporary lanes, amber, sit over its permanent ones from where they start. Traffic queries prefer them. | **Object poses.** An object stands plumb on a banked road. With `perpToRoad="true"` it leans with the road instead, as the left post does. |
+| **Lane layers.** Temporary lanes, amber, over the permanent ones. | **Object poses.** Plumb by default. The left post has `perpToRoad="true"`. |
 | [![A traffic light pole with an arm over the road, drawn as tapered tubes](docs/images/skeleton.png)](docs/support.md#objects) | [![Smooth traffic islands, a circle and a wave drawn from curves](docs/images/curve-local.png)](docs/support.md#objects) |
-| **Skeletons.** A traffic light pole and its arm, from `<skeleton>` polylines with a radius at each vertex. | **Curved outlines.** Islands drawn with `<curveLocal>` lines, arcs and paramPoly3 curves. |
+| **Skeletons.** A pole and arm from `<skeleton>` polylines. | **Curved outlines.** Islands from `<curveLocal>` curves. |
 | [![A grass island with cobble and concrete areas inside it and one hole](docs/images/inner-outlines.png)](docs/support.md#objects) | [![A parking bay with a solid and a dashed line, and a painted arrow](docs/images/outline-markings.png)](docs/support.md#objects) |
-| **Areas inside an island.** Cobble and concrete inner outlines are areas of their own. The plain one is a hole. | **Paint.** A parking bay's lines, and a flat painted area with a hole in it. |
+| **Inner outlines.** Cobble and concrete areas, and a hole. | **Markings.** A parking bay's lines and a painted area. |
 | [![Rows of posts and walls along a curved road, two of them straight across it](docs/images/repeats.png)](docs/support.md#objects) | [![The height an object's CRG adds, as a heat map over a turned square](docs/images/object-surface.png)](docs/support.md#opencrg-surfaces) |
-| **Repeats.** Posts every few metres and continuous walls. Two run straight across the bend, detached from the road. | **Object surfaces.** The height an object's CRG adds to the road, inside its box, turned with it. |
-
-The viewer also lists what it read and what it left out. Here it lists the
-warnings of `tests/data/ignored.xodr`, a map that uses every feature the
-crate ignores:
-
-![The viewer's sidebar, listing warnings](docs/images/warnings.png)
-
-`docs/images/shots.py` takes these pictures again from the test maps.
+| **Repeats.** Posts and walls. Two are detached from the road. | **Object surfaces.** The height an object's CRG adds. |
 
 ## What it reads
 
-- Road geometry, elevation, superelevation, lateral shape, cross-section
-  surfaces, and the crossfall of OpenDRIVE 1.4.
-- Lanes of every type, with their widths, borders, offsets, heights and
-  sections, including sections that give one side of the road, and a
-  road's temporary lane layer over its permanent one.
-- Links and junctions, direct junctions included, as a lane graph, in
-  right- or left-hand traffic, with reversed and two-way lanes.
-- Junction groups, priorities, boundaries and cross paths, crossings and
-  virtual junctions. A junction's roads stand on its elevation grid, and
-  each road coming in blends into it.
-- Road neighbors.
-- Road types and speed limits along each lane, from the map's speed
-  records, its speed limit signs and its default regulations.
-- Lane rules, access, materials and visibility along each lane.
-- Objects, standing upright or following the road, with repeats, outlines
-  made of corners or curves, markings, borders, skeletons and surface CRGs,
-  on roads and in junctions.
-- Signals, with their meaning and boards, each sign on a board with its
-  own lanes and links, the controllers that group them, and the message
-  boards on one gantry.
-- Road marks.
-- Tunnels and bridges.
-- Railway switches and stations.
-- OpenCRG surfaces, for the height, normal and friction under a wheel.
-- The geo reference: the PROJ string and offset, kept unapplied.
-- The header, its licence, road and junction names, the `<userData>` and
-  `<dataQuality>` on any element, and the other descriptive attributes of a
-  map, kept for the caller.
-- Included files, read in where an `<include>` names them.
+Every element and attribute of the OpenDRIVE 1.9 schema. Of its 671 rows, 420
+shape the network and 251 are kept as data. It also reads the crossfall of
+OpenDRIVE 1.4. [docs/support.md](docs/support.md) says what it does with each
+element.
 
-It keeps each road. A caller can turn `(road, s, t)` or `(lane, s, offset)`
-into a point on the road surface, turn a point back into a position, and move
-a position along the lanes.
+From that it builds:
 
-It loads a file whatever OpenDRIVE version it declares. If the file uses
-something newer than that version, it still reads it, and warns that the
-header is out of date. Where it drops part
-of a bad file, it says so in `Provenance::warnings`. It also warns about each
-feature it ignores, so a map that breaks no rule can still have warnings.
-`Warning::is_ignored` tells those from faults.
-[docs/support.md](docs/support.md) covers each element, and what it skips.
+- roads you can query in `(road, s, t)` or `(lane, s, offset)`, both ways;
+- lanes with widths, heights and layers, and a lane graph through default,
+  direct and virtual junctions;
+- speed limits from speed records, signs and default regulations;
+- objects, signals and road marks, placed on the road;
+- the road surface under a wheel, from elevation, shape and OpenCRG.
+
+It loads any OpenDRIVE version. `Provenance::warnings` lists what it dropped,
+what it ignores, and features newer than the header's version.
+`Warning::is_ignored` tells ignored features from faults.
 
 ## Viewer
 
-The crate draws nothing. [`viewer/`](viewer/README.md) has a three.js page
-that runs the crate in the browser, compiled to WebAssembly. Open a `.xodr`
-and hover a lane, object or signal to read what the crate knows about it.
+The crate draws nothing. [`viewer/`](viewer/README.md) is a three.js page that
+runs the crate as WebAssembly. Open a `.xodr` and hover anything to see what
+the crate knows about it.
 
 ```sh
-sh viewer/run.sh
+sh viewer/run.sh   # serves http://localhost:8000
 ```
-
-It builds the page, serves it on <http://localhost:8000> and opens it in
-your browser. Click `open .xodr`.
 
 ![A traffic island's details in the viewer](viewer/objects.png)
 
-It draws CRG heights as a heat map over the road. Here are ASAM's scanned
-cobbles from `belgian_block.crg`, which `examples/crg_data.sh` downloads:
-
-![Scanned cobbles from ASAM's belgian_block.crg](viewer/crg-cobbles.png)
-
 ## OpenUSD
 
-[`usd/`](usd/README.md) exports a map as an OpenUSD stage, with its lanes,
-road marks, objects and signals. It's a separate tool, not part of the crate.
+[`usd/`](usd/README.md) exports a map as an OpenUSD stage. It's a separate
+tool, not part of the crate.
 
 ```sh
 cargo run --release -p xodr-usd -- tests/data/town07.xodr
@@ -139,19 +95,14 @@ sample the road surface. The viewer and xodr-usd use the meshes.](docs/data-flow
 
 ## More
 
-- [docs/design.md](docs/design.md): the coordinate frame, `Point` and
-  `Vector`, mesh buffers, the `serde` feature, bad input, and timings. Lane
-  lookups take about 0.4 us on CARLA's Town07.
-- [docs/support.md](docs/support.md): what the importer does with each
-  OpenDRIVE element.
-- [docs/comparison.md](docs/comparison.md): each OpenDRIVE 1.9 element and
-  attribute, and what this crate, esmini, libOpenDRIVE and CARLA do with
-  it.
+- [docs/design.md](docs/design.md): coordinates, mesh buffers, `serde`, bad
+  input, timings.
+- [docs/support.md](docs/support.md): what the crate does with each element.
+- [docs/comparison.md](docs/comparison.md): each 1.9 element in this crate,
+  esmini, libOpenDRIVE and CARLA.
 - [CHANGELOG.md](CHANGELOG.md)
 
-The published crate leaves out the map fixtures, tests and benchmarks, so run
-them from a git checkout. `tests/data/README.md` says where each fixture comes
-from.
+The published crate has no tests or maps. Run them from a git checkout.
 
 MSRV is 1.85.
 
