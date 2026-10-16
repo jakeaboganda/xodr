@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 - 2026-10-17
+
+The crate now reads every element and attribute of the OpenDRIVE 1.9
+schema.
+
+### Upgrading
+
+- A `Provenance` literal needs the new `additional` field.
+- `BoardSign` has `lanes`, `dependencies` and `references`, and
+  `DisplayArea` has `lanes` and `dependencies`. Literals need them.
+- `Warning::ElevationGridNotApplied` is gone. A junction's roads now stand
+  on its grid.
+- Speed limit signs now change `speed_limits` where a map gives them
+  semantics.
 
 ### Meshes
 
