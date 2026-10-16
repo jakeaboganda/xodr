@@ -11,117 +11,88 @@ sample the road surface. The viewer and xodr-usd use the meshes.](data-flow.svg)
 
 ## Coordinate frame
 
-Baked geometry is OpenDRIVE's own frame: right-handed, Z-up, metres, with the
-reference line in the X-Y plane and elevation along +Z. A point imports
-unchanged, so a coordinate you read out of the `.xodr` is the coordinate you
-get back. An OpenDRIVE left turn curves toward +Y, and positive lane offset
-`t` is to the left of the heading.
+OpenDRIVE's own: right-handed, Z up, metres. A coordinate in the `.xodr` is
+the coordinate you get back. A left turn curves toward +Y, and `t` is
+positive to the left.
 
-The `<geoReference>` and `<offset>` are kept on the network, not applied.
-Reprojecting would pull in PROJ, and exporters disagree on the offset's
-sign, so a consumer that needs world coordinates applies them itself.
+The `<geoReference>` and `<offset>` are kept, not applied. Applying them
+would need PROJ, and exporters disagree on the offset's sign.
 
-Travel direction follows each road's `rule`. Under right-hand traffic, the
-default, negative-id lanes run with `+s` and positive-id lanes against it.
-Under `rule="LHT"` it is the other way round.
+Traffic follows each road's `rule`. With right-hand traffic, the default,
+negative lanes run along `+s`. With `rule="LHT"` it's the other way round.
 
 ## Coordinate types
 
-A position is a `Point` and a direction is a `Vector`. They are separate types
-with the arithmetic that relates them, so `point - point` is a `Vector`,
-`point + vector` is a `Point`, and adding two positions does not compile.
-Neither does `nearest_lane(sample.up)`, which passes a direction where a
-position belongs. With one three-float type for both, it would compile.
+A position is a `Point` and a direction is a `Vector`. `point - point` is a
+`Vector`, `point + vector` is a `Point`, and adding two points doesn't
+compile. Neither does passing a `Vector` where a position belongs.
 
-Both are `#[repr(C)]` structs of three public `f32` fields, so handing one to
-another math library is one call:
+Both are `#[repr(C)]` with three `f32` fields, so converting is one call:
 
 ```rust
 let v = glam::Vec3::from(point.to_array());
 ```
 
-The required dependencies are `roxmltree`, `thiserror` and `opencrg`, which
-has none of its own. Nothing here constrains which math or engine crate you
-use, or its version.
+The only dependencies are `roxmltree`, `thiserror` and `opencrg`. No math or
+engine crate is imposed.
 
 ## Meshes
 
-`surface_mesh()` returns plain position, normal and index buffers with no
-engine types in them, and a `LaneSpan` per lane saying which slice of those
-buffers it owns. Buffers plus spans are enough to pick the lane under a
-cursor, or give one lane its own material without rebuilding the mesh. The viewer
-uses the same spans to resolve a raycast hit to a lane.
-
-A road's temporary lane layer shares the permanent layer's surface, so
-`surface_mesh()` has the permanent lanes only. `temporary_mesh()` has the
-temporary ones, to draw over it.
-
-`object_mesh()` does the same for objects: every box, cylinder, outline,
-sweep and skeleton turned into triangles in one mesh of outward-facing faces, with an `ObjectSpan`
-per object.
+`surface_mesh()` returns position, normal and index buffers, and a
+`LaneSpan` per lane naming its slice. That is enough to pick a lane or give
+it its own material. `temporary_mesh()` has the temporary lane layer, to
+draw over the surface. `object_mesh()` does the same for objects, with an
+`ObjectSpan` each.
 
 ## Serialization
 
-The optional `serde` feature serializes the network and its mesh.
-The `viewer/` crate uses it to bake maps to the JSON the viewer reads.
-You can also use it to cache an import. A `RoadNetwork` serializes everything
-it read, and rebuilds its lookup indexes when deserialized, so the result
-behaves like a freshly imported map. A road serializes as the records the
-file gives, and rebakes its spirals and cubic curves on the way in.
+The `serde` feature serializes the network and its meshes. Use it to cache
+an import. A deserialized `RoadNetwork` rebuilds its indexes and behaves
+like a fresh import.
 
 ```toml
-xodr = { version = "0.5", features = ["serde"] }
+xodr = { version = "0.7", features = ["serde"] }
 ```
 
 ## Untrusted input
 
-A road the importer cannot interpret is skipped, not fatal. Losing a city map
-to one junk road is the worse failure. `load_str` still errors if the document
-yields no lanes at all.
+- A road the importer can't read is skipped, not fatal. `load_str` errors
+  only if nothing yields a lane.
+- Non-finite numbers, such as `NaN` or `1e400`, are rejected as they're
+  read.
+- Caps bound memory on hostile files:
 
-A road or geometry longer than `MAX_LENGTH`, 100 km, is skipped too. The
-crate samples a road along its whole length, so a length like 1e13 from a
-broken file would need more memory than any machine has.
+  | Cap | Limit |
+  | --- | --- |
+  | `MAX_LENGTH` | 100 km per road or geometry |
+  | `MAX_BAKED_LENGTH` | 2,000 km per map |
+  | objects | 100,000 per map, 2,000,000 pieces |
+  | XML nesting | 256 deep |
+  | `<include>` | 8 deep, `MAX_INCLUDED_BYTES` (256 MiB) in all |
 
-`Provenance::warnings` says what the load did with a bad file. A `Warning` is
-data, not a log line: one enum variant per kind, naming the road, lane section
-or lane it happened at. A test can assert on it, and a caller can filter the
-kinds it doesn't care about. The crate prints nothing and depends on no
-logging crate. A file that uses nothing the crate ignores and breaks no rule
-allocates no warnings.
-
-The crate warns where it drops something, or reads a file that breaks a rule
-of the spec, such as a road with no geometry, a lane with no `<width>` or
-`<border>`, or a junction boundary that isn't closed. The `Warning` enum
-lists every kind. It also says what it ignores. A `Warning::Ignored` names
-each feature of the file the crate doesn't read, such as `<userData>`, once
-for each road, junction, or the rest of the document, with a count, so a map
-full of them raises a few. `Warning::is_ignored` tells these from the
-warnings for faults. [support.md](support.md) lists what is ignored.
-
-The parser rejects non-finite attribute values as it reads them. Rust's float
-parser accepts `NaN` and turns `1e400` into infinity, and one such value
-poisons every point derived from it.
+`Provenance::warnings` says what the load did. A `Warning` is data: one
+variant per kind, naming the road, section or lane. The crate prints
+nothing and has no logging dependency. It warns where it drops something,
+where a file breaks a rule, where it ignores a feature, and where a file uses
+something newer than its header's version. `Warning::is_ignored` picks out
+the ignored features. A clean file raises no warnings.
 
 ## Performance
 
-Lane and surface lookups go through a ground-plane index, so their cost tracks
-local road density rather than map size. On CARLA's Town07 (234 roads, 947
-lanes, 673 of them driving):
+Lookups go through a ground-plane index. Their cost depends on how dense
+the roads are nearby, not on the map's size. On CARLA's Town07 (234 roads, 947 lanes):
 
 | | per call |
 | --- | --- |
 | `nearest_lane` / `sample_near` | ~0.4 us |
 | `road_position` | ~6 us |
-| `route` (across the map) | ~29 us |
+| `route` across the map | ~29 us |
 | `MeshSampler::height_at` | ~0.2 us |
 
-Import is ~20 ms for that map. `RoadSurface::sample` takes ~0.5 us on
+Import takes ~20 ms. `RoadSurface::sample` takes ~0.5 us on
 `tests/data/crg.xodr`.
 
-`cargo bench` measures the import and every lookup in the table except
-`road_position`. `tests/budgets.rs` guards `nearest_lane` and
-`MeshSampler::height_at` in CI by racing each against the scan it replaced.
-Racing needs no fixed per-machine threshold, unlike timing a call directly.
-The same test fails if any route across Town07 takes longer than one 64 Hz
-tick.
+`cargo bench` covers the import and the table except `road_position`.
+`tests/budgets.rs` guards `nearest_lane` and `height_at` in CI by racing each
+against a plain scan, and fails if a route across Town07 takes longer than a
+64 Hz tick.
