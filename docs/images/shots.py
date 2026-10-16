@@ -42,9 +42,6 @@ SHOTS = {
     "repeats": ("tests/data/repeats.xodr", "35,-28,40,40,22,0", {}),
     "object-surface": ("tests/data/object_surface.xodr", "21,-6,3,20,-1.75,0",
                        {"toggle": ["objects"]}),
-    "warnings": ("tests/data/ignored.xodr", "50,-40,60,50,40,0",
-                 {"ui": True, "size": (1000, 640), "click": ["summary:has-text('warnings')"],
-                  "clip": (0, 0, 300, 640)}),
 }
 
 # The viewer's chrome, hidden unless a shot keeps it.
