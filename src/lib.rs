@@ -3,26 +3,18 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 //! A pure-Rust OpenDRIVE (`.xodr`) importer.
 //!
-//! OpenDRIVE describes roads with formulas: clothoids, arcs, cubic elevation
-//! and width profiles, lane links. This crate works all of it out once, at
-//! load, and hands back a [`RoadNetwork`] of lanes made of points. Code that
-//! uses it never touches OpenDRIVE again. It samples points, walks the lane
-//! graph, and builds a triangle mesh of the road surface.
+//! It works out OpenDRIVE's curves and profiles once, at load, and returns a
+//! [`RoadNetwork`] of lanes made of points. From there you sample points,
+//! walk the lane graph, and mesh the road surface.
 //!
-//! No C++ dependency, no bindings, no `unsafe`, and no math crate in the
-//! public API.
+//! No C++, no bindings, no `unsafe`, and no math crate in the public API.
 //!
 //! # Coordinate types
 //!
-//! A position is a [`Point`] and a direction or displacement is a [`Vector`].
-//! They are separate types carrying the arithmetic that relates them:
-//! `point - point` is a `Vector`, `point + vector` is a `Point`, and adding
-//! two positions does not compile. One three-float type for position,
-//! direction and displacement would let `nearest_lane(sample.up)` compile.
-//! That call passes a direction where a position belongs.
-//!
-//! Both are `#[repr(C)]` structs of three public `f32` fields, so handing one
-//! to another math library is `Point::to_array`.
+//! A position is a [`Point`] and a direction is a [`Vector`]. `point - point`
+//! is a `Vector`, `point + vector` is a `Point`, and adding two points doesn't
+//! compile. Both are `#[repr(C)]` with three `f32` fields.
+//! [`Point::to_array`] hands one to another math library.
 //!
 //! ```no_run
 //! let net = xodr::load_file("maps/town07.xodr")?;
@@ -34,30 +26,24 @@
 //!
 //! # Which OpenDRIVE version
 //!
-//! The importer keeps a `<header>`'s attributes in [`RoadNetwork::header`]
-//! and its geo reference in [`RoadNetwork::geo_reference`]. That includes
-//! `revMajor` and `revMinor`, which it does not use to decide how to read the
-//! file. It never rejects a file for its version. Whether a file loads
-//! depends only on whether it uses the elements below. Where a file uses an
-//! element or attribute that OpenDRIVE 1.8 or 1.9 introduced but declares an
-//! older `revMinor`, the importer reads it all the same and raises a
-//! [`Warning::NewerThanDeclared`], since the header is what is wrong.
+//! Any version loads. `revMajor` and `revMinor` are kept in
+//! [`RoadNetwork::header`] and change nothing. A file that uses an element or
+//! attribute from 1.8 or 1.9 but declares an older version raises
+//! [`Warning::NewerThanDeclared`]. The crate reads the element anyway, since
+//! the header is what is wrong.
 //!
-//! Two of those elements are not in ASAM OpenDRIVE 1.9.0, the current
-//! revision: a lane's `<visibility>` and a road's `<neighbor>`. The crate
-//! reads them from the older files that write them. It reads `<visibility>`
-//! as CARLA does. See [Lane visibility](#lane-visibility). libOpenDRIVE reads
-//! `<neighbor>`, from 1.4, as raw strings. The crate resolves and checks it.
-//! Each is a [`RoadNeighbor`] in [`RoadNetwork::road_neighbors`]. It names
-//! the road beside this one, on its left or right, running the same way or
-//! the other. The crate derives no lane changes from it. One naming no baked
-//! road, or with a `side` or `direction` 1.4 doesn't allow, is dropped, with
-//! a [`Warning::NeighborDropped`].
+//! Two elements read are not in 1.9:
 //!
-//! Three more elements are deprecated in 1.9: `poly3`, and a signal's
-//! `<positionRoad>` and `<positionInertial>`. The spec still defines them and
-//! the crate still reads them. The test suite imports real files declaring
-//! 1.4, 1.6 and 1.7.
+//! - a lane's `<visibility>`, read as CARLA does. See
+//!   [Lane visibility](#lane-visibility).
+//! - a road's `<neighbor>`, from 1.4, as a [`RoadNeighbor`] in
+//!   [`RoadNetwork::road_neighbors`]. The crate derives no lane changes from
+//!   it. One naming no baked road, or with a `side` or `direction` 1.4
+//!   doesn't allow, is dropped with a [`Warning::NeighborDropped`].
+//!
+//! Deprecated elements, `poly3` and a signal's `<positionRoad>` and
+//! `<positionInertial>`, read like any other. The tests load real files
+//! declaring 1.4, 1.6 and 1.7.
 //!
 //! # Which elements
 //!
