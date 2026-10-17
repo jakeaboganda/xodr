@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Test maps
+
+- `tests/data/city.xodr`, from `city.py`, is a small town for the viewer
+  and OpenUSD: six signalised crossroads with controllers, raised
+  sidewalks round every corner, zebra crossings, stop lines, speed limit
+  signs that set the lanes' limits, and buildings, trees, street lamps,
+  benches and bins. Its junctions have a boundary and an elevation grid,
+  so their ground has no holes, and no two of its surfaces overlap at one
+  height, so nothing z-fights.
+
 ### OpenUSD
 
 - A signal type's class takes its country in capitals, so a catalogue's
