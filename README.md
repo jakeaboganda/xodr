@@ -7,9 +7,6 @@ A pure-Rust OpenDRIVE (`.xodr`) importer. It turns a map into lanes, a lane
 graph, and a mesh of the road surface. It also reads the OpenCRG (`.crg`)
 files a map uses.
 
-No C++, no bindings, no `unsafe`. Up to 0.4.1 the crate was called
-`libopendrive`.
-
 ```rust
 use xodr::{load_file, Point};
 
