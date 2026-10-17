@@ -2,8 +2,23 @@
 
 ## Unreleased
 
+### Test maps
+
+- `tests/data/city.xodr`, from `city.py`, is a seaside town for the
+  viewer and OpenUSD, loosely after Barcelona: 25 junctions on a sloping
+  grid of chamfered blocks, one-way streets, a diagonal avenue with a tram
+  line, six-arm plazas, seafront T-junctions and a roundabout, with
+  traffic lights and their controllers, crossings, signs that set the
+  lanes' limits, and buildings, parks, trees, lamps and parked cars. Its
+  junctions have a boundary and an elevation grid that follow the slope,
+  so their ground has no holes.
+
 ### OpenUSD
 
+- An object takes a colour from its outline's `fillType` or its type, so
+  buildings are sand, trees brown, vegetation and grass green, and lamps
+  and poles dark grey. `usd/SCHEMA.md` lists them. Before, every object
+  but paint was grey.
 - A signal type's class takes its country in capitals, so a catalogue's
   `OPENDRIVE_...` and `DE_...` classes style signals whose files write
   `OpenDRIVE`, as the schema spells it, or `de`. Before, ASAM's
