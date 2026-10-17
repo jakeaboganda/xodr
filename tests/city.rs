@@ -4,7 +4,10 @@
 
 use std::sync::OnceLock;
 
-use xodr::{load_file_with_provenance, LaneType, ObjectType, Provenance, RoadNetwork, SpeedLimit};
+use xodr::{
+    load_file_with_provenance, Extent, LaneType, ObjectType, Provenance, RoadNetwork, Shape,
+    SpeedLimit,
+};
 
 fn city() -> &'static (RoadNetwork, Provenance) {
     static CITY: OnceLock<(RoadNetwork, Provenance)> = OnceLock::new();
@@ -68,4 +71,30 @@ fn the_city_has_trams_parking_and_buildings_on_rising_land() {
     let top = mesh.vertices.iter().map(|p| p.z).fold(f32::MIN, f32::max);
     let bottom = mesh.vertices.iter().map(|p| p.z).fold(f32::MAX, f32::min);
     assert!(top - bottom > 10.0, "the land rises from {bottom} to {top}");
+}
+
+#[test]
+fn no_city_tree_stands_in_a_fountain_or_a_monument() {
+    let (net, _) = city();
+    let round: Vec<_> = (net.objects().iter())
+        .filter_map(|o| match &o.shape {
+            Shape::Solid {
+                position,
+                extent: Some(Extent::Cylinder { radius, .. }),
+                ..
+            } => Some((position.x, position.y, *radius, o)),
+            _ => None,
+        })
+        .collect();
+    let landmarks = round
+        .iter()
+        .filter(|r| ["fountain", "monument"].contains(&r.3.subtype.as_str()));
+    for (x, y, radius, landmark) in landmarks {
+        let trees = (round.iter())
+            .filter(|r| matches!(r.3.kind, ObjectType::Tree | ObjectType::Vegetation));
+        for (tx, ty, tr, tree) in trees {
+            let apart = (x - tx).hypot(y - ty);
+            assert!(apart >= radius + tr, "{:?} in {:?}", tree.id, landmark.id);
+        }
+    }
 }
