@@ -373,9 +373,24 @@ An empty array or relationship is left out.
 Every mesh has a `primvars:displayColor` and no material. Lanes and wraps take
 the colour of their lane type: driving dark grey, sidewalks and curbs light
 grey, and other types mid grey. Paint uses the colour its line names, or
-white. Objects and signal boards are grey, except an object from an outline
-of `fillType` `paint`. It takes the paint colour of the first `roadMarkColor`
-among the object's materials, or white.
+white. Signal boards are grey. An object from an outline of `fillType`
+`paint` takes the paint colour of the first `roadMarkColor` among the
+object's materials, or white. Any other object takes the colour of its
+outline's ground, if its `fillType` names one, or of its type:
+
+| | Colour |
+| --- | --- |
+| `grass` | green |
+| `soil` | brown |
+| `gravel` | light brown |
+| `asphalt` | dark grey |
+| `cobble`, `concrete`, `pavement` | stone grey |
+| `building` | sand |
+| `tree` | bark brown, for a trunk |
+| `vegetation` | leaf green |
+| `streetLamp`, `pole` | dark grey |
+
+Every other object is grey.
 
 ## Not in the stage
 

@@ -6,8 +6,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::{self, Write};
 
 use xodr::{
-    JunctionArea, LaneId, LaneSpan, LaneType, Mesh, ObjectId, Point, Provenance, RoadId,
-    RoadNetwork, Shape, SkeletonVertex, Vector, Warning,
+    JunctionArea, LaneId, LaneSpan, LaneType, Mesh, ObjectId, ObjectType, Point, Provenance,
+    RoadId, RoadNetwork, Shape, SkeletonVertex, Vector, Warning,
 };
 
 mod area;
@@ -312,8 +312,9 @@ fn objects(
             ("subtype", Tag::Text(object.subtype.clone())),
             ("name", Tag::Text(object.name.clone())),
         ];
-        let mut color = [0.6, 0.6, 0.6];
+        let mut color = object_color(object.kind, "");
         if let Some(p) = by_id(&provenance.objects, object.id.0, |p| p.object.0) {
+            color = object_color(object.kind, &p.fill_type);
             if !p.fill_type.is_empty() {
                 tags.push(("fillType", Tag::Text(p.fill_type.clone())));
             }
@@ -400,6 +401,26 @@ fn lane_color(kind: LaneType) -> [f32; 3] {
 }
 
 /// The colour of an OpenDRIVE paint name. Unknown names are white.
+/// An object's colour: its outline's `fill_type` if it names a ground, else
+/// its type's, else grey.
+fn object_color(kind: ObjectType, fill_type: &str) -> [f32; 3] {
+    match fill_type {
+        "grass" => return [0.3, 0.55, 0.25],
+        "soil" => return [0.45, 0.35, 0.25],
+        "gravel" => return [0.62, 0.58, 0.5],
+        "asphalt" => return [0.25, 0.25, 0.25],
+        "cobble" | "concrete" | "pavement" => return [0.55, 0.53, 0.5],
+        _ => {}
+    }
+    match kind {
+        ObjectType::Building => [0.78, 0.72, 0.62],
+        ObjectType::Tree => [0.4, 0.28, 0.18],
+        ObjectType::Vegetation => [0.25, 0.5, 0.2],
+        ObjectType::StreetLamp | ObjectType::Pole => [0.35, 0.35, 0.38],
+        _ => [0.6, 0.6, 0.6],
+    }
+}
+
 fn paint(name: &str) -> [f32; 3] {
     match name {
         "yellow" => [0.95, 0.75, 0.1],
