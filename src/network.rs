@@ -1263,7 +1263,9 @@ impl RoadNetwork {
 
     /// Every speed limit, sorted by lane, then along it. A lane has at most
     /// one limit at any point, and none where the map doesn't say. An
-    /// OpenDRIVE import reads them from `<speed>`s, not from signs.
+    /// OpenDRIVE import reads them from `<speed>`s and speed limit signs,
+    /// and from `<defaultRegulations>` where neither gives one. See
+    /// [Speed limits and road types](crate#speed-limits-and-road-types).
     pub fn speed_limits(&self) -> &[Along<SpeedLimit>] {
         &self.speed_limits
     }
