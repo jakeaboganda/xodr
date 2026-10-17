@@ -21,6 +21,8 @@ along it, and its superelevation lays it on the land across it.
   45 degrees. Where it crosses the grid it makes a six-arm plaza, and it
   ends in a roundabout of two lanes, at (520, 520), whose
   island is a park with a monument and a fountain.
+- The x = 390 street runs on north of the grid to a T-junction with the
+  roundabout's west entry road.
 - Every street has a 0.3 m kerb rising to 0.15 m and a 5 m sidewalk each
   side, carried round each junction corner.
 
@@ -314,12 +316,13 @@ for i in range(COLUMNS):
         if j < ROWS - 1:
             length = SPACING - start - grid[(i, j + 1)]["radius"]
         elif i == COLUMNS - 1:
-            length = None
-        else:
-            length = STUB
-        if length is None:
             ring_entries["south"] = (i, j, p)
             continue
+        elif i == COLUMNS - 2:
+            ring_entries["tee"] = (i, j, p)
+            continue
+        else:
+            length = STUB
         s = street(Geometry(x, y0, math.pi / 2, length), p)
         column_roads[(i, j)] = s
         attach(grid[(i, j)], s, "start")
@@ -359,7 +362,21 @@ for name, angle, p, way in entry_specs:
     jn["half"] = (hw(p) + 10.0) / RING
     ring_nodes.append(jn)
     ex, ey = cx + entry_reach * math.cos(angle), cy + entry_reach * math.sin(angle)
-    if way == "out":
+    if name == "west":
+        i, j, column = ring_entries["tee"]
+        tee = node((SPACING * i, ey), "lights", GRID_RADIUS)
+        s = street(Geometry(ex, ey, angle, ex - SPACING * i - GRID_RADIUS), p)
+        attach(jn, s, "start")
+        attach(tee, s, "end")
+        s = street(Geometry(SPACING * i - GRID_RADIUS, ey, angle, STUB), p)
+        attach(tee, s, "start")
+        bottom = grid[(i, j)]
+        y0 = SPACING * j + bottom["radius"]
+        s = street(Geometry(SPACING * i, y0, math.pi / 2, ey - GRID_RADIUS - y0), column)
+        column_roads[(i, j)] = s
+        attach(bottom, s, "start")
+        attach(tee, s, "end")
+    elif way == "out":
         s = street(Geometry(ex, ey, angle, STUB), p)
         attach(jn, s, "start")
     elif name == "diagonal":
