@@ -333,10 +333,12 @@ fn write_quad(
 }
 
 /// The name of the type class for a signal's codes: `DE`, `274` and `55`
-/// give `DE_274_55`. Characters USD doesn't allow in a name become `_`, and
-/// a name that would start with a digit gets a `_` in front.
+/// give `DE_274_55`. The country is in capitals, so `de` and `DE` share a
+/// class, and so do the schema's `OpenDRIVE` and the `OPENDRIVE` older
+/// files write. Characters USD doesn't allow in a name become `_`, and a
+/// name that would start with a digit gets a `_` in front.
 fn type_class(country: &str, kind: &str, subtype: &str) -> String {
-    let name: String = [country, kind, subtype]
+    let name: String = [country.to_ascii_uppercase().as_str(), kind, subtype]
         .join("_")
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
@@ -468,5 +470,14 @@ mod tests {
         assert_eq!(type_class("DE", "274", "-1"), "DE_274__1");
         assert_eq!(type_class("", "1000001", ""), "_1000001_");
         assert_eq!(type_class("1", "a.b", "c"), "_1_a_b_c");
+    }
+
+    #[test]
+    fn a_type_class_takes_the_country_in_capitals() {
+        assert_eq!(
+            type_class("OpenDRIVE", "1000001", "-1"),
+            "OPENDRIVE_1000001__1"
+        );
+        assert_eq!(type_class("de", "274", "55"), "DE_274_55");
     }
 }

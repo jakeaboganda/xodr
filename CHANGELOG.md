@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### OpenUSD
+
+- A signal type's class takes its country in capitals, so a catalogue's
+  `OPENDRIVE_...` and `DE_...` classes style signals whose files write
+  `OpenDRIVE`, as the schema spells it, or `de`. Before, ASAM's
+  `UC_LHT_Complex-TrafficLights` drew its traffic lights and stop lines as
+  plain boxes under the sample catalogue.
+
 ## 0.7.0 - 2026-10-17
 
 The crate now reads every element and attribute of the OpenDRIVE 1.9
