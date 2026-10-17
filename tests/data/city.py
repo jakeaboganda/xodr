@@ -79,6 +79,8 @@ RING = 70.0
 ROUNDABOUT = (520.0, 520.0)
 ENTRY_GAP = 6.0
 STRIPE = 0.5
+FOUNTAIN = 6.0
+CROWN = 2.3
 STOP = 5.0
 TALL_LIMIT = 50
 SLOW_LIMIT = 30
@@ -925,23 +927,25 @@ for block in blocks:
         by0 = min(p[1] for p in block["poly"])
         by1 = max(p[1] for p in block["poly"])
         step = 11.0 if park else 15.0
+        middle = centroid(block["poly"])
+        clear = FOUNTAIN + CROWN + 1.0 if park else 0.0
         yy = by0 + step / 2
         while yy < by1:
             xx = bx0 + step / 2
             while xx < bx1:
                 spot = [(xx - 2.5, yy - 2.5), (xx + 2.5, yy - 2.5), (xx + 2.5, yy + 2.5), (xx - 2.5, yy + 2.5)]
                 if inside(block["poly"], (xx, yy), 3.0) and all(separated(spot, f) for f in footprints) \
-                        and (park or rng.random() < 0.4):
+                        and math.dist((xx, yy), middle) > clear and (park or rng.random() < 0.4):
                     s = yy - g.y
                     t = -(xx - g.x)
                     obj(s_, s, t, xodr.ObjectType.tree, radius=0.22, height=3.0)
-                    obj(s_, s, t, xodr.ObjectType.vegetation, subtype="crown", radius=2.3, height=4.0, zOffset=2.6)
+                    obj(s_, s, t, xodr.ObjectType.vegetation, subtype="crown", radius=CROWN, height=4.0, zOffset=2.6)
                 xx += step
             yy += step
     if park:
-        mx, my = centroid(block["poly"])
+        mx, my = middle
         obj(s_, my - g.y, -(mx - g.x), xodr.ObjectType.obstacle, subtype="fountain",
-            radius=6.0, height=0.7)
+            radius=FOUNTAIN, height=0.7)
 
 seafront = row_roads[(0, 0)]
 g = seafront.geometry
