@@ -4,13 +4,14 @@
 
 ### Test maps
 
-- `tests/data/city.xodr`, from `city.py`, is a small town for the viewer
-  and OpenUSD: six signalised crossroads with controllers, raised
-  sidewalks round every corner, zebra crossings, stop lines, speed limit
-  signs that set the lanes' limits, and buildings, trees, street lamps,
-  benches and bins. Its junctions have a boundary and an elevation grid,
-  so their ground has no holes, and no two of its surfaces overlap at one
-  height, so nothing z-fights.
+- `tests/data/city.xodr`, from `city.py`, is a seaside town for the
+  viewer and OpenUSD, loosely after Barcelona: 25 junctions on a sloping
+  grid of chamfered blocks, one-way streets, a diagonal avenue with a tram
+  line, six-arm plazas, seafront T-junctions and a roundabout, with
+  traffic lights and their controllers, crossings, signs that set the
+  lanes' limits, and buildings, parks, trees, lamps and parked cars. Its
+  junctions have a boundary and an elevation grid that follow the slope,
+  so their ground has no holes.
 
 ### OpenUSD
 

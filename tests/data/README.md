@@ -342,12 +342,16 @@ Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/junction_wraps.py
 
-`city.xodr` comes from `city.py`. It is a small town to look at in the
-viewer and OpenUSD: six signalised crossroads on a 150 m grid, raised
-sidewalks carried round each corner, zebra crossings, stop lines, speed
-limit signs with their semantics, and buildings, trees, street lamps,
-benches and bins along every street. Each crossroads has a boundary and a
-flat elevation grid, so its ground is filled. Regenerate with
+`city.xodr` comes from `city.py`. It is a seaside town, loosely after
+Barcelona's Eixample, to look at in the viewer and OpenUSD: 25 junctions
+on a 130 m grid of chamfered blocks rising 2 % from the sea, one-way
+streets with parking, an avenue with a planted median, a diagonal avenue
+with a tram line meeting the grid in six-arm plazas, seafront T-junctions,
+and a two-lane roundabout. It has traffic lights with controllers, zebra
+crossings, give-way and speed limit signs with their semantics, and
+buildings, courtyards, a park, trees, lamps, benches, parked cars and a
+beach. Each junction has a boundary and an elevation grid on the slope.
+Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/city.py
 
