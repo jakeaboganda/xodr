@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.7.1 - 2026-10-18
+
+The crate changes only in its docs. The rest of this release is the
+OpenUSD exporter and the test maps, which are not published.
+
+### Docs
+
+- `RoadNetwork::speed_limits` says speed limit signs and default
+  regulations set limits too. It said limits came from `<speed>` records,
+  not signs, which 0.7.0 changed.
+- The README drops its line on C++, bindings and the old crate name.
 
 ### Test maps
 
