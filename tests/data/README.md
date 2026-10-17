@@ -342,4 +342,13 @@ Regenerate with
 
     uv run --with scenariogeneration==0.16.6 tests/data/junction_wraps.py
 
+`city.xodr` comes from `city.py`. It is a small town to look at in the
+viewer and OpenUSD: six signalised crossroads on a 150 m grid, raised
+sidewalks carried round each corner, zebra crossings, stop lines, speed
+limit signs with their semantics, and buildings, trees, street lamps,
+benches and bins along every street. Each crossroads has a boundary and a
+flat elevation grid, so its ground is filled. Regenerate with
+
+    uv run --with scenariogeneration==0.16.6 tests/data/city.py
+
 [scenariogeneration]: https://github.com/pyoscx/scenariogeneration
