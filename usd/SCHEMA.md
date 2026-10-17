@@ -238,10 +238,12 @@ A type class holds what every signal of one type looks like. The writer
 makes one for each type the map uses, with one child: `Board`, a grey,
 double-sided quad 1 m across and 1 m up, facing +X.
 
-The class name joins the codes with `_`. Each character other than a letter
-or digit becomes `_`, and a name that starts with a digit gets a `_` in
-front. For example, `DE`, `274` and `-1` give `DE_274__1`. Two types whose
-codes differ only in those characters share a class.
+The class name joins the codes with `_`, with the country in capitals. Each
+character other than a letter or digit becomes `_`, and a name that starts
+with a digit gets a `_` in front. For example, `DE`, `274` and `-1` give
+`DE_274__1`, and so do `de`, `274` and `-1`. The schema's `OpenDRIVE` and
+the `OPENDRIVE` some files write both give `OPENDRIVE_...`. Two types whose
+codes differ only in those ways share a class.
 
 To change how a type looks, write a [catalogue](#catalogues).
 
