@@ -385,7 +385,7 @@ fn an_area_of_paint_takes_the_colour_of_paint() {
     };
     assert_eq!(color("2"), "[(0.9, 0.9, 0.9)]", "white by default");
     assert_eq!(color("4"), "[(0.95, 0.75, 0.1)]", "its material's yellow");
-    assert_eq!(color("3"), "[(0.6, 0.6, 0.6)]", "grass is no paint");
+    assert_eq!(color("3"), "[(0.3, 0.55, 0.25)]", "grass is no paint");
     assert_eq!(
         color("5"),
         "[(0.9, 0.9, 0.9)]",
@@ -398,4 +398,35 @@ fn an_area_of_paint_takes_the_colour_of_paint() {
     );
     let bay = objects_with_id(&stage, "1")[0];
     assert!(!bay.contains("xodr:fillType"), "{bay}");
+}
+
+/// The colour of the first object of `kind` in `stage`.
+fn colour_of_kind(stage: &str, kind: &str) -> String {
+    let objects = prim(stage, "Objects");
+    let wanted = format!("custom string xodr:type = \"{kind}\"");
+    let object = (0..)
+        .map(|k| format!("object_{k}"))
+        .take_while(|name| stage.contains(&format!("\"{name}\"\n")))
+        .filter(|name| objects.contains(&format!("\"{name}\"\n")))
+        .map(|name| prim(objects, &name))
+        .find(|object| object.contains(&wanted))
+        .unwrap_or_else(|| panic!("no {kind}"));
+    let line = object
+        .lines()
+        .find(|l| l.contains("primvars:displayColor"))
+        .expect("a colour");
+    let value = &line[line.find("= ").expect("a value") + 2..];
+    value[..=value.find(']').expect("a list")].to_string()
+}
+
+#[test]
+fn an_object_takes_the_colour_of_its_type() {
+    let stage = stage("city");
+    let colour = |kind| colour_of_kind(&stage, kind);
+    assert_eq!(colour("building"), "[(0.78, 0.72, 0.62)]");
+    assert_eq!(colour("tree"), "[(0.4, 0.28, 0.18)]", "a trunk");
+    assert_eq!(colour("vegetation"), "[(0.25, 0.5, 0.2)]");
+    assert_eq!(colour("street-lamp"), "[(0.35, 0.35, 0.38)]");
+    assert_eq!(colour("obstacle"), "[(0.6, 0.6, 0.6)]", "grey by default");
+    assert_eq!(colour("crosswalk"), "[(0.9, 0.9, 0.9)]", "its paint");
 }

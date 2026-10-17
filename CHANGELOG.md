@@ -14,6 +14,10 @@
 
 ### OpenUSD
 
+- An object takes a colour from its outline's `fillType` or its type, so
+  buildings are sand, trees brown, vegetation and grass green, and lamps
+  and poles dark grey. `usd/SCHEMA.md` lists them. Before, every object
+  but paint was grey.
 - A signal type's class takes its country in capitals, so a catalogue's
   `OPENDRIVE_...` and `DE_...` classes style signals whose files write
   `OpenDRIVE`, as the schema spells it, or `de`. Before, ASAM's
