@@ -24,6 +24,13 @@
   an unreadable one could hide the readable ones beside it, and a third
   entry could let a denied user back in. A `deny` of `none` and other
   users denies those users. Before, it lifted every restriction.
+- A `Polyline` with a point that is not finite no longer panics in
+  `point_at` or `pose_at`.
+- `Polyline::project` of a point that is not finite gives a NaN `s` and
+  `offset`. Before, it said the point lay on the line's start. A repeated
+  point no longer reports an offset of 0 for a point beside it.
+- A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
+  too long.
 
 ## 0.7.1 - 2026-10-18
 
