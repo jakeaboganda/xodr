@@ -58,6 +58,10 @@
   still count, which is twice what they were grown by.
 - A `<repeat>` sweep of one section draws one end cap, not two in one
   place.
+- Only an XML declaration with nothing but comments before it is removed
+  before parsing, and only once. Before, a second pass could cut from a
+  `<?xml` inside a comment to a later processing instruction, losing the
+  roads between.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
