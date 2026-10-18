@@ -5,12 +5,14 @@
 //! cargo run -p xodr-usd -- tests/data/town07.xodr /tmp/town07.usda
 //! ```
 //!
-//! With no output path, the stage goes next to the map as `<map>.usda`.
+//! With no output path, the stage goes next to the map as `<map>.usda`. Each
+//! warning the load raises, but those for parts of the file the crate only
+//! ignores, goes to stderr. The stage is written whole or not at all.
 
 use std::env;
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use std::path::PathBuf;
+use std::fs::{self, File};
+use std::io::{self, BufWriter, Write};
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use xodr::load_file_with_provenance;
@@ -33,11 +35,14 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let written = File::create(&output).and_then(|file| {
-        let mut out = BufWriter::new(file);
-        write_stage(&net, &provenance, &mut out)?;
-        out.flush()
-    });
+    for warning in provenance.warnings.iter().filter(|w| !w.is_ignored()) {
+        eprintln!("{}: warning: {warning}", input.display());
+    }
+    if fs::canonicalize(&output).is_ok_and(|o| fs::canonicalize(input).is_ok_and(|i| i == o)) {
+        eprintln!("{}: the stage would overwrite the map", output.display());
+        return ExitCode::from(2);
+    }
+    let written = write_whole(&output, |out| write_stage(&net, &provenance, out));
     match written {
         Ok(()) => {
             println!("{}", output.display());
@@ -48,4 +53,25 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Write `path` with `write`, through a file beside it that replaces it only
+/// once whole, so a failed write leaves no part of a stage.
+fn write_whole(
+    path: &Path,
+    write: impl FnOnce(&mut BufWriter<File>) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut partial = path.as_os_str().to_owned();
+    partial.push(".partial");
+    let partial = PathBuf::from(partial);
+    let result = (|| {
+        let mut out = BufWriter::new(File::create(&partial)?);
+        write(&mut out)?;
+        out.flush()?;
+        fs::rename(&partial, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&partial);
+    }
+    result
 }
