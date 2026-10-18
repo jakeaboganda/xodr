@@ -1,6 +1,8 @@
 //! The area of a junction: the boundary around it, and the elevation grid
 //! over it. Also junction groups, cross paths and virtual junctions.
 
+use std::collections::HashMap;
+
 use crate::coords::{Point, Vector};
 use crate::mesh::Mesh;
 use crate::network::LaneId;
@@ -398,32 +400,111 @@ impl JunctionArea {
     /// spacing and stood at the grid's height where it reaches, or at the
     /// boundary's height across each triangle where it doesn't. Empty for an
     /// area without a boundary.
+    ///
+    /// Each triangle of the boundary splits evenly by its longest edge. Two
+    /// that share an edge may split it differently, so each puts a vertex
+    /// on it wherever either does, and the ground has no cracks.
     pub fn mesh(&self) -> Mesh {
         let ring = &self.boundary;
         let step = self.grid.as_ref().map_or(f64::INFINITY, |g| g.spacing);
+        let triangles = ear_clip(ring);
+        let counts: Vec<usize> = triangles
+            .iter()
+            .map(|&[a, b, c]| {
+                let longest = [(a, b), (b, c), (c, a)]
+                    .map(|(p, q)| ring[p].distance_to(ring[q]))
+                    .into_iter()
+                    .fold(0.0_f32, f32::max);
+                (f64::from(longest) / step).ceil().clamp(1.0, 64.0) as usize
+            })
+            .collect();
+        let mut splits: HashMap<(usize, usize), Vec<usize>> = HashMap::new();
+        for (&[a, b, c], &n) in triangles.iter().zip(&counts) {
+            for (p, q) in [(a, b), (b, c), (c, a)] {
+                splits.entry((p.min(q), p.max(q))).or_default().push(n);
+            }
+        }
+        let stand = |p: Point| {
+            let z = self.height_at(f64::from(p.x), f64::from(p.y));
+            Point::new(p.x, p.y, z.map_or(p.z, |z| z as f32))
+        };
+        let on_edge = |a: usize, b: usize, num: usize, den: usize| {
+            let (from, to, num) = if a < b {
+                (a, b, num)
+            } else {
+                (b, a, den - num)
+            };
+            match num {
+                0 => stand(ring[from]),
+                _ if num == den => stand(ring[to]),
+                _ => stand(ring[from].lerp(ring[to], num as f32 / den as f32)),
+            }
+        };
+        let between = |a: usize, b: usize, lo: usize, n: usize| {
+            let mut found: Vec<(usize, usize)> = Vec::new();
+            for &m in &splits[&(a.min(b), a.max(b))] {
+                found.extend(
+                    (lo * m / n + 1..)
+                        .take_while(|k| k * n < (lo + 1) * m)
+                        .map(|k| (k, m)),
+                );
+            }
+            found.sort_by(|x, y| (x.0 * y.1).cmp(&(y.0 * x.1)));
+            found.dedup_by(|x, y| x.0 * y.1 == y.0 * x.1);
+            found.into_iter().map(move |(k, m)| on_edge(a, b, k, m))
+        };
         let mut mesh = Mesh::default();
-        for [a, b, c] in ear_clip(ring) {
-            let (a, b, c) = (ring[a], ring[b], ring[c]);
-            let longest = [a.distance_to(b), b.distance_to(c), c.distance_to(a)]
-                .into_iter()
-                .fold(0.0_f32, f32::max);
-            let n = (f64::from(longest) / step).ceil().clamp(1.0, 64.0) as usize;
-            let at = |i: usize, j: usize| {
-                let (u, v) = (i as f32 / n as f32, j as f32 / n as f32);
-                let p = a + (b - a) * u + (c - a) * v;
-                let z = self.height_at(f64::from(p.x), f64::from(p.y));
-                Point::new(p.x, p.y, z.map_or(p.z, |z| z as f32))
+        for (&[a, b, c], &n) in triangles.iter().zip(&counts) {
+            let (pa, pb, pc) = (ring[a], ring[b], ring[c]);
+            let vertex = |i: usize, j: usize| match (i, j) {
+                (_, 0) => on_edge(a, b, i, n),
+                (0, _) => on_edge(c, a, n - j, n),
+                _ if i + j == n => on_edge(b, c, j, n),
+                _ => {
+                    let (u, v) = (i as f32 / n as f32, j as f32 / n as f32);
+                    stand(pa + (pb - pa) * u + (pc - pa) * v)
+                }
             };
             for i in 0..n {
                 for j in 0..n - i {
-                    push(&mut mesh, [at(i, j), at(i + 1, j), at(i, j + 1)]);
+                    let mut ring_of = vec![vertex(i, j)];
+                    if j == 0 {
+                        ring_of.extend(between(a, b, i, n));
+                    }
+                    ring_of.push(vertex(i + 1, j));
+                    if i + j + 1 == n {
+                        ring_of.extend(between(b, c, j, n));
+                    }
+                    ring_of.push(vertex(i, j + 1));
+                    if i == 0 {
+                        ring_of.extend(between(c, a, n - j - 1, n));
+                    }
+                    fan(&mut mesh, &ring_of);
                     if i + j + 1 < n {
-                        push(&mut mesh, [at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)]);
+                        push(
+                            &mut mesh,
+                            [vertex(i + 1, j), vertex(i + 1, j + 1), vertex(i, j + 1)],
+                        );
                     }
                 }
             }
         }
         mesh
+    }
+}
+
+/// The convex polygon `corners`, counter-clockwise, as triangles: itself if
+/// it has three corners, else a fan round its centroid.
+fn fan(mesh: &mut Mesh, corners: &[Point]) {
+    if let [a, b, c] = corners {
+        return push(mesh, [*a, *b, *c]);
+    }
+    let sum = corners
+        .iter()
+        .fold(Vector::ZERO, |s, p| s + (*p - Point::ORIGIN));
+    let centre = Point::ORIGIN + sum * (1.0 / corners.len() as f32);
+    for (k, p) in corners.iter().enumerate() {
+        push(mesh, [*p, corners[(k + 1) % corners.len()], centre]);
     }
 }
 
@@ -444,32 +525,61 @@ fn push(mesh: &mut Mesh, corners: [Point; 3]) {
     mesh.indices.extend([first, first + 1, first + 2]);
 }
 
+/// How close, in metres, two points of a boundary may be before
+/// [`ear_clip`] takes them as one: the lanes it runs along can overlap by
+/// millimetres where roads meet, folding the ring back on itself.
+const NEAR: f32 = 0.01;
+
 /// The triangles of a simple counter-clockwise polygon in plan, as indices
-/// into `ring`, by clipping its ears.
+/// into `ring`, by clipping its ears. A corner where the ring runs straight
+/// on is clipped without a triangle. Only a corner that turns right can lie
+/// in an ear, so only those are tested. A ring that crosses itself can leave
+/// a part with no ear, which stays untriangulated.
 fn ear_clip(ring: &[Point]) -> Vec<[usize; 3]> {
     let cross =
         |o: Point, a: Point, b: Point| (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
     let inside = |p: Point, [a, b, c]: [Point; 3]| {
-        cross(a, b, p) >= 0.0 && cross(b, c, p) >= 0.0 && cross(c, a, p) >= 0.0
+        cross(a, b, p) > 0.0 && cross(b, c, p) > 0.0 && cross(c, a, p) > 0.0
     };
-    let mut left: Vec<usize> = (0..ring.len()).collect();
+    let n = ring.len();
+    let straight = |k: usize| {
+        let (a, b, c) = (ring[(k + n - 1) % n], ring[k], ring[(k + 1) % n]);
+        let scale = (c.x - a.x).hypot(c.y - a.y).powi(2);
+        cross(a, b, c).abs() <= 1e-6 * scale
+    };
+    let mut left: Vec<usize> = Vec::new();
+    for k in (0..n).filter(|&k| !straight(k)) {
+        let near = |j: &usize| ring[*j].distance_to(ring[k]) < NEAR;
+        if !left.last().is_some_and(near) && !(k + 1 == n && left.first().is_some_and(near)) {
+            left.push(k);
+        }
+    }
     let mut out = Vec::new();
     while left.len() > 3 {
         let n = left.len();
-        let ear = (0..n).find(|&k| {
-            let (a, b, c) = (left[(k + n - 1) % n], left[k], left[(k + 1) % n]);
-            let corners = [ring[a], ring[b], ring[c]];
-            cross(ring[a], ring[b], ring[c]) > 0.0
-                && !left
-                    .iter()
-                    .filter(|&&p| p != a && p != b && p != c)
-                    .any(|&p| inside(ring[p], corners))
-        });
-        let Some(k) = ear else {
-            break;
+        let corner = |k: usize| (left[(k + n - 1) % n], left[k % n], left[(k + 1) % n]);
+        let turn = |k: usize| {
+            let (a, b, c) = corner(k);
+            cross(ring[a], ring[b], ring[c])
         };
-        out.push([left[(k + n - 1) % n], left[k], left[(k + 1) % n]]);
-        left.remove(k);
+        let reflex: Vec<usize> = (0..n).filter(|&k| turn(k) < 0.0).map(|k| left[k]).collect();
+        let ear = (0..n).find(|&k| {
+            let (a, b, c) = corner(k);
+            let corners = [ring[a], ring[b], ring[c]];
+            turn(k) > 0.0
+                && !reflex
+                    .iter()
+                    .any(|&p| p != a && p != c && inside(ring[p], corners))
+        });
+        if let Some(k) = ear {
+            let (a, b, c) = corner(k);
+            out.push([a, b, c]);
+            left.remove(k);
+        } else if let Some(k) = (0..n).find(|&k| turn(k) == 0.0) {
+            left.remove(k);
+        } else {
+            break;
+        }
     }
     if left.len() == 3 && cross(ring[left[0]], ring[left[1]], ring[left[2]]) > 0.0 {
         out.push([left[0], left[1], left[2]]);

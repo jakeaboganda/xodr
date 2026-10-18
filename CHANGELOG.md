@@ -36,6 +36,14 @@
   set its side, so it moved across the road. A second lane with an `id`
   already in its section is dropped with a new `Warning::LaneIdRepeated`.
   Before, both baked and lookups by id found only the first.
+- `JunctionArea::mesh` has no cracks. Two triangles of the boundary that
+  share an edge put vertices on it wherever either splits it, so the
+  ground no longer gaps along every diagonal where the grid curves. It
+  also covers the whole boundary. Before, a ring with points in a straight
+  line, or lanes overlapping by millimetres where roads meet, could stop
+  the triangulation part way and leave a hole: up to 1,500 m² of a city
+  junction. Each step of the ear clipping tests only the corners that turn
+  in, so a long boundary no longer takes cubic time.
 - A `<roadMark>` past the end of its lane section that no single-side
   section carries on raises a `RoadMarkDropped`. Before, it was dropped
   without one.

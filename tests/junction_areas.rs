@@ -299,3 +299,65 @@ fn a_transition_at_a_numbered_contact_point_blends_from_that_end() {
     };
     assert_eq!(lane(&numbered), lane(&sloped));
 }
+
+/// The plan length of the edges of `mesh` that only one triangle has,
+/// vertices matched to 0.1 mm in 3D.
+fn open_length(mesh: &xodr::Mesh) -> f32 {
+    use std::collections::HashMap;
+    let key = |p: xodr::Point| [p.x, p.y, p.z].map(|c| (c * 1e4).round() as i64);
+    let mut edges: HashMap<_, (usize, f32)> = HashMap::new();
+    for t in mesh.indices.chunks_exact(3) {
+        for (a, b) in [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])] {
+            let (p, q) = (mesh.vertices[a as usize], mesh.vertices[b as usize]);
+            let (ka, kb) = (key(p), key(q));
+            let length = (p.x - q.x).hypot(p.y - q.y);
+            edges
+                .entry((ka.min(kb), ka.max(kb)))
+                .or_insert((0, length))
+                .0 += 1;
+        }
+    }
+    edges
+        .values()
+        .filter(|(n, _)| *n == 1)
+        .map(|(_, l)| l)
+        .sum()
+}
+
+#[test]
+fn the_ground_of_a_junction_covers_it_with_no_cracks_between_its_triangles() {
+    let net = xodr::load_file("tests/data/city.xodr").unwrap();
+    for area in net.junction_areas().iter().filter(|a| a.grid.is_some()) {
+        let ring = &area.boundary;
+        let mesh = area.mesh();
+        let twice =
+            |[a, b, c]: [xodr::Point; 3]| (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+        let inside: f32 = (1..ring.len() - 1)
+            .map(|k| twice([ring[0], ring[k], ring[k + 1]]))
+            .sum::<f32>()
+            / 2.0;
+        let covered: f32 = mesh
+            .indices
+            .chunks_exact(3)
+            .map(|t| twice([0, 1, 2].map(|k| mesh.vertices[t[k] as usize])))
+            .sum::<f32>()
+            / 2.0;
+        assert!(
+            (covered - inside).abs() < 1e-3 * inside,
+            "junction {}: {covered} m² of {inside}",
+            area.od_id
+        );
+        let perimeter: f32 = (0..ring.len())
+            .map(|k| {
+                let (p, q) = (ring[k], ring[(k + 1) % ring.len()]);
+                (p.x - q.x).hypot(p.y - q.y)
+            })
+            .sum();
+        let open = open_length(&mesh);
+        assert!(
+            (open - perimeter).abs() < 1e-2 * perimeter,
+            "junction {}: {open} m of open edges round a {perimeter} m boundary",
+            area.od_id
+        );
+    }
+}
