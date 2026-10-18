@@ -20,6 +20,10 @@
 - A road mark `<line>` with a `length` and a `space` of 0 is continuous,
   as its dashes touch. Before, it was dashed, and a short `length` could
   take it past the dash limit and drop it.
+- `<access>`es at one `sOffset` merge the same way in any order. Before,
+  an unreadable one could hide the readable ones beside it, and a third
+  entry could let a denied user back in. A `deny` of `none` and other
+  users denies those users. Before, it lifted every restriction.
 
 ## 0.7.1 - 2026-10-18
 
