@@ -51,6 +51,8 @@
 - A junction `<boundary>` far from the origin, as in a map in projected
   coordinates, keeps its winding. Before, `f32` rounding could flip it,
   raise a false `BoundaryClockwise` and reverse a correct ring.
+- A lane `<link>`'s `id` may have spaces round it, as every other id may.
+  Before, such a link was dropped without a warning.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 

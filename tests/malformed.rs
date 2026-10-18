@@ -674,3 +674,38 @@ fn elements_nested_tens_of_thousands_deep_are_an_error_not_a_stack_overflow() {
     );
     assert!(load_str(&deep).is_err());
 }
+
+#[test]
+fn a_lane_link_id_may_be_padded_like_every_other_id() {
+    let road = |id: &str, x: f64, link: &str, lane_link: &str| {
+        format!(
+            r#"<road id="{id}" length="10" junction="-1"><link>{link}</link><planView>
+            <geometry s="0" x="{x}" y="0" hdg="0" length="10"><line/></geometry></planView>
+            <lanes><laneSection s="0"><right><lane id="-1" type="driving">
+            <link>{lane_link}</link><width sOffset="0" a="3"/></lane>
+            </right></laneSection></lanes></road>"#
+        )
+    };
+    let xml = format!(
+        "<OpenDRIVE>{}{}</OpenDRIVE>",
+        road(
+            "a",
+            0.0,
+            r#"<successor elementType="road" elementId="b" contactPoint="start"/>"#,
+            r#"<successor id=" -1 "/>"#
+        ),
+        road(
+            "b",
+            10.0,
+            r#"<predecessor elementType="road" elementId="a" contactPoint="end"/>"#,
+            r#"<predecessor id="-1"/>"#
+        ),
+    );
+    let net = load_str(&xml).unwrap();
+    let first = net
+        .lanes()
+        .iter()
+        .find(|l| l.center.points()[0].x < 1.0)
+        .unwrap();
+    assert_eq!(first.successors.len(), 1);
+}
