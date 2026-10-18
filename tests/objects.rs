@@ -1539,3 +1539,20 @@ fn a_dimension_the_spec_rules_out_counts_as_not_given() {
         ]
     );
 }
+
+#[test]
+fn a_border_round_an_open_inner_outline_stays_open() {
+    let xml = on_straight_road(
+        r#"<object id="o" s="20" t="-10"><outlines>
+        <outline id="1" closed="true">
+          <cornerLocal u="-5" v="-5"/><cornerLocal u="5" v="-5"/>
+          <cornerLocal u="5" v="5"/><cornerLocal u="-5" v="5"/></outline>
+        <outline id="2" outer="false" closed="false">
+          <cornerLocal u="-1" v="-1"/><cornerLocal u="1" v="-1"/><cornerLocal u="1" v="1"/></outline>
+        </outlines>
+        <borders><border width="0.2" outlineId="2" useCompleteOutline="true"/></borders></object>"#,
+    );
+    let net = xodr::load_str(&xml).unwrap();
+    let border = &net.objects()[0].borders[0];
+    assert_eq!(border.pieces.len(), 2);
+}

@@ -3968,7 +3968,7 @@ fn outline_parts(
                     .extend(markings(node, outline_node, &ring, faults));
                 owner
                     .borders
-                    .extend(borders(node, outline_node, &ring, true));
+                    .extend(borders(node, outline_node, &ring, ring.closed));
             }
             let painted = owner.fill_type == "paint";
             if let Shape::Outline { holes, .. } = &mut owner.shape {
