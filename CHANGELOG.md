@@ -73,6 +73,13 @@
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
+### Tests
+
+- The `height_at` budget test and benchmark probe at `(x, y)`, the ground
+  plane. They passed the elevation as `y`, so most probes missed the road
+  and timed the miss path. `docs/design.md` gives the measured hit cost,
+  about 0.3 us.
+
 ## 0.7.1 - 2026-10-18
 
 The crate changes only in its docs. The rest of this release is the

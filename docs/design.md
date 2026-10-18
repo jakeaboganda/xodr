@@ -87,7 +87,7 @@ the roads are nearby, not on the map's size. On CARLA's Town07 (234 roads, 947 l
 | `nearest_lane` / `sample_near` | ~0.4 us |
 | `road_position` | ~6 us |
 | `route` across the map | ~29 us |
-| `MeshSampler::height_at` | ~0.2 us |
+| `MeshSampler::height_at` | ~0.3 us |
 
 Import takes ~20 ms. `RoadSurface::sample` takes ~0.5 us on
 `tests/data/crg.xodr`.
