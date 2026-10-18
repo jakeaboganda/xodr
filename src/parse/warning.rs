@@ -211,6 +211,29 @@ pub enum Warning {
         /// Its `id`, as the file writes it. Empty if it has none.
         id: String,
     },
+    /// A `<lane>` under `<left>` with a negative `id`, or under `<right>`
+    /// with a positive one. The spec numbers left lanes up from 1 and right
+    /// lanes down from -1, so the two disagree on its side. The crate drops
+    /// it.
+    LaneOnWrongSide {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// Its zero-based lane section.
+        section: usize,
+        /// Its `<lane id>`.
+        lane: i32,
+    },
+    /// A `<lane>` whose `id` an earlier lane of its lane section has. The
+    /// spec makes lane ids unique in a section. The crate keeps the first
+    /// and drops this one.
+    LaneIdRepeated {
+        /// The `<road id>` it is on.
+        road_id: String,
+        /// Its zero-based lane section.
+        section: usize,
+        /// Its `<lane id>`.
+        lane: i32,
+    },
     /// A `<lane>` with no `<width>` or `<border>` the crate could read. It
     /// has no extent, so it did not bake, and neither did its road marks. A
     /// lane outside it stacks on the lane inside it.
@@ -883,6 +906,8 @@ impl Warning {
             | Self::RoadMarkLineDropped { road_id, .. }
             | Self::LaneDropped { road_id, .. }
             | Self::WidthAndBorder { road_id, .. }
+            | Self::LaneOnWrongSide { road_id, .. }
+            | Self::LaneIdRepeated { road_id, .. }
             | Self::BorderWithLaneOffset { road_id, .. }
             | Self::BorderCrossesInnerLane { road_id, .. }
             | Self::ShapeShortOfRoad { road_id, .. }
@@ -994,6 +1019,22 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} dropped, it has no usable <width> or <border>"
+            ),
+            Self::LaneOnWrongSide {
+                road_id,
+                section,
+                lane,
+            } => write!(
+                f,
+                "road {road_id:?}, lane section {section}: lane {lane} is on the other side from its id, dropped"
+            ),
+            Self::LaneIdRepeated {
+                road_id,
+                section,
+                lane,
+            } => write!(
+                f,
+                "road {road_id:?}, lane section {section}: a second lane {lane}, dropped"
             ),
             Self::WidthAndBorder {
                 road_id,

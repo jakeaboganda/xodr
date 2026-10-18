@@ -27,6 +27,11 @@
 
 ### Fixes
 
+- A `<lane>` whose `id` sign disagrees with its `<left>` or `<right>`
+  is dropped with a new `Warning::LaneOnWrongSide`. Before, its id alone
+  set its side, so it moved across the road. A second lane with an `id`
+  already in its section is dropped with a new `Warning::LaneIdRepeated`.
+  Before, both baked and lookups by id found only the first.
 - An `<include>` inside another `<include>` no longer panics. The outer one
   replaces it, as before.
 - A map that includes itself is read once, and `./name` and `name` count as

@@ -9,7 +9,7 @@
 //! [libOpenDRIVE](https://github.com/pageldev/libOpenDRIVE).
 
 use std::cell::Cell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::coords::{Point, Vector};
 use crate::crg::Stretch;
@@ -1513,6 +1513,12 @@ struct SectionDef {
     /// `<right>` it skipped for an `id` that isn't a whole number other than
     /// 0, in file order.
     bad_ids: Vec<String>,
+    /// The `<lane id>`s it skipped for a sign that disagrees with their side,
+    /// in file order.
+    misplaced: Vec<i32>,
+    /// The `<lane id>`s it skipped for repeating an earlier lane's, in file
+    /// order.
+    repeated: Vec<i32>,
     /// The `<lane id>`s with borders, if any lane has widths, in file order.
     mixed: Vec<i32>,
 }
@@ -1525,7 +1531,8 @@ impl SectionDef {
 
     fn parse(section: roxmltree::Node) -> Self {
         let (mut left, mut right, mut dropped) = (Vec::new(), Vec::new(), Vec::new());
-        let mut bad_ids = Vec::new();
+        let (mut bad_ids, mut misplaced, mut repeated) = (Vec::new(), Vec::new(), Vec::new());
+        let mut seen = HashSet::new();
         let (mut with_widths, mut with_borders) = (false, Vec::new());
         for side in ["left", "right"] {
             let Some(side_node) = child(section, side) else {
@@ -1537,6 +1544,14 @@ impl SectionDef {
                     bad_ids.push(lane.attribute("id").unwrap_or_default().to_string());
                     continue;
                 };
+                if (side == "left") != (id > 0) {
+                    misplaced.push(id);
+                    continue;
+                }
+                if !seen.insert(id) {
+                    repeated.push(id);
+                    continue;
+                }
                 let widths = lane_cubics(lane.children().filter(|n| n.has_tag_name("width")));
                 let borders = lane_cubics(lane.children().filter(|n| n.has_tag_name("border")));
                 with_widths |= !widths.is_empty();
@@ -1612,6 +1627,8 @@ impl SectionDef {
             center_lane,
             dropped,
             bad_ids,
+            misplaced,
+            repeated,
             mixed,
         }
     }
@@ -2159,6 +2176,16 @@ impl BakedRoad {
                 lane,
             })
             .chain(def.mixed.iter().map(|&lane| Warning::WidthAndBorder {
+                road_id: road_id.clone(),
+                section: index,
+                lane,
+            }))
+            .chain(def.misplaced.iter().map(|&lane| Warning::LaneOnWrongSide {
+                road_id: road_id.clone(),
+                section: index,
+                lane,
+            }))
+            .chain(def.repeated.iter().map(|&lane| Warning::LaneIdRepeated {
                 road_id: road_id.clone(),
                 section: index,
                 lane,

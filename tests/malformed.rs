@@ -747,3 +747,44 @@ fn a_duplicate_road_skipped_out_of_range_leaves_the_first_one_linked() {
         .unwrap();
     assert_eq!(first.successors.len(), 1);
 }
+
+#[test]
+fn a_lane_on_the_wrong_side_or_with_a_repeated_id_is_dropped_with_a_warning() {
+    let xml = r#"<OpenDRIVE><road id="r" length="20"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0">
+        <left><lane id="-1" type="sidewalk"><width sOffset="0" a="2"/></lane></left>
+        <right><lane id="-1" type="driving"><width sOffset="0" a="3"/></lane>
+        <lane id="-1" type="border"><width sOffset="0" a="1"/></lane></right>
+        </laneSection></lanes></road></OpenDRIVE>"#;
+    let (net, prov) = load_str_with_provenance(xml).unwrap();
+    assert_eq!(net.lanes().len(), 1);
+    assert_eq!(net.lanes()[0].kind, xodr::LaneType::Driving);
+    let at = |lane| (String::from("r"), 0, lane);
+    let lane_warnings: Vec<_> = prov
+        .warnings
+        .iter()
+        .filter_map(|w| match w {
+            Warning::LaneOnWrongSide {
+                road_id,
+                section,
+                lane,
+            } => Some(("side", (road_id.clone(), *section, *lane))),
+            Warning::LaneIdRepeated {
+                road_id,
+                section,
+                lane,
+            } => Some(("repeat", (road_id.clone(), *section, *lane))),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(lane_warnings, [("side", at(-1)), ("repeat", at(-1))]);
+    assert_eq!(
+        prov.warnings
+            .iter()
+            .find(|w| matches!(w, Warning::LaneOnWrongSide { .. }))
+            .unwrap()
+            .to_string(),
+        r#"road "r", lane section 0: lane -1 is on the other side from its id, dropped"#
+    );
+}
