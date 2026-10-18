@@ -64,6 +64,12 @@
   roads between.
 - A road skipped as `OutOfRange` no longer drops the links of an earlier
   road with the same id.
+- An object `<marking>` or `<border>` visits only the dashes each edge of
+  its path overlaps. A dashed marking along a finely sampled curve took
+  over a second per marking, and a file of many could hang the import.
+- A dashed marking with a large negative `startOffset` paints the dashes
+  that reach its path. Before, the dashes before the path counted toward
+  the dash limit and dropped the marking.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
