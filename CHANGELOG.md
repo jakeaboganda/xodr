@@ -73,6 +73,15 @@
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
+### Viewer
+
+- The page loads a CRG that includes other files through
+  `$ROAD_CRG_FILE`, as `viewer_export` does. Before, the page refused it.
+- `viewer_export` writes each scene whole or not at all. Before, a failed
+  write left a truncated scene that `--refresh` took as up to date.
+- `viewer_export --refresh` fails, naming the folder, when there is no
+  `viewer/web` where it runs. Before, it said every scene was up to date.
+
 ### Tests
 
 - The `height_at` budget test and benchmark probe at `(x, y)`, the ground

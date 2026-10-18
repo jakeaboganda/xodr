@@ -18,8 +18,9 @@ sh viewer/run.sh        # or: sh viewer/run.sh 8080
 This builds the page, serves it on <http://localhost:8000> and opens it. The
 first run installs the `wasm32-unknown-unknown` target and `wasm-bindgen`.
 
-Click `open .xodr` and pick a map. Pick its `.crg` files and included files
-in the same dialog. The sidebar names any it is missing.
+Click `open .xodr` and pick a map. Pick its `.crg` files, the files they
+include, and its included files in the same dialog. The sidebar names any it
+is missing.
 
 To host the page elsewhere, run `sh viewer/build.sh` and serve `viewer/web`
 over HTTP. Opening `index.html` as a file won't work.
@@ -40,7 +41,10 @@ cargo run --release -p xodr-viewer -- tests/data/objects.xodr /tmp/objects.json
   nothing outside that folder.
 - If a map fails, it reports it, bakes the rest, and exits with an error.
 - `sh viewer/build.sh` runs `viewer_export --refresh`, which bakes again any
-  scene older than its `.xodr` or than `viewer_export`.
+  scene older than its `.xodr` or than `viewer_export`. Run it from the
+  repository root. Elsewhere it finds no `viewer/web` and fails.
+- A scene is written whole or not at all, so a failed write leaves the old
+  scene, or none.
 
 A link can name a scene and a camera, as
 `?scene=town07.json&view=x,y,z,tx,ty,tz`. Press `v` to put the current view

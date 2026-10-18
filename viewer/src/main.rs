@@ -41,7 +41,13 @@ fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
     let jobs: Vec<(String, String)> = match args.as_slice() {
         [flag] if flag == "--refresh" => {
-            let (jobs, unknown) = stale_scenes(Path::new(SCENES));
+            let (jobs, unknown) = match stale_scenes(Path::new(SCENES)) {
+                Ok(found) => found,
+                Err(e) => {
+                    eprintln!("reading {SCENES}: {e}. Run from the repository root.");
+                    return ExitCode::FAILURE;
+                }
+            };
             if !unknown.is_empty() {
                 eprintln!(
                     "not refreshed, no .xodr found for: {}. Export each once with \
@@ -135,12 +141,8 @@ fn export(input: &str, output: &str) -> Result<(), String> {
         eprintln!("warning: {input}: {note}");
     }
 
-    let written = (|| {
-        let mut file = io::BufWriter::new(fs::File::create(output)?);
-        scene.write(&mut file)?;
-        io::Write::flush(&mut file)?;
-        fs::metadata(output).map(|m| m.len())
-    })();
+    let written = write_whole(Path::new(output), |file| Ok(scene.write(file)?))
+        .and_then(|()| fs::metadata(output).map(|m| m.len()));
     let bytes = written.map_err(|e: io::Error| format!("writing {output}: {e}"))?;
 
     let count = |key: &str| scene.json[key].as_array().map_or(0, Vec::len);
@@ -219,15 +221,40 @@ fn write_sources<'a>(
     )
 }
 
+/// A map to bake, and the scene to write it to.
+type Job = (String, String);
+
+/// Write `path` with `write`, through a file beside it that replaces it only
+/// once whole, so a failed write leaves no part of a scene.
+fn write_whole(
+    path: &Path,
+    write: impl FnOnce(&mut io::BufWriter<fs::File>) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut partial = path.as_os_str().to_owned();
+    partial.push(".partial");
+    let partial = PathBuf::from(partial);
+    let result = (|| {
+        let mut file = io::BufWriter::new(fs::File::create(&partial)?);
+        write(&mut file)?;
+        io::Write::flush(&mut file)?;
+        fs::rename(&partial, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&partial);
+    }
+    result
+}
+
 /// The `(source, scene)` jobs that bake again each scene in `folder` older
 /// than its `.xodr`, an OpenCRG file the `.xodr` names, or this program, and
-/// the scenes whose source it can't find, which it leaves as they are.
-fn stale_scenes(folder: &Path) -> (Vec<(String, String)>, Vec<String>) {
+/// the scenes whose source it can't find, which it leaves as they are, or
+/// why `folder` can't be read.
+fn stale_scenes(folder: &Path) -> io::Result<(Vec<Job>, Vec<String>)> {
     let modified = |path: &Path| fs::metadata(path).and_then(|m| m.modified()).ok();
     let exporter = env::current_exe().ok().and_then(|exe| modified(&exe));
     let sources = read_sources(folder);
     let (mut jobs, mut unknown) = (Vec::new(), Vec::new());
-    for name in scene_names(folder).unwrap_or_default() {
+    for name in scene_names(folder)? {
         let scene = folder.join(&name);
         let stem = name.trim_end_matches(".json");
         let source = sources
@@ -255,7 +282,7 @@ fn stale_scenes(folder: &Path) -> (Vec<(String, String)>, Vec<String>) {
             ));
         }
     }
-    (jobs, unknown)
+    Ok((jobs, unknown))
 }
 
 /// The folder of the map at `input`, `.` for a bare file name.
@@ -273,7 +300,7 @@ fn inside(dir: &Path, path: &Path) -> io::Result<PathBuf> {
         true => Ok(real),
         false => Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "a CRG file must be in the map's folder",
+            "a file the map names must be in its folder or below it",
         )),
     }
 }
