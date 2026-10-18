@@ -298,7 +298,8 @@ fn sweep(mesh: &mut Mesh, sections: &[Section]) {
         return;
     };
     let (first, last) = (&sections[0], &sections[sections.len() - 1]);
-    for (s, out) in [(first, start_out), (last, end_out)] {
+    let caps = sections.len().min(2);
+    for (s, out) in [(first, start_out), (last, end_out)].into_iter().take(caps) {
         face(
             mesh,
             &[s.left.base, s.right.base, s.right.top, s.left.top],
@@ -312,7 +313,7 @@ fn sweep(mesh: &mut Mesh, sections: &[Section]) {
 /// the start, and on along its last step at the end, each from `at`, a point
 /// on a section. Each cap faces its own end even where the sweep curves back
 /// on itself. `None` for no sections. One section gives zero, which keeps a
-/// cap's triangles as given.
+/// cap's triangles as given, and has one cap, not two in one place.
 fn end_directions<T>(sections: &[T], at: impl Fn(&T) -> Point) -> Option<(Vector, Vector)> {
     let n = sections.len();
     let (first, last) = (sections.first()?, sections.last()?);
@@ -353,7 +354,9 @@ fn round_sweep(mesh: &mut Mesh, sections: &[Section]) {
     };
     let (ring_first, ring_last) = (&rings[0].1, &rings[rings.len() - 1].1);
     face(mesh, ring_first, &fan(CYLINDER_SEGMENTS), start_out);
-    face(mesh, ring_last, &fan(CYLINDER_SEGMENTS), end_out);
+    if rings.len() > 1 {
+        face(mesh, ring_last, &fan(CYLINDER_SEGMENTS), end_out);
+    }
 }
 
 /// A skeleton polyline: a frustum of [`CYLINDER_SEGMENTS`] sides along each
@@ -648,6 +651,23 @@ fn bridge(polygon: &[[f32; 2]], ring: &mut Vec<usize>, hole: &[usize]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_sweep_of_one_section_has_one_cap() {
+        let corner = |x: f32| Corner {
+            base: Point::new(x, 0.0, 0.0),
+            top: Point::new(x, 0.0, 1.0),
+        };
+        let one = [Section {
+            left: corner(0.0),
+            right: corner(1.0),
+        }];
+        let (mut square, mut round) = (Mesh::default(), Mesh::default());
+        sweep(&mut square, &one);
+        round_sweep(&mut round, &one);
+        assert_eq!(square.indices.len() / 3, 2);
+        assert_eq!(round.indices.len() / 3, CYLINDER_SEGMENTS - 2);
+    }
 
     fn area(polygon: &[[f32; 2]], triangles: &[[usize; 3]]) -> f32 {
         triangles
