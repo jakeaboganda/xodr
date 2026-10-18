@@ -191,7 +191,7 @@ warnings. `!w.is_ignored()` filters them out.
 | `RoadMarkDropped` | a `<roadMark>` at the same `sOffset` as the next on its lane, which replaces it. One at or past its section's end goes without a warning |
 | `IncludeDropped` | an `<include>` naming no file, one that can't be read, one that includes itself, nests over 8 deep, reads past 256 MiB, isn't XML or has the wrong root |
 | `SignalDropped` | a `<signal>` without a readable `s` or `t`, or off the ends of its road |
-| `SignalLinkDropped` | a signal's `<dependency>` or `<reference>`, a `<signalReference>` or a `<control>` naming a signal or object the load didn't bake, or a `<signalReference>` off its road |
+| `SignalLinkDropped` | a signal's `<dependency>` or `<reference>`, a `<signalReference>` or a `<control>` naming a signal or object the load didn't bake, a junction's `<controller>` naming no controller, or a `<signalReference>` off its road |
 | `CrgDropped` | a road or junction `<CRG>` without a `file`, a stretch on the road, a `mode` the crate knows (`global` for a junction's), or a `purpose` of `elevation` or `friction`, or a road one past the 2,000 km budget |
 | `ObjectDropped` | an `<object>` without a readable `s` or `t`, or an `<objectReference>` without one or naming no object |
 | `RepeatDropped` | a `<repeat>` without a readable `s`, `length` or `distance`, or with a negative one of the last two |

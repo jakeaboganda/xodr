@@ -70,6 +70,9 @@
 - A dashed marking with a large negative `startOffset` paints the dashes
   that reach its path. Before, the dashes before the path counted toward
   the dash limit and dropped the marking.
+- A junction's `<controller>` naming no top-level `<controller>` raises a
+  `SignalLinkDropped`, as every other dangling signal link does. Before,
+  it was dropped without one.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 

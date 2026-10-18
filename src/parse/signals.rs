@@ -186,7 +186,10 @@ fn place_controllers(root: roxmltree::Node, placed: &HashMap<String, SignalId>, 
     }
     for junction in root.children().filter(|n| n.has_tag_name("junction")) {
         for node in junction.children().filter(|n| n.has_tag_name("controller")) {
-            let Some(&i) = node.attribute("id").and_then(|id| controller_by_id.get(id)) else {
+            let named = node.attribute("id");
+            let Some(&i) = named.and_then(|id| controller_by_id.get(id)) else {
+                let dropped = link_dropped("", "controller", named.unwrap_or_default());
+                out.warnings.push(dropped);
                 continue;
             };
             out.controller_provenance[i]

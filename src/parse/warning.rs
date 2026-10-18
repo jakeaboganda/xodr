@@ -662,7 +662,8 @@ pub enum Warning {
     /// A signal's or a sign's `<dependency>` or `<reference>`, a
     /// `<signalReference>`, a `<controller>`'s `<control>` or a
     /// `<vmsGroup>`'s `<vmsBoardReference>` naming a signal, sign or object
-    /// the load didn't bake. Also a `<signalReference>` without a readable `s` or
+    /// the load didn't bake, or a junction's `<controller>` naming no
+    /// `<controller>`. Also a `<signalReference>` without a readable `s` or
     /// `t`, or off the ends of its road. The crate drops it.
     SignalLinkDropped {
         /// The `<road id>` it is on. Empty for a `<control>` or a
@@ -1369,6 +1370,7 @@ impl fmt::Display for Warning {
                 let at = match (road_id.is_empty(), element.as_str()) {
                     (false, _) => format!("road {road_id:?}"),
                     (true, "vmsBoardReference") => "a <vmsGroup>".to_string(),
+                    (true, "controller") => "a junction".to_string(),
                     (true, _) => "a controller".to_string(),
                 };
                 write!(f, "{at}: <{element}> to {id:?} names nothing the load baked, dropped")
