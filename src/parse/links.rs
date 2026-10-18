@@ -453,7 +453,7 @@ pub(crate) fn lane_refs(lane: roxmltree::Node) -> (Vec<LaneRef>, Vec<LaneRef>) {
             .filter(|n| n.has_tag_name(tag))
             .filter_map(|n| {
                 Some(LaneRef {
-                    id: n.attribute("id")?.parse().ok()?,
+                    id: super::attr_i32(n, "id")?,
                     layer: n.attribute("layer").map(|l| Layer::from_attr(Some(l))),
                 })
             })
