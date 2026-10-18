@@ -688,13 +688,12 @@ fn load_with(
 
 /// Bake a document with its includes read in, `warnings` already raised.
 fn bake(xml: &str, mut warnings: Vec<Warning>) -> Result<(RoadNetwork, Provenance), ImportError> {
-    let cleaned = sanitize(xml);
-    if deeper_than(&cleaned, MAX_DEPTH) {
+    if deeper_than(xml, MAX_DEPTH) {
         return Err(ImportError::Malformed(format!(
             "elements nested more than {MAX_DEPTH} deep"
         )));
     }
-    let doc = roxmltree::Document::parse(cleaned.as_ref())?;
+    let doc = roxmltree::Document::parse(xml)?;
     let root = doc.root_element();
     let mut lanes = Vec::new();
     let mut objects = Objects::default();
@@ -1176,9 +1175,11 @@ fn deeper_than(xml: &str, limit: usize) -> bool {
 /// `<?xml ... ?>` declaration. Tools (e.g. CARLA) emit a license comment
 /// *before* the declaration, which is malformed XML that strict parsers reject;
 /// the declaration only names version/encoding, which we don't need for UTF-8.
+/// Only a declaration with nothing but comments and space before it goes, so
+/// `<?xml` in a later comment or text is left alone.
 fn sanitize(xml: &str) -> std::borrow::Cow<'_, str> {
     let xml = xml.trim_start_matches('\u{feff}');
-    if let Some(start) = xml.find("<?xml") {
+    if let Some(start) = xml.find("<?xml").filter(|&at| only_comments(&xml[..at])) {
         if let Some(rel_end) = xml[start..].find("?>") {
             let mut out = String::with_capacity(xml.len());
             out.push_str(&xml[..start]);
@@ -1187,6 +1188,23 @@ fn sanitize(xml: &str) -> std::borrow::Cow<'_, str> {
         }
     }
     std::borrow::Cow::Borrowed(xml)
+}
+
+/// Whether `text` is nothing but whole comments and white space.
+fn only_comments(mut text: &str) -> bool {
+    loop {
+        text = text.trim_start();
+        if text.is_empty() {
+            return true;
+        }
+        let Some(rest) = text.strip_prefix("<!--") else {
+            return false;
+        };
+        let Some(end) = rest.find("-->") else {
+            return false;
+        };
+        text = &rest[end + 3..];
+    }
 }
 
 /// One lane parsed from a `<laneSection>`, before it is sampled into a [`Lane`].
@@ -5619,6 +5637,14 @@ mod tests {
             vec![net.lanes()[1].id],
             "road -> junction -> connecting road"
         );
+    }
+
+    #[test]
+    fn only_a_leading_declaration_is_stripped() {
+        let carla = "<!-- licence -->\n<?xml version=\"1.0\"?><OpenDRIVE/>";
+        assert_eq!(sanitize(carla), "<!-- licence -->\n<OpenDRIVE/>");
+        let quoted = "<OpenDRIVE><!-- see <?xml notes --><header/><?app x?></OpenDRIVE>";
+        assert_eq!(sanitize(quoted), quoted);
     }
 
     #[test]
