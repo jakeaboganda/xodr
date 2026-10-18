@@ -79,14 +79,14 @@ fn bench_mesh(c: &mut Criterion) {
     group.bench_function("height_at", |b| {
         b.iter(|| {
             for p in &probes {
-                black_box(mesh.height_at(black_box(p.x), black_box(p.z)));
+                black_box(mesh.height_at(black_box(p.x), black_box(p.y)));
             }
         })
     });
     group.bench_function("height_at_indexed", |b| {
         b.iter(|| {
             for p in &probes {
-                black_box(sampler.height_at(black_box(p.x), black_box(p.z)));
+                black_box(sampler.height_at(black_box(p.x), black_box(p.y)));
             }
         })
     });

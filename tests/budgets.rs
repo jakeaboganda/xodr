@@ -114,11 +114,15 @@ fn the_indexed_lookups_beat_the_scans_they_replaced() {
 
     let mesh = net.surface_mesh();
     let sampler = mesh.sampler();
+    assert!(
+        probes.iter().all(|p| sampler.height_at(p.x, p.y).is_some()),
+        "every probe stands on a lane, so the race times hits, not misses"
+    );
     let indexed = time(&probes, |p| {
-        std::hint::black_box(sampler.height_at(p.x, p.z));
+        std::hint::black_box(sampler.height_at(p.x, p.y));
     });
     let scanned = time(&probes, |p| {
-        std::hint::black_box(mesh.height_at(p.x, p.z));
+        std::hint::black_box(mesh.height_at(p.x, p.y));
     });
     assert!(
         scanned > indexed * SPEEDUP,
