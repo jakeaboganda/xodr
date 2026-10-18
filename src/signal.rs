@@ -163,7 +163,7 @@ pub struct Signal {
 pub enum Semantic {
     /// A speed rule, such as a limit.
     Speed {
-        /// Its `type`, such as `maximum` or `zoneBegin`.
+        /// Its `type`, such as `maximum` or `zone`.
         kind: String,
         /// The speed.
         value: Option<f64>,
@@ -276,11 +276,11 @@ pub struct BoardSign {
     /// [`Signal::lanes`] if it has none. Its own validity applies where the
     /// signal stands, not where a `<signalReference>` applies the signal too.
     pub lanes: Vec<LaneId>,
-    /// What it depends on: its own `<dependency>`s, which override the
-    /// signal's, or the signal's if it has none.
+    /// What it depends on: its own `<dependency>`s, or else its board's,
+    /// or else the signal's [`Signal::dependencies`].
     pub dependencies: Vec<SignDependency>,
-    /// What it relates to: its own `<reference>`s, which override the
-    /// signal's, or the signal's [`Signal::references`] if it has none.
+    /// What it relates to: its own `<reference>`s, or else its board's, or
+    /// else the signal's [`Signal::references`].
     pub references: Vec<Reference>,
 }
 
@@ -337,9 +337,9 @@ pub struct DisplayArea {
     /// `<validity>`. The spec's text gives a display area one, though its
     /// schema does not, and the crate reads it.
     pub lanes: Vec<LaneId>,
-    /// What it depends on: its own `<dependency>`s, which override the
-    /// signal's, or the signal's [`Signal::dependencies`] if it has none.
-    /// Like its validity, from the spec's text.
+    /// What it depends on: its own `<dependency>`s, or else its board's, or
+    /// else the signal's [`Signal::dependencies`]. Like its validity, from
+    /// the spec's text.
     pub dependencies: Vec<Dependency>,
 }
 
