@@ -529,3 +529,36 @@ fn a_lane_position_finds_the_closed_temporary_lane_whatever_its_type() {
         xodr::LaneType::Restricted
     );
 }
+
+#[test]
+fn center_paint_on_a_temporary_layer_lies_on_its_own_center_line() {
+    let section = |mark: &str| {
+        format!(
+            r#"<laneSection s="0"><center><lane id="0" type="none">{mark}</lane></center>
+            <right><lane id="-1" type="driving"><width sOffset="0" a="3"/></lane></right>
+            </laneSection>"#
+        )
+    };
+    let xml = format!(
+        r#"<OpenDRIVE><header revMajor="1" revMinor="9"/><road id="r" length="20"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lateralProfile><shape s="0" t="0" a="0" b="-0.02" c="0" d="0"/></lateralProfile>
+        <lanes>{}</lanes>
+        <lanes layer="temporary"><laneOffset s="0" a="3" b="0" c="0" d="0"/>{}</lanes>
+        </road></OpenDRIVE>"#,
+        section(""),
+        section(r#"<roadMark sOffset="0" type="solid" width="0.1"/>"#)
+    );
+    let net = xodr::load_str(&xml).unwrap();
+    let corners: Vec<_> = net
+        .road_marks()
+        .iter()
+        .flat_map(|m| &m.lines)
+        .flat_map(|l| l.pieces.iter().flatten())
+        .collect();
+    assert!(!corners.is_empty());
+    for p in corners {
+        let crown = -0.02 * p.y;
+        assert!((p.z - crown).abs() < 1e-3, "{p:?} should be at z {crown}");
+    }
+}

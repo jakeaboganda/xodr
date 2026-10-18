@@ -1162,7 +1162,10 @@ impl Road {
         let height = self
             .across(section, s)
             .find(|a| a.od_id == od_id)
-            .map_or_else(|| self.lateral.height(s, self.base(s)), |a| a.height(t));
+            .map_or_else(
+                || self.lateral.height(s, self.base_of(section.layer, s)),
+                |a| a.height(t),
+            );
         self.raised(s, t, height)
     }
 

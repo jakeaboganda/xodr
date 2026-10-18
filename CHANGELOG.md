@@ -45,6 +45,9 @@
   corner is over 100 km, the most a `length` may be, is bridged with a
   straight edge and an `OutlineGap`. Before, a slight curve could lay a
   corner thousands of kilometres out.
+- The center lane's paint on a temporary lane layer takes its height from
+  that layer's `<laneOffset>`. Before, it used the permanent layer's, so on
+  a crowned road it floated over or sank under the road.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
