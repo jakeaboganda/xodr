@@ -663,3 +663,23 @@ fn a_board_s_own_links_stand_between_its_signs_and_the_signal() {
     assert!((signs[1].position.x - 40.0).abs() < 1e-4 && (signs[1].position.z - 1.0).abs() < 1e-4);
     assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
 }
+
+#[test]
+fn a_junction_controller_naming_no_controller_is_dropped_with_a_warning() {
+    let xml = r#"<OpenDRIVE><header/><road id="1" length="10" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="10"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right><lane id="-1" type="driving">
+        <width sOffset="0" a="3"/></lane></right></laneSection></lanes></road>
+        <junction id="j"><controller id="nope" type="x"/></junction></OpenDRIVE>"#;
+    let (_, prov) = xodr::load_str_with_provenance(xml).unwrap();
+    let dropped = xodr::Warning::SignalLinkDropped {
+        road_id: String::new(),
+        element: "controller".into(),
+        id: "nope".into(),
+    };
+    assert!(prov.warnings.contains(&dropped), "{:?}", prov.warnings);
+    assert_eq!(
+        dropped.to_string(),
+        r#"a junction: <controller> to "nope" names nothing the load baked, dropped"#
+    );
+}
