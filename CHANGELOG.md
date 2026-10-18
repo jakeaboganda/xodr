@@ -81,6 +81,9 @@
   by, and enters a two-way successor at the end it meets. Before, a route
   could enter a two-way lane and leave it at the same end, a U-turn that
   drove none of it.
+- A boundary `joint` whose `contactPoint` is a station, as the other
+  segments may give, blends its transition from that end of the road.
+  Before, any value but `end` blended from the road's start.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
