@@ -157,6 +157,28 @@ fn the_centerline_s_of_a_lane_position_is_its_distance_along_the_lane() {
 }
 
 #[test]
+fn an_offset_or_t_that_is_not_finite_has_no_point() {
+    let net = curved();
+    let id = lane(&net, 1);
+    for bad in [f64::NAN, f64::INFINITY] {
+        let at = LanePosition {
+            lane: id,
+            s: 10.0,
+            offset: bad,
+        };
+        assert!(net.lane_point(at).is_none());
+        let road = net.road_lane(id).unwrap().road;
+        assert!(net
+            .road_point(RoadPosition {
+                road,
+                s: 10.0,
+                t: bad
+            })
+            .is_none());
+    }
+}
+
+#[test]
 fn an_offset_past_the_edge_stays_level_with_the_lane() {
     let net = curved();
     let sidewalk = lane(&net, -2);
