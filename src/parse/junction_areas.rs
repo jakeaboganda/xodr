@@ -314,11 +314,19 @@ fn ring<'a>(
 }
 
 /// Twice the area `ring` encloses in plan: positive when it runs
-/// counter-clockwise.
-fn signed_area(ring: &[Point]) -> f32 {
+/// counter-clockwise. Measured from its first point, in `f64`, so a ring
+/// far from the origin keeps its sign.
+fn signed_area(ring: &[Point]) -> f64 {
+    let Some(&o) = ring.first() else {
+        return 0.0;
+    };
+    let rel = |p: &Point| (f64::from(p.x - o.x), f64::from(p.y - o.y));
     ring.iter()
         .zip(ring.iter().cycle().skip(1))
-        .map(|(a, b)| a.x * b.y - b.x * a.y)
+        .map(|(a, b)| {
+            let ((ax, ay), (bx, by)) = (rel(a), rel(b));
+            ax * by - bx * ay
+        })
         .sum()
 }
 
@@ -604,4 +612,21 @@ pub(super) fn crossings(
         });
     }
     (out, warnings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_ring_far_from_the_origin_keeps_its_winding() {
+        let (x, y) = (500_000.0, 5_000_000.0);
+        let ring: Vec<Point> = [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)]
+            .iter()
+            .map(|(u, v)| Point::new(x + u, y + v, 0.0))
+            .collect();
+        assert!((signed_area(&ring) - 800.0).abs() < 1.0);
+        let reversed: Vec<Point> = ring.iter().rev().copied().collect();
+        assert!((signed_area(&reversed) + 800.0).abs() < 1.0);
+    }
 }
