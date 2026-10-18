@@ -1556,3 +1556,34 @@ fn a_border_round_an_open_inner_outline_stays_open() {
     let border = &net.objects()[0].borders[0];
     assert_eq!(border.pieces.len(), 2);
 }
+
+#[test]
+fn borders_past_the_piece_budget_are_left_out_as_they_are_built() {
+    let corners: String = (0..100)
+        .map(|k| {
+            let a = k as f64 * std::f64::consts::TAU / 100.0;
+            format!(
+                r#"<cornerLocal u="{}" v="{}"/>"#,
+                4.0 * a.cos(),
+                4.0 * a.sin()
+            )
+        })
+        .collect();
+    let border = r#"<border width="0.1" useCompleteOutline="true"/>"#.repeat(25_000);
+    let xml = on_straight_road(&format!(
+        r#"<object id="o" s="20" t="-10"><outlines><outline id="1" closed="true">{corners}
+        </outline></outlines><borders>{border}</borders></object>"#
+    ));
+    let (net, prov) = xodr::load_str_with_provenance(&xml).unwrap();
+    let pieces: usize = net
+        .objects()
+        .iter()
+        .flat_map(|o| &o.borders)
+        .map(|b| b.pieces.len())
+        .sum();
+    assert!(pieces <= 2_000_000, "{pieces} pieces");
+    assert!(prov
+        .warnings
+        .iter()
+        .any(|w| matches!(w, xodr::Warning::TooManyCopies { .. })));
+}

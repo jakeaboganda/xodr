@@ -67,6 +67,10 @@
 - An object `<marking>` or `<border>` visits only the dashes each edge of
   its path overlaps. A dashed marking along a finely sampled curve took
   over a second per marking, and a file of many could hang the import.
+- An object's `<border>`s stop at the object piece budget as they are
+  built, with a `TooManyCopies`. Before, every border was built first, so
+  a small file of many borders round a large outline could take gigabytes
+  before the budget refused it.
 - A dashed marking with a large negative `startOffset` paints the dashes
   that reach its path. Before, the dashes before the path counted toward
   the dash limit and dropped the marking.
