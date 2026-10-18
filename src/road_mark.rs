@@ -254,7 +254,8 @@ pub struct RoadMark {
     /// none is `None`, as libOpenDRIVE reads it.
     pub kind: RoadMarkType,
     /// How heavy its lines are. `Standard` if the map does not say, which
-    /// the OpenDRIVE spec gives no default for.
+    /// the OpenDRIVE spec gives no default for, or names a weight other
+    /// than `standard` or `bold`.
     pub weight: RoadMarkWeight,
     /// The colour the map names, such as `yellow`, or `standard`, meaning
     /// white. Free text. The OpenDRIVE spec requires one. A mark the map
