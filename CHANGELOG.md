@@ -29,6 +29,11 @@
 - `Polyline::project` of a point that is not finite gives a NaN `s` and
   `offset`. Before, it said the point lay on the line's start. A repeated
   point no longer reports an offset of 0 for a point beside it.
+- `RoadNetwork::lane_point` and `road_point` give `None` for an offset or
+  `t` that is not finite, as `nearest_lane` does. Before, they gave a NaN
+  point. `road_position_on` an unknown road returns at once rather than
+  searching the whole map, and a deserialized section whose start is past
+  its end no longer panics a position query.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 

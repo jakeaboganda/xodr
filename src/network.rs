@@ -959,7 +959,7 @@ impl RoadNetwork {
     }
 
     /// The point on the road surface at `at`, or `None` if there is no such
-    /// road, or `s` is off its ends.
+    /// road, `s` is off its ends, or `t` is not finite.
     ///
     /// The surface is the one the lanes are baked on: the reference line with
     /// its elevation, superelevation and lateral shape, and the `<height>` of
@@ -969,7 +969,7 @@ impl RoadNetwork {
     /// call.
     pub fn road_point(&self, at: RoadPosition) -> Option<Point> {
         let road = self.road(at.road)?;
-        road.on_road(at.s).then(|| road.surface(at.s, at.t).0)
+        (road.on_road(at.s) && at.t.is_finite()).then(|| road.surface(at.s, at.t).0)
     }
 
     /// The road position nearest `point`, or `None` on a network without
@@ -993,6 +993,7 @@ impl RoadNetwork {
     /// it has no lanes. Where roads overlap, as in a junction, this keeps a
     /// caller that knows its road on it.
     pub fn road_position_on(&self, road: RoadId, point: Point) -> Option<RoadPosition> {
+        self.road(road)?;
         self.nearest_road_position(point, Some(road))
     }
 
@@ -1033,7 +1034,8 @@ impl RoadNetwork {
     }
 
     /// The point on `at.lane`'s surface at its position, or `None` if there
-    /// is no such lane on a road, or `s` is off the lane's section.
+    /// is no such lane on a road, `s` is off the lane's section, or `offset`
+    /// is not finite.
     ///
     /// The surface is the lane's own, carried on flat past its borders, so an
     /// `offset` past the lane's edge stays level with the lane rather than
@@ -1043,7 +1045,7 @@ impl RoadNetwork {
         let on = self.road_lane(at.lane)?;
         let road = self.road(on.road)?;
         let section = road.section(on.section)?;
-        if !(section.start..=section.end).contains(&at.s) {
+        if !(section.start..=section.end).contains(&at.s) || !at.offset.is_finite() {
             return None;
         }
         let lane = road.across(section, at.s).find(|a| a.od_id == on.od_id)?;
@@ -1112,7 +1114,7 @@ impl RoadNetwork {
             .find(|(od_id, _)| *od_id == lane.od_id)?;
         Some(LanePosition {
             lane: id,
-            s: at.s.clamp(section.start, section.end),
+            s: at.s.max(section.start).min(section.end),
             offset: at.t - (lane.inner_t + lane.outer_t) / 2.0,
         })
     }
@@ -1157,7 +1159,7 @@ impl RoadNetwork {
         let (from, to) = (*section.stations.get(k)?, *section.stations.get(k + 1)?);
         let guess = from + (to - from) * f64::from(f);
         let (s, t) = road.locate(f64::from(point.x), f64::from(point.y), guess);
-        let on = s.clamp(section.start, section.end);
+        let on = s.max(section.start).min(section.end);
         let across = road.across(section, on).find(|a| a.od_id == at.od_id)?;
         let (low, high) = (
             across.inner_t.min(across.outer_t),
