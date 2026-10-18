@@ -39,6 +39,8 @@
   The spec rules them out. Before, `radius="0"` beside a `length` and
   `width` made a cylinder of no size, and a negative one an inside-out
   solid.
+- A `<border>` round a whole inner outline that is not closed stays open.
+  Before, it got an edge back to its first corner.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
