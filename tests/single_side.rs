@@ -155,3 +155,16 @@ fn without_singleside_a_section_with_one_side_has_only_that_side() {
     assert_eq!(ids(&prov, "3", 0), [-1]);
     assert_eq!(ids(&prov, "3", 1), [1], "false carries nothing on");
 }
+
+#[test]
+fn a_mark_past_its_section_that_a_side_only_section_carries_on_is_not_dropped() {
+    let (_, prov) = fixture();
+    assert!(
+        !prov
+            .warnings
+            .iter()
+            .any(|w| matches!(w, Warning::RoadMarkDropped { .. })),
+        "{:?}",
+        prov.warnings
+    );
+}

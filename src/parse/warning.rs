@@ -667,10 +667,10 @@ pub enum Warning {
         end: RoadEnd,
     },
     /// A `<roadMark>` whose `sOffset` is the same as the next one's on its
-    /// lane, so the next one replaces it before it paints anything. The
-    /// crate drops it. One at or past the end of its lane section goes
-    /// without a warning: exporters write them there, and a single-side
-    /// section after it may carry it on.
+    /// lane, so the next one replaces it before it paints anything, or one
+    /// past the end of its lane section that no single-side section after
+    /// it carries on. The crate drops it. One right at the end of its
+    /// section goes without a warning, as exporters write them there.
     RoadMarkDropped {
         /// The `<road id>` it is on.
         road_id: String,

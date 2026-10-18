@@ -191,7 +191,7 @@ warnings. `!w.is_ignored()` filters them out.
 | `AccessDropped` | an `<access>` whose `rule` is neither `allow` nor `deny` |
 | `VisibilityDropped` | a `<visibility>` with a distance the crate can't read |
 | `ContactPointMissing` | a road `<predecessor>` or `<successor>` naming a road without a `contactPoint`. The crate joins that road's start |
-| `RoadMarkDropped` | a `<roadMark>` at the same `sOffset` as the next on its lane, which replaces it. One at or past its section's end goes without a warning |
+| `RoadMarkDropped` | a `<roadMark>` at the same `sOffset` as the next on its lane, which replaces it, or one past its section's end that no single-side section carries on. One right at the end goes without a warning |
 | `IncludeDropped` | an `<include>` naming no file, one that can't be read, one that includes itself, nests over 8 deep, reads past 256 MiB, isn't XML or has the wrong root |
 | `SignalDropped` | a `<signal>` without a readable `s` or `t`, or off the ends of its road |
 | `SignalLinkDropped` | a signal's `<dependency>` or `<reference>`, a `<signalReference>` or a `<control>` naming a signal or object the load didn't bake, a junction's `<controller>` naming no controller, or a `<signalReference>` off its road |
