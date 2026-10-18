@@ -10,6 +10,13 @@
   one file, so a self-include is a `Cycle` rather than copies of the map
   down to the depth limit. Includes are spliced in one pass, so a file of
   many includes no longer takes quadratic time.
+- A road whose `length` is zero or negative is skipped with
+  `RoadSkipReason::NoLength`. The spec requires a length above zero.
+  Before, it baked with no lanes, or failed the load when it was the only
+  road.
+- A lane id of `-2147483648` no longer panics in a debug build.
+- A `<material>` friction or roughness that is negative, or too large for
+  an `f32`, reads as `None`. Before, it could be infinity.
 
 ## 0.7.1 - 2026-10-18
 

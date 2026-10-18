@@ -773,7 +773,8 @@
 //!   less the denied users.
 //! - Of two materials, speeds or visibilities at one `sOffset`, the later
 //!   wins.
-//! - A material is a [`Material`]. Its friction is unused. A CRG gives
+//! - A material is a [`Material`]. A negative or overflowing friction or
+//!   roughness reads as none. Its friction is unused. A CRG gives
 //!   friction through [`RoadSurface`].
 //!
 //! The crate departs from the OpenDRIVE 1.9 spec here:

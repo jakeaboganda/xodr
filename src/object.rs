@@ -291,9 +291,11 @@ pub struct Material {
     /// The surface, such as `asphalt` or `concrete`. Free text, and empty if
     /// the map gives none.
     pub surface: String,
-    /// The friction coefficient, if the map gives one.
+    /// The friction coefficient, if the map gives one that is finite and not
+    /// negative, as the spec requires.
     pub friction: Option<f32>,
-    /// The surface roughness, in metres, if the map gives one.
+    /// The surface roughness, in metres, if the map gives one that is finite
+    /// and not negative.
     pub roughness: Option<f32>,
 }
 

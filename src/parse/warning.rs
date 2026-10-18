@@ -838,7 +838,7 @@ impl fmt::Display for IncludeProblem {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum RoadSkipReason {
-    /// It has no `length`, or one that is not a finite number.
+    /// It has no `length`, or one that is not a finite number above zero.
     NoLength,
     /// It has no `<planView>`.
     NoPlanView,
@@ -1487,7 +1487,7 @@ impl fmt::Display for RoadEnd {
 impl fmt::Display for RoadSkipReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::NoLength => "no finite length",
+            Self::NoLength => "no finite length above zero",
             Self::NoPlanView => "no <planView>",
             Self::NoGeometry => "no <geometry> it can bake",
             Self::TooLong => "a length over 100 km",
