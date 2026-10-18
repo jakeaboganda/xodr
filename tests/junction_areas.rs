@@ -276,3 +276,26 @@ fn a_transition_without_lane_segments_beside_it_is_dropped_with_a_warning() {
         road_id: "1".into(),
     }));
 }
+
+#[test]
+fn a_transition_at_a_numbered_contact_point_blends_from_that_end() {
+    let sloped = std::fs::read_to_string(FIXTURE).unwrap().replace(
+        r#"<planView><geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>"#,
+        r#"<planView><geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <elevationProfile><elevation s="0" a="-1" b="0.05" c="0" d="0"/></elevationProfile>"#,
+    );
+    let joint = r#"roadId="1" contactPoint="end" jointLaneStart="1" jointLaneEnd="-1" transitionLength="2"/></boundary>
+    <elevationGrid"#;
+    assert!(sloped.contains(joint));
+    let numbered = sloped.replace(joint, &joint.replace(r#""end""#, r#""20""#));
+    let lane = |xml: &str| {
+        let (net, prov) = xodr::load_str_with_provenance(xml).unwrap();
+        let at = prov
+            .lanes
+            .iter()
+            .find(|p| p.road_id == "10" && p.od_id == -1)
+            .unwrap();
+        net.lane(at.lane).unwrap().center.points().to_vec()
+    };
+    assert_eq!(lane(&numbered), lane(&sloped));
+}

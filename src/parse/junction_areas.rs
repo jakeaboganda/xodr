@@ -514,9 +514,11 @@ fn transition(
         false => (b, a),
     };
     let (p2, p3) = (walk(by_p1, p1, length)?, walk(by_p0, p0, length)?);
-    let (s, into) = match contact {
-        Some("end") => (road.length, 1.0),
-        _ => (0.0, -1.0),
+    let at_end = station(road, contact).is_some_and(|s| s > road.length / 2.0);
+    let (s, into) = if at_end {
+        (road.length, 1.0)
+    } else {
+        (0.0, -1.0)
     };
     let station = road.station(s);
     let (sin, cos) = station.heading.sin_cos();
