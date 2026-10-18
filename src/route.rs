@@ -41,14 +41,15 @@ impl RoadNetwork {
         let (start, start_proj) = self.nearest_lane_with(from, policy)?;
         let (goal, goal_proj) = self.nearest_lane_with(to, policy)?;
         let path = self.lane_path((start, start_proj.s), (goal, goal_proj.s), policy)?;
-        Some(self.sample_route(&path, start_proj.s, goal_proj.s))
+        Some(self.sample_route(&path, goal_proj.s))
     }
 
     /// Shortest lane path from `start` to `goal`, each a lane and a distance
-    /// along its centerline, with how the route enters each lane: successor
-    /// edges cost the traversed lane's length, lane-change edges a flat
-    /// penalty. The route stops on the goal lane only where it enters it
-    /// behind the goal. `None` if unreachable.
+    /// along its centerline, with how and where the route enters each lane.
+    /// An edge costs the metres driven on the lane it leaves, from where the
+    /// route entered it, and a lane change a flat penalty on top. Stopping
+    /// costs the metres left to the goal. The route stops on the goal lane
+    /// only where it enters it behind the goal. `None` if unreachable.
     ///
     /// Where a lane change lands decides where the next one can, so the
     /// search is over labels, each a way into a lane with its cost and where
@@ -59,10 +60,10 @@ impl RoadNetwork {
         (start, start_s): (LaneId, f32),
         (goal, goal_s): (LaneId, f32),
         policy: LayerPolicy,
-    ) -> Option<Vec<(LaneId, Entry)>> {
+    ) -> Option<Vec<(LaneId, Entry, f32)>> {
         let goal_lane = self.lane(goal)?;
         if start == goal && ahead(goal_lane.direction, start_s, goal_s) {
-            return Some(vec![(start, Entry::Change)]);
+            return Some(vec![(start, Entry::Change, start_s)]);
         }
         let mut search = Search::default();
         search.add(
@@ -90,6 +91,7 @@ impl RoadNetwork {
                         self,
                         Label {
                             stops: true,
+                            cost: next.cost + (goal_s - next.at).abs(),
                             ..next
                         },
                     );
@@ -146,7 +148,8 @@ impl RoadNetwork {
                     }
                 }
             };
-            Some(label(n, Entry::Start, at, from.cost + len))
+            let driven = (if at_end { len } else { 0.0 } - from.at).abs();
+            Some(label(n, Entry::Start, at, from.cost + driven))
         });
         let changes = l.neighbors.iter().filter_map(|&n| {
             let next = self.lane(n)?;
@@ -158,7 +161,13 @@ impl RoadNetwork {
             let travel_end = if forward { len } else { 0.0 };
             let exit = advance(from.at, travel_end, LANE_CHANGE_DIST);
             let at = next.center.project(l.center.point_at(exit)).s;
-            Some(label(n, Entry::Change, at, from.cost + LANE_CHANGE_COST))
+            let driven = (exit - from.at).abs();
+            Some(label(
+                n,
+                Entry::Change,
+                at,
+                from.cost + driven + LANE_CHANGE_COST,
+            ))
         });
         successors
             .chain(changes)
@@ -167,34 +176,23 @@ impl RoadNetwork {
     }
 
     /// Sample the lane path into points: each lane's centerline traversed in its
-    /// travel direction, from the first lane's entry projection to the last
-    /// lane's exit projection.
-    fn sample_route(&self, path: &[(LaneId, Entry)], start_s: f32, goal_s: f32) -> Vec<Point> {
+    /// travel direction, from where the search entered it to where the next
+    /// lane leaves it, or on the last lane to the goal.
+    fn sample_route(&self, path: &[(LaneId, Entry, f32)], goal_s: f32) -> Vec<Point> {
         let last = path.len().saturating_sub(1);
         let mut pts: Vec<Point> = Vec::new();
-        // The handoff point between lanes; the next lane starts where this maps
-        // onto it (so a lane change enters the neighbor beside where we left).
-        let mut cursor: Option<Point> = None;
-        for (i, &(lid, _)) in path.iter().enumerate() {
+        for (i, &(lid, how, at)) in path.iter().enumerate() {
             let Some(lane) = self.lane(lid) else { continue };
             let next = path.get(i + 1);
             let len = lane.center.length();
-            // Travel order: a forward lane runs along its polyline, a backward
-            // one against it, and a two-way one toward the next lane.
-            let forward = match lane.direction {
-                Direction::Forward => true,
-                Direction::Backward => false,
-                Direction::Both => self.nearer_end(lane, next.map(|n| &n.0)),
+            let entry = at.clamp(0.0, len);
+            let forward = match (lane.direction, how) {
+                (Direction::Forward, _) => true,
+                (Direction::Backward, _) => false,
+                (Direction::Both, Entry::Start) => entry < len / 2.0,
+                (Direction::Both, Entry::Change) => self.nearer_end(lane, next.map(|n| &n.0)),
             };
-            let (travel_start, travel_end) = if forward { (0.0, len) } else { (len, 0.0) };
-            let entry = match (i, cursor) {
-                (0, _) => start_s.clamp(0.0, len),
-                (_, Some(c)) => lane.center.project(c).s,
-                _ => travel_start,
-            };
-            // Whether we leave this lane by a lane change: if so, drive only
-            // a short way before switching.
-            let changes_off = next.is_some_and(|n| n.1 == Entry::Change);
+            let travel_end = if forward { len } else { 0.0 };
             let exit = if i == last {
                 let goal = goal_s.clamp(0.0, len);
                 if ahead(lane.direction, entry, goal) {
@@ -202,13 +200,12 @@ impl RoadNetwork {
                 } else {
                     entry
                 }
-            } else if changes_off {
+            } else if next.is_some_and(|n| n.1 == Entry::Change) {
                 advance(entry, travel_end, LANE_CHANGE_DIST)
             } else {
                 travel_end
             };
             sample_segment(lane, entry, exit, &mut pts);
-            cursor = Some(lane.center.point_at(exit));
         }
         pts
     }
@@ -337,14 +334,14 @@ impl Search {
         });
     }
 
-    /// The lanes from the first label to `label`, with how the route enters
-    /// each.
-    fn path(&self, label: usize) -> Vec<(LaneId, Entry)> {
+    /// The lanes from the first label to `label`, with how and where along
+    /// its centerline the route enters each.
+    fn path(&self, label: usize) -> Vec<(LaneId, Entry, f32)> {
         let mut path = Vec::new();
         let mut cur = Some(label);
         while let Some(k) = cur {
             let l = &self.labels[k];
-            path.push((l.lane, l.entry));
+            path.push((l.lane, l.entry, l.at));
             cur = l.prev;
         }
         path.reverse();
@@ -398,6 +395,47 @@ mod tests {
             predecessors: Vec::new(),
             neighbors: nbrs.iter().map(|&s| LaneId(s)).collect(),
         }
+    }
+
+    #[test]
+    fn a_route_costs_what_it_drives_not_the_whole_lane_it_starts_on() {
+        let net = RoadNetwork::new(vec![
+            lane(
+                0,
+                &[[0.0, 0.0, 0.0], [1000.0, 0.0, 0.0]],
+                Direction::Forward,
+                &[1],
+                &[2],
+            ),
+            lane(
+                1,
+                &[[1000.0, 0.0, 0.0], [1010.0, 0.0, 0.0]],
+                Direction::Forward,
+                &[3],
+                &[],
+            ),
+            lane(
+                2,
+                &[[980.0, 3.5, 0.0], [1000.0, 3.5, 0.0]],
+                Direction::Forward,
+                &[3],
+                &[],
+            ),
+            lane(
+                3,
+                &[[1010.0, 0.0, 0.0], [1100.0, 0.0, 0.0]],
+                Direction::Forward,
+                &[],
+                &[],
+            ),
+        ]);
+        let path = net
+            .route(Point::new(990.0, 0.0, 0.0), Point::new(1050.0, 0.0, 0.0))
+            .expect("route");
+        assert!(
+            path.iter().all(|p| p.y.abs() < 1.0),
+            "stays in lane rather than changing for a shorter lane: {path:?}"
+        );
     }
 
     #[test]

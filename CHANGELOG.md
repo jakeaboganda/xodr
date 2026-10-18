@@ -140,6 +140,13 @@
 - A boundary `joint` whose `contactPoint` is a station, as the other
   segments may give, blends its transition from that end of the road.
   Before, any value but `end` blended from the road's start.
+- `RoadNetwork::route` costs a route by the metres it drives: on each
+  lane from where it enters to where it leaves, plus a flat penalty per
+  lane change, and on the goal lane to the goal. Before, leaving a lane
+  cost its whole length wherever the route entered it, and the goal lane
+  cost nothing, so a route starting near the end of a long lane could
+  change lanes for a shorter one and drive further. The sampled route
+  enters each lane where the search did.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 - A road's geometry at a station is found by binary search, so a long
