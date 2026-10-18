@@ -19,13 +19,20 @@ pub const MAX_INCLUDED_BYTES: usize = 256 << 20;
 /// including file names it, joined to that file's folder. An included file's
 /// root must be the element the `<include>` stands in, as the spec says.
 /// One that can't be read in is left out, with a [`Warning::IncludeDropped`].
+/// `origin` names the document's own file, as `read` would, so an include
+/// of it counts as a cycle.
 pub(super) fn expand(
     xml: &str,
+    origin: Option<&str>,
     read: &mut dyn FnMut(&str) -> Result<String, String>,
     warnings: &mut Vec<Warning>,
 ) -> String {
     let mut budget = MAX_INCLUDED_BYTES;
-    expand_in(xml, &[], read, &mut budget, warnings).unwrap_or_else(|| xml.to_string())
+    let chain: Vec<String> = origin
+        .map(|o| joined(Path::new(""), o))
+        .into_iter()
+        .collect();
+    expand_in(xml, &chain, read, &mut budget, warnings).unwrap_or_else(|| xml.to_string())
 }
 
 /// `xml`, included by `chain`, with its includes read in, or `None` if it
@@ -45,7 +52,11 @@ fn expand_in(
     let includes: Vec<roxmltree::Node> = doc
         .descendants()
         .filter(|n| n.has_tag_name("include") && n.parent_element().is_some())
-        .filter(|n| !n.ancestors().skip(1).any(|a| a.has_tag_name("userData")))
+        .filter(|n| {
+            !n.ancestors()
+                .skip(1)
+                .any(|a| a.has_tag_name("userData") || a.has_tag_name("include"))
+        })
         .collect();
     if includes.is_empty() {
         return Some(xml.to_string());
@@ -53,8 +64,9 @@ fn expand_in(
     let folder = chain.last().map_or(Path::new(""), |f| {
         Path::new(f).parent().unwrap_or(Path::new(""))
     });
-    let mut out = xml.to_string();
-    for node in includes.iter().rev() {
+    let mut out = String::with_capacity(xml.len());
+    let mut copied = 0;
+    for node in &includes {
         let parent = node.parent_element().expect("filtered above");
         let named = node.attribute("file").unwrap_or_default();
         let read_in = one(
@@ -73,8 +85,11 @@ fn expand_in(
             });
             String::new()
         });
-        out.replace_range(node.range(), &inner);
+        out.push_str(&xml[copied..node.range().start]);
+        out.push_str(&inner);
+        copied = node.range().end;
     }
+    out.push_str(&xml[copied..]);
     Some(out)
 }
 
@@ -130,9 +145,15 @@ fn contents(xml: &str, tag: &str) -> Option<String> {
 }
 
 /// `name`, as an `<include>` writes it, joined to `folder`, the folder of the
-/// file that includes it.
+/// file that includes it, without `.` steps, so one file has one spelling.
 fn joined(folder: &Path, name: &str) -> String {
-    folder.join(name).to_string_lossy().into_owned()
+    folder
+        .join(name)
+        .components()
+        .filter(|c| !matches!(c, Component::CurDir))
+        .collect::<PathBuf>()
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// A reader for [`expand`] of the files beside `map`, the file a document

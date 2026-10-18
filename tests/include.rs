@@ -86,3 +86,51 @@ fn an_included_file_nested_too_deep_is_left_out_not_a_stack_overflow() {
         }]
     ));
 }
+
+#[test]
+fn a_map_that_includes_itself_is_read_once() {
+    let (net, prov) = load_file_with_provenance("tests/data/include/itself.xodr").unwrap();
+    assert_eq!(net.roads().len(), 1);
+    assert_eq!(
+        prov.warnings,
+        [Warning::IncludeDropped {
+            file: "./itself.xodr".into(),
+            problem: IncludeProblem::Cycle,
+        }]
+    );
+}
+
+#[test]
+fn a_file_that_includes_itself_by_another_spelling_is_a_cycle() {
+    let xml = r#"<OpenDRIVE><header/><road id="1" length="10" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="10"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center>
+        <right><lane id="-1" type="driving"><width sOffset="0" a="3" b="0" c="0" d="0"/></lane></right>
+        </laneSection></lanes></road><include file="r.xml"/></OpenDRIVE>"#;
+    let mut reads = 0;
+    let (_, prov) = load_str_with(xml, |_| {
+        reads += 1;
+        Ok(r#"<OpenDRIVE><include file="./r.xml"/><include file="./r.xml"/></OpenDRIVE>"#.into())
+    })
+    .unwrap();
+    assert_eq!(reads, 1);
+    assert!(prov.warnings.iter().all(|w| matches!(
+        w,
+        Warning::IncludeDropped {
+            problem: IncludeProblem::Cycle,
+            ..
+        }
+    )));
+}
+
+#[test]
+fn an_include_inside_an_include_is_left_to_the_outer_one() {
+    let xml = r#"<OpenDRIVE><header/><include file="a"><include file="b"/></include></OpenDRIVE>"#;
+    let mut asked = Vec::new();
+    let result = load_str_with(xml, |file| {
+        asked.push(file.to_string());
+        Err("none".into())
+    });
+    assert_eq!(asked, ["a"]);
+    assert!(result.is_err(), "a map with no roads is still an error");
+}
