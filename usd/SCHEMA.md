@@ -47,7 +47,7 @@ prim is `/Map`.
 | Path | Type | Contents |
 | --- | --- | --- |
 | `/Map` | `Xform` | Everything below. |
-| `/Map/Roads/road_<n>` | `Scope` | One per road. |
+| `/Map/Roads/road_<n>` | `Scope` | One per road with lane triangles. |
 | `/Map/Roads/road_<n>/lane_<n>` | `Mesh` or `Scope` | One lane's surface, with normals. A lane inside a junction is a `Scope` with no geometry, since its junction's wrap covers it. |
 | `/Map/Junctions` | `Scope` | Every junction's wrap. |
 | `/Map/Junctions/junction_<n>` | `Scope` | One per junction with lanes. |
@@ -68,7 +68,7 @@ The OpenDRIVE ids are in the attributes below.
 `<laneType>` is the lane type, such as `driving` or `on_ramp`, with `_` for
 `-`.
 
-Lanes and marks with no triangles have no prim.
+Roads, lanes and marks with no triangles have no prim.
 
 ## Junctions
 
@@ -367,6 +367,12 @@ A relationship skips a target with no prim, such as an object with no
 volume. It lists each target once, even if the map names it twice. Its
 matching `...Types` array skips the same entries, and keeps the first type.
 An empty array or relationship is left out.
+
+A lane's `xodr:laneType` and a wrap's, and a mark's or an object's
+`xodr:type`, hold `xodr`'s own name for the type, not the map's spelling.
+It writes a word break with `-`: `onRamp` is `on-ramp`, `streetLamp` is
+`street-lamp`, and `solid solid` is `solid-solid`. A type `xodr` doesn't
+know is `unknown`.
 
 ## Colour
 
