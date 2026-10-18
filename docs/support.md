@@ -152,6 +152,8 @@ warnings. `!w.is_ignored()` filters them out.
 | `OutlineGap` | an `<outline>` whose `<curveLocal>`s leave a gap over 1 cm. The crate joins it with a straight edge |
 | `RepeatEndMismatch` | a `<repeat>` whose cubic `t` ends more than a millimetre from its `tEnd`. The crate follows the cubic |
 | `LaneIdUnreadable` | a `<lane>` under `<left>` or `<right>` whose `id` isn't a whole number, or is 0 |
+| `LaneOnWrongSide` | a `<lane>` under `<left>` with a negative `id`, or under `<right>` with a positive one |
+| `LaneIdRepeated` | a `<lane>` whose `id` an earlier lane of its section has |
 | `LaneDropped` | a lane with no `<width>` or `<border>` the crate can read |
 | `WidthAndBorder` | a lane with `<border>`s in a lane section that also has `<width>`s |
 | `BorderWithLaneOffset` | a border lane on a road whose `<laneOffset>` is not 0 |
