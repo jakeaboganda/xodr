@@ -290,6 +290,9 @@
 //!
 //! - A plain object is a [`Shape::Solid`]. A `radius` makes its [`Extent`] a
 //!   cylinder. `length`, `width` or `height` make a box, 0 where not given.
+//!   The spec requires a `length`, `width` and `radius` above 0 and a
+//!   `height` of 0 or more. The crate reads one outside that as not given,
+//!   so a `radius` of 0 doesn't hide a box, and no solid is inside out.
 //! - A `<repeat>` with a `distance` makes a [`Shape::Solid`] every `distance`
 //!   metres. With a `distance` of 0 it's a [`Shape::Sweep`] along the road,
 //!   such as a guard rail. A `radius` makes the sweep a round pipe.
