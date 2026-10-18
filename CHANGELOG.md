@@ -86,6 +86,16 @@
   Before, any value but `end` blended from the road's start.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
+- A road's geometry at a station is found by binary search, so a long
+  plan view of short records no longer costs a scan per sampled point.
+
+### Docs
+
+- A board sign's and a display area's dependencies, and a sign's
+  references, say they fall back to the board's, then the signal's. They
+  left out the board.
+- The speed semantic's example type is `zone`, as the schema spells it,
+  not `zoneBegin`. `RoadMark::weight` says an unknown weight is `Standard`.
 
 ### OpenUSD
 
@@ -111,6 +121,11 @@
   grid for a map with no road surface.
 - `viewer_export --refresh` fails, naming the folder, when there is no
   `viewer/web` where it runs. Before, it said every scene was up to date.
+
+### Build
+
+- The workspace uses Cargo's resolver 3, which prefers dependency versions
+  that build on the declared MSRV of 1.85.
 
 ### Tests
 
