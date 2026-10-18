@@ -56,6 +56,8 @@
 - `MeshSampler::height_at` finds every triangle `Mesh::height_at` does.
   Its boxes are grown by the most a point can lie outside a triangle and
   still count, which is twice what they were grown by.
+- A `<repeat>` sweep of one section draws one end cap, not two in one
+  place.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
