@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Breaking
+
+- A road mark's `width` is its `<type>`'s `width` where it has one, as the
+  1.9 schema says the type's width supersedes the `<roadMark>`'s. Before,
+  the `<roadMark>`'s won. A line without a width still falls back to the
+  `<roadMark>`'s in a type of several lines.
+
 ### Fixes
 
 - An `<include>` inside another `<include>` no longer panics. The outer one

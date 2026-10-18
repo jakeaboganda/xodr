@@ -703,7 +703,8 @@
 //! - A negative `sOffset` is 0.
 //! - A missing `weight` is standard.
 //! - A width of 0 counts as none, so the next applies: line, type, mark, then
-//!   weight. esmini writes 0 on all three.
+//!   weight. esmini writes 0 on all three. A [`RoadMark`]'s own width is its
+//!   `<type>`'s, which the spec says supersedes the `<roadMark>`'s.
 //! - A line with a `length` and a `space` of 0 is continuous, not empty.
 //!   Otherwise every mark in esmini's `multi_intersections.xodr` vanishes. So
 //!   is one with a `length` and no `space`, as its dashes touch.

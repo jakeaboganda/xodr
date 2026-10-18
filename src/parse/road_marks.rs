@@ -345,10 +345,12 @@ fn bake(
     (start, end): (f64, f64),
     out: &mut RoadMarks,
 ) -> RoadMark {
-    let width = mark.width.or(mark.type_width).unwrap_or(match mark.weight {
+    let weight = match mark.weight {
         RoadMarkWeight::Standard => STANDARD_WIDTH,
         RoadMarkWeight::Bold => BOLD_WIDTH,
-    });
+    };
+    let width = mark.type_width.or(mark.width).unwrap_or(weight);
+    let line_width = mark.width.or(mark.type_width).unwrap_or(weight);
     let stand_ins;
     let defs = if mark.lines.is_empty() || mark.kind == RoadMarkType::None {
         stand_ins = stand_in_lines(mark.kind, width * border.inside);
@@ -359,7 +361,7 @@ fn bake(
     let sway = |s: f64| active(&mark.sways, s - start).map_or(0.0, |c| c.eval(s - start));
     let mut lines = Vec::new();
     for line in defs {
-        let width = line.width.unwrap_or(width);
+        let width = line.width.unwrap_or(line_width);
         let from = start + line.s_offset;
         let stretches = match painted(line.pattern, from, (start, end), out.dashes_left) {
             Some(stretches) => {
@@ -671,14 +673,14 @@ mod tests {
     }
 
     #[test]
-    fn a_line_width_of_zero_falls_back_to_the_type_then_the_mark_then_the_weight() {
+    fn a_type_width_supersedes_the_mark_width_and_a_line_falls_back_to_it() {
         let width = |mark: &str, kind: &str, line: &str| {
             let line = format!(r#"<line length="0" space="0" width="{line}"/>"#);
             let m = only(&road(0.0, &lane(-1, &with_line(mark, kind, &line))));
             (m.width, m.lines[0].width)
         };
-        assert_eq!(width("0.3", "0.2", "0.1"), (0.3, 0.1));
-        assert_eq!(width("0.3", "0.2", "0"), (0.3, 0.2));
+        assert_eq!(width("0.3", "0.2", "0.1"), (0.2, 0.1));
+        assert_eq!(width("0.3", "0.2", "0"), (0.2, 0.2));
         assert_eq!(width("0.3", "0", "0"), (0.3, 0.3));
         assert_eq!(width("0", "0.2", "0"), (0.2, 0.2));
         assert_eq!(width("0", "0", "0"), (0.25, 0.25));
