@@ -142,9 +142,13 @@ impl AccessDef {
             .map(String::from)
             .collect();
         match node.attribute("rule") {
-            Some("deny") if users.iter().any(|u| u == "none") => Self::Unrestricted,
+            Some("deny") if users.iter().all(|u| u == "none") && !users.is_empty() => {
+                Self::Unrestricted
+            }
             Some("allow") => Self::Restricted(Access::Allow(users)),
-            Some("deny") => Self::Restricted(Access::Deny(users)),
+            Some("deny") => Self::Restricted(Access::Deny(
+                users.into_iter().filter(|u| u != "none").collect(),
+            )),
             rule => Self::Unreadable {
                 rule: rule.unwrap_or_default().to_string(),
             },
@@ -198,41 +202,43 @@ pub(super) fn lane_materials(lane: roxmltree::Node) -> Vec<(f64, Material)> {
 }
 
 /// A lane's `<access>`es. Those at the same `sOffset` apply together, as
-/// files before 1.8 write them, one road user per `<access>`. Two of the
-/// same rule merge their road users. An `allow` and a `deny` merge into the
-/// `allow`, less the users the `deny` names: only those may use the lane.
+/// files before 1.8 write them, one road user per `<access>`, in any order.
+/// Their `allow`s merge into one, less the users their `deny`s name: only
+/// those may use the lane. With no `allow`, their `deny`s merge. Each
+/// unreadable one stays in the list, before what its offset resolves to,
+/// so it can be warned of.
 pub(super) fn lane_access(lane: roxmltree::Node) -> Vec<(f64, AccessDef)> {
-    let mut out: Vec<(f64, AccessDef)> = Vec::new();
-    for (s, def) in by_offset(lane, "access", |n| Some(AccessDef::parse(n))) {
-        if let (Some((at, AccessDef::Restricted(last))), AccessDef::Restricted(next)) =
-            (out.last_mut(), &def)
-        {
-            if *at == s {
-                *last = merge(last, next);
-                continue;
+    let defs = by_offset(lane, "access", |n| Some(AccessDef::parse(n)));
+    let mut out = Vec::new();
+    for group in defs.chunk_by(|a, b| a.0 == b.0) {
+        let s = group[0].0;
+        let (mut allow, mut deny, mut lifted) = (None::<Vec<String>>, Vec::new(), false);
+        for (_, def) in group {
+            match def {
+                AccessDef::Restricted(Access::Allow(users)) => {
+                    allow
+                        .get_or_insert_with(Vec::new)
+                        .extend(users.iter().cloned());
+                }
+                AccessDef::Restricted(Access::Deny(users)) => deny.extend(users.iter().cloned()),
+                AccessDef::Unrestricted => lifted = true,
+                AccessDef::Unreadable { .. } => out.push((s, def.clone())),
             }
         }
-        out.push((s, def));
-    }
-    out
-}
-
-/// Two `<access>`es that apply together, as one.
-fn merge(a: &Access, b: &Access) -> Access {
-    let less = |users: &[String], gone: &[String]| {
-        users
-            .iter()
-            .filter(|u| !gone.contains(u))
-            .cloned()
-            .collect()
-    };
-    match (a, b) {
-        (Access::Allow(a), Access::Allow(b)) => Access::Allow([&a[..], b].concat()),
-        (Access::Deny(a), Access::Deny(b)) => Access::Deny([&a[..], b].concat()),
-        (Access::Allow(allow), Access::Deny(deny)) | (Access::Deny(deny), Access::Allow(allow)) => {
-            Access::Allow(less(allow, deny))
+        let resolved = match allow {
+            Some(allow) => Some(Access::Allow(
+                allow.into_iter().filter(|u| !deny.contains(u)).collect(),
+            )),
+            None if !deny.is_empty() => Some(Access::Deny(deny)),
+            None => None,
+        };
+        match resolved {
+            Some(access) => out.push((s, AccessDef::Restricted(access))),
+            None if lifted => out.push((s, AccessDef::Unrestricted)),
+            None => {}
         }
     }
+    out
 }
 
 /// A lane's `<visibility>` as the file gives it.

@@ -170,3 +170,46 @@ fn entries_at_the_same_s_offset_apply_together() {
     let rules: Vec<_> = net.lane_rules().iter().map(|a| a.value.clone()).collect();
     assert_eq!(rules, ["no stopping; bus lane"]);
 }
+
+/// The access of a 20 m road's lane -1 whose `<access>`es are `entries`.
+fn access_of(entries: &str) -> (Vec<Access>, Vec<Warning>) {
+    let xml = format!(
+        r#"<OpenDRIVE><road id="r" length="20"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right><lane id="-1" type="driving">
+        <width sOffset="0" a="3"/>{entries}</lane></right></laneSection></lanes></road></OpenDRIVE>"#
+    );
+    let (net, prov) = xodr::load_str_with_provenance(&xml).unwrap();
+    let access = net.lane_access().iter().map(|a| a.value.clone()).collect();
+    (access, prov.warnings)
+}
+
+#[test]
+fn access_at_one_offset_merges_the_same_in_any_order() {
+    let allow = r#"<access sOffset="0" rule="allow" restriction="passengerCar"/>"#;
+    let bogus = r#"<access sOffset="0" rule="bogus" restriction="bus"/>"#;
+    for entries in [format!("{allow}{bogus}"), format!("{bogus}{allow}")] {
+        let (access, warnings) = access_of(&entries);
+        assert_eq!(access, [Access::Allow(users(&["passengerCar"]))]);
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+    }
+    let deny_bus = r#"<access sOffset="0" rule="deny" restriction="bus"/>"#;
+    let allow_bus = r#"<access sOffset="0" rule="allow" restriction="bus"/>"#;
+    let allow_car = r#"<access sOffset="0" rule="allow" restriction="passengerCar"/>"#;
+    for entries in [
+        format!("{deny_bus}{allow_car}{allow_bus}"),
+        format!("{allow_bus}{deny_bus}{allow_car}"),
+    ] {
+        assert_eq!(
+            access_of(&entries).0,
+            [Access::Allow(users(&["passengerCar"]))]
+        );
+    }
+}
+
+#[test]
+fn a_deny_of_none_and_others_denies_the_others() {
+    let entries = r#"<access sOffset="0" rule="deny">
+        <restriction type="none"/><restriction type="truck"/></access>"#;
+    assert_eq!(access_of(entries).0, [Access::Deny(users(&["truck"]))]);
+}

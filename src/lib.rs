@@ -768,9 +768,10 @@
 //!   `sOffset` join with `"; "`.
 //! - [`Access::Allow`] lists the only road users allowed, [`Access::Deny`]
 //!   those barred. A lane with no access stretch is open to all. A `deny` of
-//!   `none` lifts earlier restrictions.
+//!   only `none` lifts earlier restrictions. A `deny` of `none` and others
+//!   denies the others.
 //! - Files before 1.8 name one user per `<access>` in `restriction`. Entries
-//!   at one `sOffset` merge. An `allow` and a `deny` merge into the `allow`,
+//!   at one `sOffset` merge, in any order. Their `allow`s merge into one,
 //!   less the denied users.
 //! - Of two materials, speeds or visibilities at one `sOffset`, the later
 //!   wins.
