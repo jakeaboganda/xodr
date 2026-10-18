@@ -624,3 +624,25 @@ fn a_line_with_no_space_between_its_dashes_is_continuous() {
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].pattern, LinePattern::Continuous);
 }
+
+#[test]
+fn a_mark_past_its_section_that_nothing_carries_on_is_dropped_with_a_warning() {
+    let xml = r#"<OpenDRIVE><road id="r" length="20"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3"/>
+        <roadMark sOffset="0" type="solid"/><roadMark sOffset="20" type="broken"/>
+        <roadMark sOffset="25" type="broken"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    let (net, prov) = load_str_with_provenance(xml).unwrap();
+    assert_eq!(net.road_marks().len(), 1);
+    assert_eq!(
+        prov.warnings,
+        [Warning::RoadMarkDropped {
+            road_id: "r".into(),
+            section: 0,
+            lane: -1,
+            s_offset: 25.0,
+        }]
+    );
+}

@@ -7,8 +7,8 @@ use super::{
 use crate::coords::Point;
 use crate::road::{LaneGeom, MarkSpan, Road, RoadSection};
 use crate::{
-    LaneChange, LaneId, LinePattern, LineRule, RoadMark, RoadMarkId, RoadMarkLine, RoadMarkType,
-    RoadMarkWeight,
+    LaneChange, LaneId, Layer, LinePattern, LineRule, RoadMark, RoadMarkId, RoadMarkLine,
+    RoadMarkType, RoadMarkWeight,
 };
 
 /// The width of a standard and a bold line where the map gives none, in
@@ -197,12 +197,34 @@ pub(super) fn parse<'a>(lane: roxmltree::Node<'a, 'a>) -> Vec<MarkDef> {
 pub(super) fn place(roads: &mut [(roxmltree::Node, BakedRoad)]) -> RoadMarks {
     let mut out = RoadMarks::default();
     for (_, road) in roads.iter_mut() {
+        let painted = painted_starts(road);
         let mut spans = Vec::new();
         for (section, def) in road.sections() {
-            spans.push(place_section(&road.road, section, def, &mut out));
+            spans.push(place_section(&road.road, section, def, &painted, &mut out));
         }
         for (section, marks) in road.road.sections.iter_mut().zip(spans) {
             section.marks = marks;
+        }
+    }
+    out
+}
+
+/// Where each mark of `road` that starts within its own lane section
+/// starts: its layer, its `<lane id>`, 0 for the center lane, and its road
+/// station. A mark past its section's end that a single-side section after
+/// it carries on is among them, at the same station.
+fn painted_starts(road: &BakedRoad) -> Vec<(Layer, i32, f64)> {
+    let mut out = Vec::new();
+    for (section, def) in road.sections() {
+        let lanes = def.left.iter().chain(&def.right).map(|l| (l.id, &l.marks));
+        for (lane, marks) in std::iter::once((0, &def.center)).chain(lanes) {
+            out.extend(
+                marks
+                    .iter()
+                    .map(|m| section.start + m.s_offset)
+                    .filter(|&s| s < section.end - 1e-6)
+                    .map(|s| (section.layer, lane, s)),
+            );
         }
     }
     out
@@ -243,6 +265,7 @@ fn place_section(
     road: &Road,
     section: &RoadSection,
     def: &SectionDef,
+    painted: &[(Layer, i32, f64)],
     out: &mut RoadMarks,
 ) -> Vec<MarkSpan> {
     let mut spans = Vec::new();
@@ -299,7 +322,13 @@ fn place_section(
                     .marks
                     .get(k + 1)
                     .is_some_and(|next| next.s_offset - mark.s_offset < 1e-6);
-                if superseded && start < section.end {
+                let lost = start > section.end + 1e-6
+                    && !painted.iter().any(|&(layer, lane, s)| {
+                        layer == section.layer
+                            && lane == border.od_lane_id
+                            && (s - start).abs() < 1e-6
+                    });
+                if (superseded && start < section.end) || lost {
                     out.warnings.push(Warning::RoadMarkDropped {
                         road_id: road.od_id.clone(),
                         section: section.index,
