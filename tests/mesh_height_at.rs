@@ -334,3 +334,34 @@ fn the_sampler_agrees_with_height_at_on_the_edges() {
         );
     }
 }
+
+#[test]
+fn the_sampler_finds_a_point_just_past_a_long_thin_triangle() {
+    let mut vertices = vec![
+        Point::new(0.0, 0.0, 1.0),
+        Point::new(100.0, 0.0, 1.0),
+        Point::new(100.0, 1.0, 1.0),
+    ];
+    let mut indices = vec![0, 1, 2];
+    for k in 1..=200u32 {
+        let x = 0.5 * k as f32;
+        vertices.extend([
+            Point::new(x, 50.0, 0.0),
+            Point::new(x + 0.3, 50.0, 0.0),
+            Point::new(x + 0.3, 51.0, 0.0),
+        ]);
+        indices.extend([3 * k, 3 * k + 1, 3 * k + 2]);
+    }
+    let mesh = Mesh {
+        normals: vec![Vector::Z; vertices.len()],
+        vertices,
+        indices,
+        ..Default::default()
+    };
+    let (x, y) = (-0.015, -0.000075);
+    assert!(mesh.height_at(x, y).is_some());
+    assert_eq!(
+        mesh.sampler().height_at(x, y).map(|h| h.0),
+        mesh.height_at(x, y).map(|h| h.0)
+    );
+}
