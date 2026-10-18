@@ -180,6 +180,7 @@ pub enum LinePattern {
     /// One unbroken line. The OpenDRIVE spec makes a line's `length` the
     /// part painted, so a line with a `length` and a `space` of 0 paints
     /// nothing. It is continuous here, as esmini writes it for a solid line.
+    /// So is a line with a `length` and no `space`, whose dashes would touch.
     Continuous,
     /// Dashes `length` metres long with `space` metres between them, from
     /// the start of the line, to the end of the mark. The OpenDRIVE spec does not say what they are

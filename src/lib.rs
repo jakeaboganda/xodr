@@ -702,7 +702,8 @@
 //! - A width of 0 counts as none, so the next applies: line, type, mark, then
 //!   weight. esmini writes 0 on all three.
 //! - A line with a `length` and a `space` of 0 is continuous, not empty.
-//!   Otherwise every mark in esmini's `multi_intersections.xodr` vanishes.
+//!   Otherwise every mark in esmini's `multi_intersections.xodr` vanishes. So
+//!   is one with a `length` and no `space`, as its dashes touch.
 //! - A `none` mark paints nothing, even with lines.
 //! - `tOffset` and `<sway>` move along +t on either side. Nothing sways before
 //!   the first `ds`.

@@ -61,11 +61,11 @@ impl LineDef {
     /// A `<type><line>`, taking `type_width` if it gives no width of its
     /// own. The caller passes `type_width` only for a type of one line, as
     /// the type's width spans all its lines and the spaces between them.
-    /// One with a `length` and `space` of 0 is continuous.
+    /// One with no `space` between its dashes is continuous.
     fn repeating(line: roxmltree::Node, type_width: Option<f64>) -> Self {
         let length = attr_f32(line, "length").map_or(0.0, f64::from);
         let space = attr_f32(line, "space").map_or(0.0, f64::from);
-        let pattern = if length == 0.0 && space == 0.0 {
+        let pattern = if length >= 0.0 && space <= 0.0 {
             LinePattern::Continuous
         } else {
             LinePattern::Dashed {
