@@ -532,45 +532,124 @@ fn triangulate(polygon: &[[f32; 2]], holes: &[usize]) -> Vec<[usize; 3]> {
     for hole in inner {
         bridge(polygon, &mut ring, &hole);
     }
-    let mut triangles = Vec::with_capacity(ring.len().saturating_sub(2));
-    while ring.len() > 3 {
-        let m = ring.len();
-        let corner = |i: usize| (ring[(i + m - 1) % m], ring[i], ring[(i + 1) % m]);
-        let ear = (0..m).find(|&i| {
-            let (a, b, c) = corner(i);
-            turn(a, b, c) > 0.0
-                && ring.iter().all(|&p| {
-                    p == a
-                        || p == b
-                        || p == c
-                        || turn(a, b, p) < 0.0
-                        || turn(b, c, p) < 0.0
-                        || turn(c, a, p) < 0.0
-                })
-        });
-        if let Some(i) = ear {
-            let (a, b, c) = corner(i);
-            triangles.push([a, b, c]);
-            ring.remove(i);
-            continue;
-        }
-        // No ear: a corner on a straight run can hold the rest up, so drop
-        // one. Without one, the polygon crosses itself.
-        let straight = (0..m).find(|&i| {
-            let (a, b, c) = corner(i);
-            turn(a, b, c).abs() < MIN_AREA
-        });
-        match straight {
-            Some(i) => {
-                ring.remove(i);
+    clip(polygon, &ring, turn)
+}
+
+/// Clip the ears of `ring`, points of `polygon` by index, counter-clockwise
+/// by `turn`, which is positive where three points turn left. An ear can
+/// hold a point of the ring only if it holds one that turns right or runs
+/// straight, so only those are tested, found through a grid by the ear's
+/// box, and the ring is linked rather than shifted as ears go. Where no ear
+/// is left, a corner on a straight run is dropped; without one the ring
+/// crosses itself, and what is left is left out.
+fn clip(
+    polygon: &[[f32; 2]],
+    ring: &[usize],
+    turn: impl Fn(usize, usize, usize) -> f32,
+) -> Vec<[usize; 3]> {
+    let m = ring.len();
+    let mut triangles = Vec::with_capacity(m.saturating_sub(2));
+    if m < 3 {
+        return triangles;
+    }
+    let mut next: Vec<usize> = (0..m).map(|i| (i + 1) % m).collect();
+    let mut prev: Vec<usize> = (0..m).map(|i| (i + m - 1) % m).collect();
+    let mut alive = vec![true; m];
+    let at = |prev: &[usize], next: &[usize], i: usize| (ring[prev[i]], ring[i], ring[next[i]]);
+    let bent = (0..m).filter(|&i| {
+        let (a, b, c) = at(&prev, &next, i);
+        turn(a, b, c) <= 0.0
+    });
+    let grid = Buckets::new(polygon, ring, bent);
+    let (mut left, mut i, mut tried) = (m, 0, 0);
+    while left > 3 {
+        let (a, b, c) = at(&prev, &next, i);
+        let ear = turn(a, b, c) > 0.0
+            && grid.near([a, b, c].map(|k| polygon[k])).all(|q| {
+                let p = ring[q];
+                !alive[q]
+                    || p == a
+                    || p == b
+                    || p == c
+                    || turn(a, b, p) < 0.0
+                    || turn(b, c, p) < 0.0
+                    || turn(c, a, p) < 0.0
+            });
+        let straight = tried >= left && turn(a, b, c).abs() < MIN_AREA;
+        if ear || straight {
+            if ear {
+                triangles.push([a, b, c]);
             }
-            None => return triangles,
+            let (p, n) = (prev[i], next[i]);
+            next[p] = n;
+            prev[n] = p;
+            alive[i] = false;
+            left -= 1;
+            i = next[n];
+            tried = 0;
+        } else {
+            i = next[i];
+            tried += 1;
+            if tried >= 2 * left {
+                return triangles;
+            }
         }
     }
-    if turn(ring[0], ring[1], ring[2]) > 0.0 {
-        triangles.push([ring[0], ring[1], ring[2]]);
+    let (a, b, c) = at(&prev, &next, i);
+    if turn(a, b, c) > 0.0 {
+        triangles.push([a, b, c]);
     }
     triangles
+}
+
+/// Positions in a ring, bucketed by where their points fall on a square
+/// grid, about one to a cell.
+struct Buckets {
+    min: [f32; 2],
+    cell: f32,
+    size: [usize; 2],
+    cells: Vec<Vec<usize>>,
+}
+
+impl Buckets {
+    fn new(polygon: &[[f32; 2]], ring: &[usize], positions: impl Iterator<Item = usize>) -> Self {
+        let positions: Vec<usize> = positions.collect();
+        let (mut min, mut max) = ([f32::MAX; 2], [f32::MIN; 2]);
+        for &k in ring {
+            for d in 0..2 {
+                min[d] = min[d].min(polygon[k][d]);
+                max[d] = max[d].max(polygon[k][d]);
+            }
+        }
+        let area = (max[0] - min[0]).max(1e-3) * (max[1] - min[1]).max(1e-3);
+        let cell = (area / positions.len().max(1) as f32).sqrt().max(1e-6);
+        let size = [0, 1].map(|d| (((max[d] - min[d]) / cell) as usize + 1).min(4096));
+        let mut buckets = Self {
+            min,
+            cell,
+            size,
+            cells: vec![Vec::new(); size[0] * size[1]],
+        };
+        for q in positions {
+            let [x, y] = buckets.index(polygon[ring[q]]);
+            buckets.cells[y * size[0] + x].push(q);
+        }
+        buckets
+    }
+
+    fn index(&self, p: [f32; 2]) -> [usize; 2] {
+        [0, 1].map(|d| (((p[d] - self.min[d]) / self.cell).max(0.0) as usize).min(self.size[d] - 1))
+    }
+
+    /// Every position in a cell the box round `corners` touches.
+    fn near(&self, corners: [[f32; 2]; 3]) -> impl Iterator<Item = usize> + '_ {
+        let low = [0, 1].map(|d| corners.iter().map(|c| c[d]).fold(f32::MAX, f32::min));
+        let high = [0, 1].map(|d| corners.iter().map(|c| c[d]).fold(f32::MIN, f32::max));
+        let ([x0, y0], [x1, y1]) = (self.index(low), self.index(high));
+        (y0..=y1).flat_map(move |y| {
+            (x0..=x1).flat_map(move |x| self.cells[y * self.size[0] + x].iter().copied())
+        })
+    }
 }
 
 /// Splice `hole`, a clockwise ring inside the counter-clockwise `ring`, into
