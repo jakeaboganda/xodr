@@ -139,7 +139,7 @@ warnings. `!w.is_ignored()` filters them out.
 | --- | --- |
 | `Ignored` | a feature the crate ignores, once for each road, junction, or the rest of the document, with a count. See [What it ignores](#what-the-importer-ignores) |
 | `NewerThanDeclared` | an element or attribute 1.8 or 1.9 introduced, in a file declaring an older `revMinor`, once for each road, junction, or the rest of the document, with a count. The crate reads it |
-| `RoadSkipped` | a road with no finite `length`, one over 100 km, no `<planView>`, no geometry the importer can bake, lanes that land outside the range of an `f32`, or lanes that take the file past 2,000 km of lanes |
+| `RoadSkipped` | a road with no finite `length` above zero, one over 100 km, no `<planView>`, no geometry the importer can bake, lanes that land outside the range of an `f32`, or lanes that take the file past 2,000 km of lanes |
 | `GeometryDropped` | a `<geometry>` missing its pose or `length`, with a `length` that isn't above 0 or is over 100 km, or of a shape the crate doesn't know |
 | `RoadMarkLineDropped` | a road mark line with more dashes than the crate paints (100,000 on the line, or 1,000,000 in the whole file), or whose paint lands out of range |
 | `TooManyCopies` | an `<object>` whose `<repeat>` or dashed `<marking>` would make over 100,000 copies or dashes, or whose copies would take the file's objects past what one load bakes |

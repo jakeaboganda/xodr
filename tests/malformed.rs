@@ -238,6 +238,64 @@ fn a_road_without_a_length_or_plan_view_raises_a_warning() {
 }
 
 #[test]
+fn a_road_of_no_length_or_less_is_skipped() {
+    let road = |id, length| {
+        format!(
+            r#"<road id="{id}" length="{length}"><planView>
+            <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+            <lanes><laneSection s="0"><right>
+            <lane id="-1" type="driving"><width sOffset="0" a="3"/></lane>
+            </right></laneSection></lanes></road>"#
+        )
+    };
+    let xml = format!(
+        "<OpenDRIVE>{}{}{}</OpenDRIVE>",
+        road("a", "-10"),
+        road("b", "0"),
+        road("c", "20")
+    );
+    let (net, prov) = load_str_with_provenance(&xml).expect("road c loads");
+    assert_eq!(net.roads().len(), 1);
+    assert_eq!(
+        prov.warnings,
+        [
+            skipped("a", RoadSkipReason::NoLength),
+            skipped("b", RoadSkipReason::NoLength),
+        ]
+    );
+}
+
+#[test]
+fn the_lowest_lane_id_sorts_outermost_rather_than_overflowing() {
+    let xml = r#"<OpenDRIVE><road id="r" length="20"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right>
+        <lane id="-2147483648" type="sidewalk"><width sOffset="0" a="2"/></lane>
+        <lane id="-1" type="driving"><width sOffset="0" a="3"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    let net = load_str(xml).unwrap();
+    let y = |kind| {
+        let lane = net.lanes().iter().find(|l| l.kind == kind).unwrap();
+        lane.center.points()[0].y
+    };
+    assert_eq!(y(xodr::LaneType::Driving), -1.5);
+    assert_eq!(y(xodr::LaneType::Sidewalk), -4.0);
+}
+
+#[test]
+fn a_material_out_of_range_has_no_friction_or_roughness() {
+    let xml = r#"<OpenDRIVE><road id="r" length="20"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3"/>
+        <material sOffset="0" surface="asphalt" friction="1e39" roughness="-2"/></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    let net = load_str(xml).unwrap();
+    let material = &net.lane_materials()[0].value;
+    assert_eq!((material.friction, material.roughness), (None, None));
+}
+
+#[test]
 fn a_warning_reads_as_a_sentence() {
     assert_eq!(
         skipped("7", RoadSkipReason::NoPlanView).to_string(),

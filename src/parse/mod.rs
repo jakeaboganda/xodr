@@ -1550,7 +1550,7 @@ impl SectionDef {
             Vec::new()
         };
         left.sort_by_key(|(l, _)| l.id);
-        right.sort_by_key(|(l, _)| -l.id);
+        right.sort_by_key(|(l, _)| std::cmp::Reverse(l.id));
         let (left, left_geoms) = left.into_iter().unzip();
         let (right, right_geoms) = right.into_iter().unzip();
         let center_node = child(section, "center")
@@ -1675,8 +1675,8 @@ fn traffic_rule<'a>(road: roxmltree::Node<'a, '_>) -> Result<TrafficRule, &'a st
 fn material(node: roxmltree::Node) -> Material {
     Material {
         surface: node.attribute("surface").unwrap_or_default().to_string(),
-        friction: attr_f64(node, "friction").map(|v| v as f32),
-        roughness: attr_f64(node, "roughness").map(|v| v as f32),
+        friction: attr_f32(node, "friction").filter(|v| *v >= 0.0),
+        roughness: attr_f32(node, "roughness").filter(|v| *v >= 0.0),
     }
 }
 
@@ -1814,7 +1814,9 @@ fn parse_road(
     topo: &mut Topology,
 ) -> Result<BakedRoad, RoadSkipReason> {
     let road_id = road.attribute("id").unwrap_or_default().to_string();
-    let length = attr_f64(road, "length").ok_or(RoadSkipReason::NoLength)?;
+    let length = attr_f64(road, "length")
+        .filter(|l| *l > 0.0)
+        .ok_or(RoadSkipReason::NoLength)?;
     if length > MAX_LENGTH {
         return Err(RoadSkipReason::TooLong);
     }
