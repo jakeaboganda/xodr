@@ -489,9 +489,10 @@ fn road_marks_survive_a_round_trip() {
 }
 
 /// A 20 m road whose lane -1 has one mark with `lines` `<type><line>`s of
-/// dashes `dash` metres long and no gap.
-fn fine_dashes(lines: usize, dash: f64) -> String {
-    let line = format!(r#"<line length="{dash}" space="0"/>"#);
+/// dashes repeating every `period` metres, half of it painted.
+fn fine_dashes(lines: usize, period: f64) -> String {
+    let half = period / 2.0;
+    let line = format!(r#"<line length="{half}" space="{half}"/>"#);
     format!(
         r#"<OpenDRIVE><header/><road id="1" length="20" junction="-1">
         <planView><geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
@@ -606,4 +607,20 @@ fn a_road_mark_the_next_replaces_at_once_is_dropped_with_a_warning() {
             s_offset: 40.0,
         }]
     );
+}
+
+#[test]
+fn a_line_with_no_space_between_its_dashes_is_continuous() {
+    let xml = r#"<OpenDRIVE><road id="r" length="20"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3"/>
+        <roadMark sOffset="0" type="solid"><type name="x" width="0.1">
+        <line length="0.0001" space="0" width="0.1"/></type></roadMark></lane>
+        </right></laneSection></lanes></road></OpenDRIVE>"#;
+    let (net, prov) = xodr::load_str_with_provenance(xml).unwrap();
+    assert!(prov.warnings.is_empty(), "{:?}", prov.warnings);
+    let lines = &net.road_marks()[0].lines;
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].pattern, LinePattern::Continuous);
 }

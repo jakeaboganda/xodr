@@ -17,6 +17,9 @@
 - A lane id of `-2147483648` no longer panics in a debug build.
 - A `<material>` friction or roughness that is negative, or too large for
   an `f32`, reads as `None`. Before, it could be infinity.
+- A road mark `<line>` with a `length` and a `space` of 0 is continuous,
+  as its dashes touch. Before, it was dashed, and a short `length` could
+  take it past the dash limit and drop it.
 
 ## 0.7.1 - 2026-10-18
 
