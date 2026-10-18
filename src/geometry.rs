@@ -132,11 +132,11 @@ impl Polyline {
             return None;
         }
         let mut cumulative = Vec::with_capacity(points.len());
-        let mut acc = 0.0;
+        let mut acc = 0.0_f64;
         cumulative.push(0.0);
         for pair in points.windows(2) {
-            acc += (pair[1] - pair[0]).length();
-            cumulative.push(acc);
+            acc += f64::from((pair[1] - pair[0]).length());
+            cumulative.push(acc as f32);
         }
         let tangents = vertex_tangents(&points, ends);
         Some(Self {
@@ -198,7 +198,7 @@ impl Polyline {
     /// by-arc-length sampler shares it (position, heading, and a lane's
     /// per-vertex bank), so they cannot disagree about where `s` lands.
     pub(crate) fn locate(&self, s: f32) -> (usize, f32) {
-        let s = s.clamp(0.0, self.length());
+        let s = s.max(0.0).min(self.length());
         let i = self.segment(s);
         (i, self.local_t(i, s))
     }
@@ -224,7 +224,8 @@ impl Polyline {
 
     /// Nearest point on the polyline to `point`, with its arc length and signed
     /// lateral offset. Nearest is by full 3D distance; the offset is measured in
-    /// the ground plane against the containing segment's direction.
+    /// the ground plane against the containing segment's direction. A point
+    /// that is not finite has no nearest point: its `s` and `offset` are NaN.
     pub fn project(&self, point: Point) -> Projection {
         self.project_segments(point, 0..self.points.len() - 1)
     }
@@ -232,23 +233,30 @@ impl Polyline {
     /// [`Self::project`] onto only the segments `segments`, segment `i`
     /// running from point `i` to point `i + 1`. Arc length is still measured
     /// from the start of the whole line. Exact ties go to the earliest
-    /// segment, as in `project`.
+    /// segment, as in `project`. A segment of no length, from a repeated
+    /// point, is passed over, as it has no direction to measure an offset by.
     pub(crate) fn project_segments(&self, point: Point, segments: Range<usize>) -> Projection {
         let mut best = Projection {
             s: self.cumulative[segments.start],
             point: self.points[segments.start],
             offset: 0.0,
         };
+        if !point.is_finite() {
+            return Projection {
+                s: f32::NAN,
+                offset: f32::NAN,
+                ..best
+            };
+        }
         let mut best_dist = f32::INFINITY;
         for i in segments {
             let a = self.points[i];
             let ab = self.points[i + 1] - a;
             let len2 = ab.length_squared();
-            let t = if len2 > 1e-9 {
-                ((point - a).dot(ab) / len2).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
+            if len2 <= 1e-9 {
+                continue;
+            }
+            let t = ((point - a).dot(ab) / len2).clamp(0.0, 1.0);
             let closest = a + ab * t;
             let dist = (point - closest).length_squared();
             if dist < best_dist {
@@ -517,5 +525,35 @@ mod tests {
         let (i, t) = l.locate(100.0);
         assert_eq!(i, 1);
         assert!((t - 1.0).abs() < 1e-5, "t {t}");
+    }
+    #[test]
+    fn a_line_of_no_finite_length_samples_without_panicking() {
+        for bad in [f32::NAN, f32::INFINITY] {
+            let l = line(&[[0.0, 0.0, 0.0], [bad, 0.0, 0.0]]);
+            let _ = (l.point_at(1.0), l.pose_at(0.0));
+        }
+    }
+
+    #[test]
+    fn a_query_that_is_not_finite_projects_to_nan() {
+        let p = line(&[[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]).project(Point::new(f32::NAN, 0.0, 0.0));
+        assert!(p.s.is_nan() && p.offset.is_nan());
+    }
+
+    #[test]
+    fn a_repeated_point_does_not_hide_the_offset_beside_it() {
+        let l = line(&[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]);
+        let p = l.project(Point::new(0.0, 5.0, 0.0));
+        assert_eq!((p.s, p.offset), (0.0, 5.0));
+    }
+
+    #[test]
+    fn a_long_line_sums_its_length_without_drift() {
+        let step = 0.3 / std::f32::consts::SQRT_2;
+        let points = (0..=53_333)
+            .map(|k| Point::new(k as f32 * step, k as f32 * step, 0.0))
+            .collect();
+        let l = Polyline::new(points);
+        assert!((l.length() - 15_999.9).abs() < 0.1, "{}", l.length());
     }
 }

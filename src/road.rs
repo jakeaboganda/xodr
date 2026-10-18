@@ -1350,12 +1350,12 @@ pub(crate) fn along(points: &[Point], stations: &[f64], s: f64) -> f32 {
         .partition_point(|&x| x <= s)
         .saturating_sub(1)
         .min(stations.len().saturating_sub(2));
-    let before: f32 = points[..=i]
+    let before: f64 = points[..=i]
         .windows(2)
-        .map(|w| w[0].distance_to(w[1]))
+        .map(|w| f64::from(w[0].distance_to(w[1])))
         .sum();
     let f = ((s - stations[i]) / (stations[i + 1] - stations[i])).clamp(0.0, 1.0);
-    before + points[i].distance_to(points[i + 1]) * f as f32
+    before as f32 + points[i].distance_to(points[i + 1]) * f as f32
 }
 
 /// The road station `arc` metres along a lane from its first point, the
@@ -1364,16 +1364,17 @@ pub(crate) fn along(points: &[Point], stations: &[f64], s: f64) -> f32 {
 pub(crate) fn station_at(points: &[Point], stations: &[f64], arc: f32) -> f64 {
     debug_assert_eq!(points.len(), stations.len());
     let last = points.len() - 2;
+    let arc = f64::from(arc);
     let mut before = 0.0;
     for (i, w) in points.windows(2).enumerate() {
-        let step = w[0].distance_to(w[1]);
+        let step = f64::from(w[0].distance_to(w[1]));
         if before + step >= arc || i == last {
             let f = if step > 0.0 {
                 ((arc - before) / step).clamp(0.0, 1.0)
             } else {
                 0.0
             };
-            return stations[i] + (stations[i + 1] - stations[i]) * f64::from(f);
+            return stations[i] + (stations[i + 1] - stations[i]) * f;
         }
         before += step;
     }
