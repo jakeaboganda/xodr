@@ -11,6 +11,7 @@ use crate::{LaneId, Mesh, MeshSampler, RoadNetwork};
 /// What the values in a CRG file are, from `<CRG purpose>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum CrgPurpose {
     /// Heights, in metres. Also what a missing `purpose` reads as.
     Elevation,
@@ -47,6 +48,7 @@ pub struct CrgPose {
 /// How a CRG file lies on the map, from `<CRG mode>`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum CrgMode {
     /// `attached`: the file's grid, laid along the road's reference line, is
     /// added to the road's own height. The file's reference line, with its
@@ -350,6 +352,7 @@ struct PatchHint {
 
 /// The road surface under a point, from [`RoadSurface::sample`].
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[non_exhaustive]
 pub struct SurfaceSample {
     /// Height, in metres.
     pub z: f64,

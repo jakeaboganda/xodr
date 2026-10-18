@@ -511,9 +511,11 @@
 //!
 //! Each `<station>` is a [`Station`] in [`RoadNetwork::stations`], with its
 //! platforms and the track each runs beside. A switch or platform segment
-//! naming a missing road, an `s` off it, an `sEnd` before `sStart`, or a
-//! `position`, `dir` or `side` the spec doesn't allow, is dropped with a
-//! [`Warning::RailwayDropped`].
+//! naming a missing road, an `s` off it, an `sEnd` before `sStart`, no
+//! `position`, or a `dir` or `side` the spec doesn't allow, is dropped with a
+//! [`Warning::RailwayDropped`]. The spec allows three `position`s. The crate
+//! keeps a switch with any other as [`SwitchPosition::Unknown`], as it keeps
+//! an unknown object type.
 //!
 //! # Lane layers
 //!

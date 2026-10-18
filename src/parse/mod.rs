@@ -138,6 +138,7 @@ const PAINT_RAISE: f64 = 0.005;
 
 /// Why an OpenDRIVE document did not import.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ImportError {
     /// The document is not well-formed XML.
     #[error("invalid OpenDRIVE XML: {0}")]
@@ -158,6 +159,7 @@ pub enum ImportError {
 /// rather than by position.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct LaneProvenance {
     /// The baked lane this record describes.
     pub lane: LaneId,
@@ -207,6 +209,7 @@ pub struct LaneProvenance {
 /// across from one to the other, as libOpenDRIVE and esmini read it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct LaneHeight {
     /// At the border nearer the reference line.
     pub inner: f32,
@@ -222,6 +225,7 @@ pub struct LaneHeight {
 /// road.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct ObjectProvenance {
     /// The baked object this record describes.
     pub object: ObjectId,
@@ -295,6 +299,7 @@ pub struct ObjectProvenance {
 /// in order. Each is empty where the map gives none.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct SkeletonIds {
     /// The `<polyline id>`.
     pub polyline: String,
@@ -323,6 +328,7 @@ pub enum Orientation {
 /// Kept apart from [`Structure`] as [`ObjectProvenance`] is from [`Object`].
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct StructureProvenance {
     /// The baked structure this record describes.
     pub structure: StructureId,
@@ -344,6 +350,7 @@ pub struct StructureProvenance {
 /// [`Object`].
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct SignalProvenance {
     /// The baked signal this record describes.
     pub signal: SignalId,
@@ -374,6 +381,7 @@ pub struct SignalProvenance {
 /// nothing from. It turns a sign by none of its angles.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct SignProvenance {
     /// Which of the signal's [`Signal::boards`](crate::Signal::boards) it is
     /// on.
@@ -407,6 +415,7 @@ pub struct SignProvenance {
 /// applies. The signal itself stands where its `<signal>` puts it.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct SignalReferenceProvenance {
     /// The `<road id>` the reference is on.
     pub road_id: String,
@@ -427,6 +436,7 @@ pub struct SignalReferenceProvenance {
 /// [`SignalProvenance`] is from [`Signal`](crate::Signal).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct ControllerProvenance {
     /// The baked controller this record describes.
     pub controller: ControllerId,
@@ -440,6 +450,7 @@ pub struct ControllerProvenance {
 /// One entry of a `<junction>`'s `<controller>` list.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct JunctionControllerProvenance {
     /// The `<junction id>`.
     pub junction_id: String,
@@ -457,6 +468,7 @@ pub struct JunctionControllerProvenance {
 /// from [`Lane`].
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct RoadMarkProvenance {
     /// The baked road mark this record describes.
     pub road_mark: RoadMarkId,
@@ -493,6 +505,7 @@ pub struct RoadMarkProvenance {
 /// [`load_str_with_provenance`] or [`load_file_with_provenance`].
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct Provenance {
     /// One per baked lane, in baked-lane order.
     pub lanes: Vec<LaneProvenance>,
@@ -538,6 +551,7 @@ pub struct Provenance {
 /// bakes to a [`Lane`], so its attributes are kept here.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct CenterLaneProvenance {
     /// The `<road id>` it is on.
     pub road_id: String,
@@ -568,6 +582,7 @@ pub struct CenterLaneProvenance {
 /// junctions. The crate keeps it and uses none of it.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct LaneLinkOverlap {
     /// The `<junction id>`.
     pub junction_id: String,
@@ -591,6 +606,7 @@ pub struct LaneLinkOverlap {
 /// network keeps nowhere else.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct JunctionProvenance {
     /// The `<junction id>`.
     pub od_id: String,
@@ -602,6 +618,7 @@ pub struct JunctionProvenance {
 /// `<crossPath id>` it came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct CrossPathProvenance {
     /// The `<junction id>`.
     pub junction_id: String,
@@ -613,6 +630,7 @@ pub struct CrossPathProvenance {
 /// `<priority>` gives it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct PriorityProvenance {
     /// The `<junction id>`.
     pub junction_id: String,

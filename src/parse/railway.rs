@@ -39,7 +39,8 @@ pub(super) fn switches(roads: &[(roxmltree::Node, BakedRoad)]) -> (Vec<Switch>, 
                 Some("dynamic") => Some(SwitchPosition::Dynamic),
                 Some("straight") => Some(SwitchPosition::Straight),
                 Some("turn") => Some(SwitchPosition::Turn),
-                _ => None,
+                Some(_) => Some(SwitchPosition::Unknown),
+                None => None,
             };
             match (
                 position,

@@ -88,6 +88,7 @@ pub struct Visibility {
 /// bakes as [`RoadType::Unknown`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum RoadType {
     /// The map says `unknown`, or names a type the crate doesn't know.
     Unknown,
