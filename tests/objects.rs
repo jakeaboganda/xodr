@@ -1064,6 +1064,7 @@ fn a_repeat_or_marking_with_too_many_copies_is_left_out_with_a_warning() {
     };
     let warned = |object: &str| xodr::Warning::TooManyCopies {
         road_id: "1".into(),
+        junction_id: String::new(),
         object_id: object.into(),
     };
     let posts = r#"<object id="posts" type="pole" s="0" t="-5" height="1" radius="0.1">
@@ -1204,6 +1205,7 @@ fn copies_past_what_one_load_bakes_are_left_out_with_a_warning() {
         prov.warnings,
         [xodr::Warning::TooManyCopies {
             road_id: "1".into(),
+            junction_id: String::new(),
             object_id: "posts".into(),
         }]
     );
@@ -1286,6 +1288,7 @@ fn each_outline_of_a_repeat_counts_as_an_object_toward_what_one_load_bakes() {
         prov.warnings,
         [xodr::Warning::TooManyCopies {
             road_id: "1".into(),
+            junction_id: String::new(),
             object_id: "pair".into(),
         }]
     );
@@ -1399,6 +1402,7 @@ fn an_object_refused_for_its_corners_leaves_its_paint_to_the_next() {
         prov.warnings,
         [xodr::Warning::TooManyCopies {
             road_id: "1".into(),
+            junction_id: String::new(),
             object_id: "a".into(),
         }]
     );
@@ -1586,4 +1590,25 @@ fn borders_past_the_piece_budget_are_left_out_as_they_are_built() {
         .warnings
         .iter()
         .any(|w| matches!(w, xodr::Warning::TooManyCopies { .. })));
+}
+
+#[test]
+fn a_junction_object_with_too_many_copies_names_its_junction() {
+    let xml = r#"<OpenDRIVE><header/><road id="1" length="10" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="10"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right><lane id="-1" type="driving">
+        <width sOffset="0" a="3"/></lane></right></laneSection></lanes></road>
+        <junction id="J"><planView><geometry s="0" x="0" y="0" hdg="0" length="10"><line/></geometry></planView>
+        <objects><object id="o" s="0" t="0" type="pole" radius="0.1" height="1">
+        <repeat s="0" length="10" distance="0.00001"/></object></objects></junction></OpenDRIVE>"#;
+    let (_, prov) = xodr::load_str_with_provenance(xml).unwrap();
+    let warning = xodr::Warning::TooManyCopies {
+        road_id: String::new(),
+        junction_id: "J".into(),
+        object_id: "o".into(),
+    };
+    assert!(prov.warnings.contains(&warning), "{:?}", prov.warnings);
+    assert!(warning
+        .to_string()
+        .starts_with(r#"junction "J": object "o""#));
 }

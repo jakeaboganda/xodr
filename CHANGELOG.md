@@ -16,6 +16,10 @@
   `#[non_exhaustive]`, so a later release can add a field. Only the crate
   builds them. The types the `RoadNetwork::with_*` builders take stay open
   to struct literals, so another importer can still build a network.
+- `Warning::TooManyCopies`, `RepeatEndMismatch` and `OutlineGap` have a
+  `junction_id`, as the other object warnings do, so one about an object
+  of a junction names the junction. Before, its `road_id` was empty and
+  nothing named where the object was.
 - `SwitchPosition::Unknown` holds a `position` the spec doesn't list.
   Before, such a switch was dropped with a `RailwayDropped`. One with no
   `position` still is.

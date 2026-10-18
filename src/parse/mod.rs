@@ -3711,6 +3711,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     for (t_end, reached) in repeats.iter().filter_map(|r| r.missed_end(&base)) {
         out.warnings.push(Warning::RepeatEndMismatch {
             road_id: road.od_id.clone(),
+            junction_id: at.junction.unwrap_or_default().to_string(),
             object_id: node.attribute("id").unwrap_or_default().to_string(),
             t_end,
             reached,
@@ -3891,6 +3892,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     if too_many.get() {
         out.warnings.push(Warning::TooManyCopies {
             road_id: road.od_id.clone(),
+            junction_id: junction_id.clone(),
             object_id: text("id"),
         });
     }
@@ -3930,6 +3932,7 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
     if faults.gap.get() > 0.0 {
         out.warnings.push(Warning::OutlineGap {
             road_id: road.od_id.clone(),
+            junction_id: junction_id.clone(),
             object_id: text("id"),
             gap: faults.gap.get(),
         });

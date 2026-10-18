@@ -103,8 +103,10 @@ pub enum Warning {
     /// the file's objects past what one load bakes. The crate leaves out the
     /// repeat's copies, the object, or the marking's paint.
     TooManyCopies {
-        /// The `<road id>` it is on.
+        /// The `<road id>` it is on. Empty for an object of a junction.
         road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
         /// Its `<object id>`.
         object_id: String,
     },
@@ -112,8 +114,10 @@ pub enum Warning {
     /// than a millimetre from its `tEnd`. The spec says the two agree. The
     /// crate follows the cubic.
     RepeatEndMismatch {
-        /// The `<road id>` it is on.
+        /// The `<road id>` it is on. Empty for an object of a junction.
         road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
         /// Its `<object id>`.
         object_id: String,
         /// Its `tEnd`.
@@ -125,8 +129,10 @@ pub enum Warning {
     /// a centimetre from where the next starts. The spec says they join.
     /// The crate joins the gap with a straight edge.
     OutlineGap {
-        /// The `<road id>` it is on.
+        /// The `<road id>` it is on. Empty for an object of a junction.
         road_id: String,
+        /// The `<junction id>` for an object of a junction. Empty otherwise.
+        junction_id: String,
         /// Its `<object id>`.
         object_id: String,
         /// The widest gap, in metres.
@@ -1130,26 +1136,35 @@ impl fmt::Display for Warning {
                 f,
                 "road {road_id:?}: a line of the road mark on lane {lane} at s {s:.2} m can't be painted"
             ),
-            Self::TooManyCopies { road_id, object_id } => write!(
+            Self::TooManyCopies {
+                road_id,
+                junction_id,
+                object_id,
+            } => write!(
                 f,
-                "road {road_id:?}: object {object_id:?} would make over 100,000 copies or dashes, so they were left out"
+                "{}: object {object_id:?} would make over 100,000 copies or dashes, so they were left out",
+                place(road_id, junction_id)
             ),
             Self::RepeatEndMismatch {
                 road_id,
+                junction_id,
                 object_id,
                 t_end,
                 reached,
             } => write!(
                 f,
-                "road {road_id:?}: a repeat of object {object_id:?} has tEnd {t_end:.3}, but its cubic reaches {reached:.3}"
+                "{}: a repeat of object {object_id:?} has tEnd {t_end:.3}, but its cubic reaches {reached:.3}",
+                place(road_id, junction_id)
             ),
             Self::OutlineGap {
                 road_id,
+                junction_id,
                 object_id,
                 gap,
             } => write!(
                 f,
-                "road {road_id:?}: object {object_id:?} has an outline whose curves leave a gap of {gap:.3} m"
+                "{}: object {object_id:?} has an outline whose curves leave a gap of {gap:.3} m",
+                place(road_id, junction_id)
             ),
             Self::JunctionObjectsDropped { junction_id } => write!(
                 f,
