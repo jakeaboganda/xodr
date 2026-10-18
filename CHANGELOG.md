@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Test maps
+
+- The grass in the middle of `city.xodr`'s roundabout follows the slope.
+  Its corners stood level with one point on the ring, so it rose up to
+  2.5 m above the road on the downhill side and sank under it uphill. Each
+  corner now stands at the land's height, as the blocks' ground does.
+
 ## 0.8.0 - 2026-10-18
 
 This release fixes what a review of the whole repository found: panics

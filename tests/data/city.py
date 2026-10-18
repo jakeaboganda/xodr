@@ -968,12 +968,14 @@ island = ring_roads[0]
 g = island.geometry
 s0 = g.length / 2
 inner = RING - KERB - 0.3
+ox, oy = g.point(s0, KERB)
 patch = xodr.Object(s0, KERB, xodr.ObjectType.patch, id=new_id(), subtype="island")
 outline = xodr.Outline(closed=True, fill_type=xodr.FillType.grass, id=0)
 for k in range(72):
     a = 2 * math.pi * k / 72
-    u, v = g.local(s0, KERB, cx + inner * math.cos(a), cy + inner * math.sin(a))
-    outline.add_corner(xodr.CornerLocal(u, v, 0, 0))
+    px, py = cx + inner * math.cos(a), cy + inner * math.sin(a)
+    u, v = g.local(s0, KERB, px, py)
+    outline.add_corner(xodr.CornerLocal(u, v, terrain(py) - terrain(oy), 0))
 patch.add_outline(outline)
 island.road.add_object(patch)
 obj(island, s0, RING, xodr.ObjectType.obstacle, subtype="fountain", radius=16.0, height=0.6)
