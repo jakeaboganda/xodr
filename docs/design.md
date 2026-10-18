@@ -51,7 +51,7 @@ an import. A deserialized `RoadNetwork` rebuilds its indexes and behaves
 like a fresh import.
 
 ```toml
-xodr = { version = "0.7", features = ["serde"] }
+xodr = { version = "0.8", features = ["serde"] }
 ```
 
 ## Untrusted input

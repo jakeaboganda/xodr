@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 - 2026-10-18
 
-### Breaking
+This release fixes what a review of the whole repository found: panics
+and hangs a map file could cause, results that were wrong without a
+warning, cracks and holes in junction ground, and routes that turned back
+or drove further than they had to. Its spec enums can now grow without a
+breaking release.
+
+### Upgrading
 
 - The enums of spec values and importer outcomes are `#[non_exhaustive]`,
   so a later release can add a variant without breaking a `match`:
