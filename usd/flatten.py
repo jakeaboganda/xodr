@@ -21,6 +21,8 @@ def compose(stage, catalogues):
     root = Sdf.Layer.CreateAnonymous(".usda")
     root.subLayerPaths = [os.path.abspath(p) for p in [*catalogues, stage]]
     base = Sdf.Layer.FindOrOpen(stage)
+    if base is None:
+        sys.exit(f"cannot open {stage}")
     for key in ["defaultPrim", "upAxis", "metersPerUnit", "customLayerData"]:
         if base.pseudoRoot.HasInfo(key):
             root.pseudoRoot.SetInfo(key, base.pseudoRoot.GetInfo(key))
@@ -28,7 +30,8 @@ def compose(stage, catalogues):
 
 
 def main(out, stage, *catalogues):
-    compose(stage, catalogues).Flatten().Export(out)
+    if not compose(stage, catalogues).Flatten().Export(out):
+        sys.exit(f"could not write {out}")
 
 
 if __name__ == "__main__":

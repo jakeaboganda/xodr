@@ -65,7 +65,10 @@ def pierced(stage, signal):
     support = signal.GetAttribute("xodr:support")
     if not support or support.Get() != "synthesized":
         return []
-    structure = stage.GetPrimAtPath(signal.GetRelationship("xodr:supportPrim").GetTargets()[0])
+    targets = signal.GetRelationship("xodr:supportPrim").GetTargets()
+    structure = stage.GetPrimAtPath(targets[0]) if targets else None
+    if not structure or not structure.IsA(UsdGeom.Mesh):
+        return [f"{signal.GetPath()} has no support mesh"]
     mesh = UsdGeom.Mesh(structure)
     indices = mesh.GetFaceVertexIndicesAttr().Get()
     cache = UsdGeom.XformCache()
@@ -134,11 +137,16 @@ def mesh_problems(prim):
     points = mesh.GetPointsAttr().Get()
     indices = mesh.GetFaceVertexIndicesAttr().Get()
     counts = mesh.GetFaceVertexCountsAttr().Get()
-    if sum(counts) != len(indices) or max(indices) >= len(points):
+    if not points or not indices or not counts:
+        return [f"{prim.GetPath()} has no geometry"]
+    if sum(counts) != len(indices) or min(indices) < 0 or max(indices) >= len(points):
         return [f"{prim.GetPath()} has bad indices"]
     found = []
     extent = mesh.GetExtentAttr().Get()
-    if not Gf.IsClose(mesh.ComputeExtent(points)[0], extent[0], 1e-3):
+    computed = mesh.ComputeExtent(points)
+    if not extent or len(extent) != 2 or not all(
+        Gf.IsClose(computed[k], extent[k], 1e-3) for k in range(2)
+    ):
         found.append(f"{prim.GetPath()} has the wrong extent")
     if prim.HasAttribute("xodr:laneType") or prim.GetName().startswith("mark_"):
         start = 0

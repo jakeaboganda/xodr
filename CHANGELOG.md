@@ -73,6 +73,18 @@
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
+### OpenUSD
+
+- `xodr_usd` prints each warning the load raises, but those for parts the
+  crate only ignores, and writes the stage whole or not at all. It refuses
+  to write the stage over the map.
+- `usd/SCHEMA.md` says a road with no lane triangles has no prim, and that
+  type attributes hold `xodr`'s names, such as `on-ramp`, not the map's.
+- `usd/check.py` compares both corners of a mesh's extent, and reports a
+  mesh with no geometry or a signal with no support mesh rather than
+  crashing. `usd/flatten.py` exits with an error when it can't open the
+  stage or write the result.
+
 ### Viewer
 
 - The page loads a CRG that includes other files through
