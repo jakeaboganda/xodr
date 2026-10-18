@@ -39,8 +39,9 @@ pub(super) struct Curve {
 /// follows one.
 ///
 /// The curve starts at `(u, v)` heading `hdg` and runs `length`. Without a
-/// `length` it runs to `next`: a line straight there, an arc round to it.
-/// Without a `next` it is only its start. A line without a `hdg` heads for
+/// `length` it runs to `next`: a line straight there, an arc round to it,
+/// unless that is over [`MAX_LENGTH`], when it is only its start. Without a
+/// `next` it is only its start. A line without a `hdg` heads for
 /// `next`. Any other curve without one goes on at `previous`, so the
 /// outline stays smooth, or else heads along `u`. `z` and `height` go
 /// straight from the curve's to `next`'s along it.
@@ -102,7 +103,10 @@ fn trace(
         let curvature = attr_f64(arc, "curvature")?;
         let hdg = hdg.or(previous).unwrap_or(0.0);
         let length = given
-            .or_else(|| end.map(|[eu, ev, ..]| round_to(u, v, hdg, curvature, eu, ev)))
+            .or_else(|| {
+                end.map(|[eu, ev, ..]| round_to(u, v, hdg, curvature, eu, ev))
+                    .filter(|l| *l <= MAX_LENGTH)
+            })
             .unwrap_or(0.0);
         let arc = GeomRec::new(0.0, u, v, hdg, length, GeomShape::Arc { curvature });
         let edges = (length / STEP).max(curvature.abs() * length / TURN);

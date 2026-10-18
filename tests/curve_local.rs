@@ -246,3 +246,26 @@ fn a_heading_that_leaves_a_gap_gives_way_to_the_curve_before_with_a_warning() {
         .any(|w| matches!(w, Warning::OutlineGap { object_id, .. } if object_id == "8"));
     assert!(!gaps, "the misheaded island joins up");
 }
+
+#[test]
+fn an_arc_too_long_to_reach_its_next_corner_is_bridged() {
+    let xml = r#"<OpenDRIVE><header/><road id="1" length="100" junction="-1"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="100"><line/></geometry></planView>
+        <lanes><laneSection s="0"><center><lane id="0" type="none"/></center><right>
+        <lane id="-1" type="driving"><width sOffset="0" a="3.5" b="0" c="0" d="0"/></lane>
+        </right></laneSection></lanes><objects><object id="o" s="20" t="-10"><outlines>
+        <outline id="0" closed="false">
+          <curveLocal u="0" v="0" hdg="0"><arc curvature="1e-6"/></curveLocal>
+          <curveLocal u="-1" v="0"><line/></curveLocal>
+        </outline></outlines></object></objects></road></OpenDRIVE>"#;
+    let (net, prov) = xodr::load_str_with_provenance(xml).unwrap();
+    let far = corners(&net.objects()[0])
+        .iter()
+        .map(|c| (c.base.x - 20.0).hypot(c.base.y + 10.0))
+        .fold(0.0_f32, f32::max);
+    assert!(far < 2.0, "a corner {far} m out");
+    assert!(prov
+        .warnings
+        .iter()
+        .any(|w| matches!(w, Warning::OutlineGap { .. })));
+}

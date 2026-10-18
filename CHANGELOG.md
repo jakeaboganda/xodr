@@ -41,6 +41,10 @@
   solid.
 - A `<border>` round a whole inner outline that is not closed stays open.
   Before, it got an edge back to its first corner.
+- A `<curveLocal>` arc without a `length` whose way round to the next
+  corner is over 100 km, the most a `length` may be, is bridged with a
+  straight edge and an `OutlineGap`. Before, a slight curve could lay a
+  corner thousands of kilometres out.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 
