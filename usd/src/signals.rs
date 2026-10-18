@@ -174,6 +174,7 @@ pub(crate) fn signals(
                     }
                     close(out, 3)?;
                 }
+                _ => {}
             }
         }
         close(out, 2)?;
@@ -369,6 +370,7 @@ fn meaning(semantic: &Semantic) -> String {
         Semantic::SupplementaryDistance { kind, .. } => ("supplementaryDistance", kind.as_str()),
         Semantic::SupplementaryEnvironment { kind } => ("supplementaryEnvironment", kind.as_str()),
         Semantic::SupplementaryExplanatory => ("supplementaryExplanatory", ""),
+        _ => ("unknown", ""),
     };
     match kind {
         "" => name.to_string(),

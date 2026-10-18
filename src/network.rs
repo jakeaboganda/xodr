@@ -38,6 +38,7 @@ pub struct LaneId(pub usize);
 /// Everything else is the consumer's policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum LaneType {
     /// Surface inside the road with no function assigned to it: the paved area
     /// a cross-section has to account for but does not name. Not a gap. It has
@@ -245,6 +246,7 @@ impl LayerPolicy {
 /// `<lane>`'s `advisory`. A bike lane that cars may also use is one.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum LaneAdvisory {
     /// Only its own traffic uses it. What a missing or unrecognised value
     /// reads as.

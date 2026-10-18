@@ -23,6 +23,7 @@ pub struct AdditionalData {
 /// What an [`AdditionalData`] says.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum Additional {
     /// A `<userData>`: data for an application, in its own terms.
     UserData {

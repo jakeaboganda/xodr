@@ -5,9 +5,7 @@
 //! `metadata.py`. The first gives every attribute, the second none, or an
 //! unreadable one.
 
-use xodr::{
-    load_file_with_provenance, JunctionProvenance, LaneAdvisory, LaneType, Provenance, RoadNetwork,
-};
+use xodr::{load_file_with_provenance, LaneAdvisory, LaneType, Provenance, RoadNetwork};
 
 fn full() -> (RoadNetwork, Provenance) {
     load_file_with_provenance("tests/data/metadata.xodr").unwrap()
@@ -72,13 +70,12 @@ fn a_road_keeps_its_name() {
 #[test]
 fn a_junction_keeps_its_name() {
     let (_, prov) = full();
-    assert_eq!(
-        prov.junctions,
-        [JunctionProvenance {
-            od_id: "100".into(),
-            name: "  Market Square  ".into()
-        }]
-    );
+    let junctions: Vec<_> = prov
+        .junctions
+        .iter()
+        .map(|j| (j.od_id.as_str(), j.name.as_str()))
+        .collect();
+    assert_eq!(junctions, [("100", "  Market Square  ")]);
     let (_, prov) = bare();
     assert_eq!(prov.junctions[0].name, "");
 }

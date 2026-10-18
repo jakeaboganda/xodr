@@ -139,6 +139,7 @@ pub struct JunctionGroup {
 /// What a [`JunctionGroup`]'s junctions together are, from its `type`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum JunctionGroupKind {
     /// A roundabout.
     Roundabout,

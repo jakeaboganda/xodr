@@ -102,3 +102,14 @@ fn a_platform_segment_ending_before_it_starts_is_dropped_with_a_warning() {
         .count();
     assert_eq!(dropped, 2);
 }
+
+#[test]
+fn a_switch_with_a_position_the_spec_does_not_list_is_kept_as_unknown() {
+    let xml = std::fs::read_to_string(FIXTURE)
+        .unwrap()
+        .replace(r#"position="straight""#, r#"position="Turn""#);
+    let (net, prov) = load_str_with_provenance(&xml).unwrap();
+    assert_eq!(net.switches()[0].position, SwitchPosition::Unknown);
+    let (_, plain) = load_file_with_provenance(FIXTURE).unwrap();
+    assert_eq!(prov.warnings, plain.warnings);
+}

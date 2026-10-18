@@ -38,6 +38,7 @@ pub struct Partner {
 /// Which way a [`Switch`] is set, from its `position`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum SwitchPosition {
     /// A scenario sets it.
     Dynamic,
@@ -45,6 +46,20 @@ pub enum SwitchPosition {
     Straight,
     /// Onto the side track.
     Turn,
+    /// A `position` this crate does not recognise.
+    Unknown,
+}
+
+impl SwitchPosition {
+    /// Its name, as the spec spells it, or `unknown`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Dynamic => "dynamic",
+            Self::Straight => "straight",
+            Self::Turn => "turn",
+            Self::Unknown => "unknown",
+        }
+    }
 }
 
 /// A place on a track: a road, the `s` along it, and which way along it

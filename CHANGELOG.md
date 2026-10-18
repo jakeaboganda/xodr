@@ -4,6 +4,22 @@
 
 ### Breaking
 
+- The enums of spec values and importer outcomes are `#[non_exhaustive]`,
+  so a later release can add a variant without breaking a `match`:
+  `LaneType`, `LaneAdvisory`, `RoadType`, `ObjectType`, `Extent`, `Shape`,
+  `RoadMarkType`, `RoadMarkWeight`, `LaneChange`, `LineRule`, `Unit`,
+  `Semantic`, `RoadUser`, `SignalBoard`, `StructureKind`, `SwitchPosition`,
+  `CrgMode`, `CrgPurpose`, `JunctionGroupKind`, `Additional`, `MeshError`
+  and `ImportError`. A `match` on one needs a `_` arm.
+- `Provenance`, every `*Provenance` record in it, `LaneHeight`,
+  `SkeletonIds`, `LaneLinkOverlap` and `SurfaceSample` are
+  `#[non_exhaustive]`, so a later release can add a field. Only the crate
+  builds them. The types the `RoadNetwork::with_*` builders take stay open
+  to struct literals, so another importer can still build a network.
+- `SwitchPosition::Unknown` holds a `position` the spec doesn't list.
+  Before, such a switch was dropped with a `RailwayDropped`. One with no
+  `position` still is.
+
 - A road mark's `width` is its `<type>`'s `width` where it has one, as the
   1.9 schema says the type's width supersedes the `<roadMark>`'s. Before,
   the `<roadMark>`'s won. A line without a width still falls back to the

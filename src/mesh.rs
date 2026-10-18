@@ -76,6 +76,7 @@ fn no_area(a: Point, b: Point, c: Point) -> bool {
 /// Why a mesh cannot be turned into a physics trimesh.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum MeshError {
     /// No triangles at all.
     #[error("mesh has no triangles")]

@@ -18,6 +18,7 @@ pub struct RoadMarkId(pub usize);
 /// to right on the line between the two sides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum RoadMarkType {
     /// No mark.
     None,
@@ -79,6 +80,7 @@ impl std::fmt::Display for RoadMarkType {
 /// How heavy a road mark's lines are.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum RoadMarkWeight {
     /// The usual width.
     #[default]
@@ -108,6 +110,7 @@ impl std::fmt::Display for RoadMarkWeight {
 /// is crossing to the left.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum LaneChange {
     /// Either way.
     Both,
@@ -144,6 +147,7 @@ impl std::fmt::Display for LaneChange {
 /// or from the left on the line between the two sides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum LineRule {
     /// Crossing is not allowed.
     NoPassing,

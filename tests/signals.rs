@@ -11,9 +11,8 @@
 use std::f32::consts::PI;
 
 use xodr::{
-    load_file_with_provenance, Control, Dependency, JunctionControllerProvenance, Orientation,
-    Point, Provenance, Reference, Referenced, RoadNetwork, Signal, SignalProvenance,
-    SignalReferenceProvenance, Unit,
+    load_file_with_provenance, Control, Dependency, Orientation, Point, Provenance, Reference,
+    Referenced, RoadNetwork, Signal, SignalProvenance, Unit,
 };
 
 const SIGNALS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/signals.xodr");
@@ -210,15 +209,12 @@ fn a_signal_reference_applies_the_signal_on_another_road_too() {
         limit.applies_at,
         vec![Point::new(20.0, -7.0, 0.4), Point::new(10.0, 36.0, 0.0)]
     );
-    assert_eq!(
-        p.references,
-        vec![SignalReferenceProvenance {
-            road_id: "2".into(),
-            s: 10.0,
-            t: -4.0,
-            orientation: Orientation::Positive,
-        }]
-    );
+    let references: Vec<_> = p
+        .references
+        .iter()
+        .map(|r| (r.road_id.as_str(), r.s, r.t, r.orientation))
+        .collect();
+    assert_eq!(references, [("2", 10.0, -4.0, Orientation::Positive)]);
 
     let (light, _) = find(&net, &prov, "4");
     let mut want = on("0", &[-1]);
@@ -282,25 +278,19 @@ fn a_control_of_no_signal_is_skipped_and_its_controller_kept() {
 #[test]
 fn a_junction_lists_the_controllers_it_syncs() {
     let (_, prov) = load(SIGNALS);
-    let junctions: Vec<_> = prov
+    let junctions: Vec<Vec<(&str, &str, Option<u32>)>> = prov
         .controllers
         .iter()
-        .map(|c| c.junctions.clone())
+        .map(|c| {
+            c.junctions
+                .iter()
+                .map(|j| (j.junction_id.as_str(), j.kind.as_str(), j.sequence))
+                .collect()
+        })
         .collect();
     assert_eq!(
         junctions,
-        vec![
-            vec![JunctionControllerProvenance {
-                junction_id: "500".into(),
-                kind: "sync".into(),
-                sequence: Some(2),
-            }],
-            vec![JunctionControllerProvenance {
-                junction_id: "500".into(),
-                kind: String::new(),
-                sequence: None,
-            }],
-        ]
+        [vec![("500", "sync", Some(2))], vec![("500", "", None)]]
     );
 }
 

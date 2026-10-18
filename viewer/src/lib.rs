@@ -51,8 +51,8 @@ use xodr::{
     Orientation, PlatformSegment, Point, Provenance, Reference, Referenced, RoadEnd, RoadMark,
     RoadMarkProvenance, RoadMarkWeight, RoadNetwork, RoadPosition, RoadSurface, RoadUser, Semantic,
     Shape, Side, SignProvenance, SignTarget, Signal, SignalBoard, SignalProvenance, SpeedLimit,
-    Structure, StructureKind, StructureProvenance, SurfaceHint, SwitchPosition, TrackPoint,
-    VirtualJunction, Warning,
+    Structure, StructureKind, StructureProvenance, SurfaceHint, TrackPoint, VirtualJunction,
+    Warning,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -315,11 +315,7 @@ fn build_scene(net: &RoadNetwork, mesh: &Mesh, provenance: &Provenance) -> Value
                     net.road_point(RoadPosition { road: p.road, s: p.s, t: 0.0 })
                         .map(|p| p.to_array())
                 };
-                let position = match sw.position {
-                    SwitchPosition::Dynamic => "dynamic",
-                    SwitchPosition::Straight => "straight",
-                    SwitchPosition::Turn => "turn",
-                };
+                let position = sw.position.as_str();
                 let od = |p: &TrackPoint| net.road(p.road).map(|r| r.od_id());
                 json!({
                     "id": sw.od_id,
@@ -465,6 +461,7 @@ fn semantic_text(semantic: &Semantic) -> String {
             .map(|u| match u {
                 RoadUser::Animal => "animals".to_string(),
                 RoadUser::Person(kind) | RoadUser::Vehicle(kind) => kind.clone(),
+                _ => "others".to_string(),
             })
             .collect::<Vec<_>>()
             .join(", ")
@@ -499,6 +496,7 @@ fn semantic_text(semantic: &Semantic) -> String {
         }
         Semantic::SupplementaryEnvironment { kind } => format!("in {kind}"),
         Semantic::SupplementaryExplanatory => "explanation".into(),
+        _ => "other".into(),
     };
     text.trim().to_string()
 }
@@ -560,6 +558,7 @@ fn board_entry(index: usize, board: &SignalBoard, own: &[SignProvenance]) -> Val
                 }))
                 .collect::<Vec<_>>(),
         }),
+        _ => json!({ "kind": "unknown" }),
     }
 }
 
@@ -742,7 +741,7 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
                 Some(Extent::Cylinder { radius, height }) => {
                     json!({ "shape": "cylinder", "radius": radius, "height": height })
                 }
-                None => Value::Null,
+                _ => Value::Null,
             };
             json!({
                 "kind": "solid",
@@ -789,6 +788,7 @@ fn object_entry(object: &Object, prov: Option<&ObjectProvenance>) -> Value {
                 .map(|s| json!({ "left": corner(&s.left), "right": corner(&s.right) }))
                 .collect::<Vec<_>>(),
         }),
+        _ => json!({ "kind": "unknown" }),
     };
     json!({
         "objectId": object.id.0,
@@ -999,8 +999,9 @@ fn structure_entry(s: &Structure, prov: Option<&StructureProvenance>) -> Value {
             kind,
             lighting,
             daylight,
-        } => ("tunnel", kind, *lighting, *daylight),
-        StructureKind::Bridge { kind } => ("bridge", kind, None, None),
+        } => ("tunnel", kind.as_str(), *lighting, *daylight),
+        StructureKind::Bridge { kind } => ("bridge", kind.as_str(), None, None),
+        _ => ("unknown", "", None, None),
     };
     json!({
         "structureId": s.id.0,
@@ -1441,6 +1442,7 @@ fn crg_entry(c: &CrgSurface, loaded: bool) -> Value {
         CrgMode::Genuine { .. } => "genuine",
         CrgMode::Global { .. } => "global",
         CrgMode::Object(_) => "object",
+        _ => "unknown",
     };
     json!({
         "file": c.file,
@@ -1448,6 +1450,7 @@ fn crg_entry(c: &CrgSurface, loaded: bool) -> Value {
         "purpose": match c.purpose {
             CrgPurpose::Elevation => "elevation",
             CrgPurpose::Friction => "friction",
+            _ => "unknown",
         },
         "zOffset": c.z_offset,
         "zScale": c.z_scale,

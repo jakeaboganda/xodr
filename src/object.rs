@@ -32,6 +32,7 @@ pub struct ObjectId(pub usize);
 /// allowed here, is [`ObjectType::Unknown`], and the object still bakes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum ObjectType {
     /// An object with no category assigned.
     None,
@@ -110,6 +111,7 @@ impl std::fmt::Display for ObjectType {
 /// heading, `width` across it, `height` up from its origin.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum Extent {
     /// A box centred on the origin in plan, rising from it. A dimension the
     /// map does not give is 0, so a post given only a height is a box with no
@@ -157,6 +159,7 @@ pub struct Section {
 /// Where an object is and what volume it fills.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum Shape {
     /// A solid placed at a pose. The orientation is three angles in radians,
     /// in the network's axes, applied as yaw, then pitch, then roll. The

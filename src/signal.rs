@@ -23,6 +23,7 @@ pub struct ControllerId(pub usize);
 /// The unit of a signal's [`value`](Signal::value).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum Unit {
     /// Metres, `m`.
     Metre,
@@ -160,6 +161,7 @@ pub struct Signal {
 /// gives none.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum Semantic {
     /// A speed rule, such as a limit.
     Speed {
@@ -224,6 +226,7 @@ pub enum Semantic {
 /// A road user a [`Semantic`] names.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum RoadUser {
     /// An animal.
     Animal,
@@ -236,6 +239,7 @@ pub enum RoadUser {
 /// A board a signal is, from a `<staticBoard>` or a `<vmsBoard>`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum SignalBoard {
     /// A board of fixed signs, such as a gantry, with each of its signs.
     Static(Vec<BoardSign>),

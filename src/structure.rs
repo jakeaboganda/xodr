@@ -16,6 +16,7 @@ pub struct StructureId(pub usize);
 /// Whether a structure is a tunnel or a bridge, and what describes each.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum StructureKind {
     /// The lanes run through a tunnel.
     Tunnel {
