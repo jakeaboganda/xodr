@@ -713,6 +713,9 @@ fn bake(xml: &str, mut warnings: Vec<Warning>) -> Result<(RoadNetwork, Provenanc
     }
     let doc = roxmltree::Document::parse(xml)?;
     let root = doc.root_element();
+    if let Some(unique) = without_repeated_junctions(xml, root, &mut warnings) {
+        return bake(&unique, warnings);
+    }
     let mut lanes = Vec::new();
     let mut objects = Objects::default();
     let mut structures = Structures::default();
@@ -1187,6 +1190,35 @@ fn deeper_than(xml: &str, limit: usize) -> bool {
         }
     }
     false
+}
+
+/// `xml` without each `<junction>` whose `id` an earlier one has, each
+/// with a [`Warning::JunctionIdRepeated`], or `None` if no id repeats.
+fn without_repeated_junctions(
+    xml: &str,
+    root: roxmltree::Node,
+    warnings: &mut Vec<Warning>,
+) -> Option<String> {
+    let mut seen = HashSet::new();
+    let repeated: Vec<_> = root
+        .children()
+        .filter(|n| n.has_tag_name("junction"))
+        .filter(|j| !seen.insert(j.attribute("id").unwrap_or_default()))
+        .collect();
+    if repeated.is_empty() {
+        return None;
+    }
+    let mut out = String::with_capacity(xml.len());
+    let mut copied = 0;
+    for junction in &repeated {
+        warnings.push(Warning::JunctionIdRepeated {
+            junction_id: junction.attribute("id").unwrap_or_default().to_string(),
+        });
+        out.push_str(&xml[copied..junction.range().start]);
+        copied = junction.range().end;
+    }
+    out.push_str(&xml[copied..]);
+    Some(out)
 }
 
 /// Make a real-world document parseable: strip a UTF-8 BOM and remove the

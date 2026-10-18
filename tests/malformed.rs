@@ -788,3 +788,21 @@ fn a_lane_on_the_wrong_side_or_with_a_repeated_id_is_dropped_with_a_warning() {
         r#"road "r", lane section 0: lane -1 is on the other side from its id, dropped"#
     );
 }
+
+#[test]
+fn a_second_junction_of_one_id_is_dropped_with_a_warning() {
+    let xml = r#"<OpenDRIVE><road id="r" length="20"><planView>
+        <geometry s="0" x="0" y="0" hdg="0" length="20"><line/></geometry></planView>
+        <lanes><laneSection s="0"><right><lane id="-1" type="driving">
+        <width sOffset="0" a="3"/></lane></right></laneSection></lanes></road>
+        <junction id="5" name="first"/><junction id="5" name="second"/></OpenDRIVE>"#;
+    let (_, prov) = load_str_with_provenance(xml).unwrap();
+    let names: Vec<_> = prov.junctions.iter().map(|j| j.name.as_str()).collect();
+    assert_eq!(names, ["first"]);
+    assert_eq!(
+        prov.warnings,
+        [Warning::JunctionIdRepeated {
+            junction_id: "5".into()
+        }]
+    );
+}

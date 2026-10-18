@@ -32,6 +32,9 @@
   set its side, so it moved across the road. A second lane with an `id`
   already in its section is dropped with a new `Warning::LaneIdRepeated`.
   Before, both baked and lookups by id found only the first.
+- A second `<junction>` with an `id` already used is dropped with a new
+  `Warning::JunctionIdRepeated`. Before, its connections replaced the
+  first's, while other parts of the load read both.
 - An `<include>` inside another `<include>` no longer panics. The outer one
   replaces it, as before.
 - A map that includes itself is read once, and `./name` and `name` count as
