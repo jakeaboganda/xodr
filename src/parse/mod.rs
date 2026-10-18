@@ -639,7 +639,8 @@ pub fn load_file_with_provenance(
 ) -> Result<(RoadNetwork, Provenance), ImportError> {
     let xml = std::fs::read_to_string(path.as_ref())
         .map_err(|e| ImportError::Malformed(format!("reading {:?}: {e}", path.as_ref())))?;
-    load_str_with(&xml, include::beside(path.as_ref()))
+    let origin = path.as_ref().file_name().map(|n| n.to_string_lossy());
+    load_with(&xml, origin.as_deref(), include::beside(path.as_ref()))
 }
 
 /// Like [`load_str`], but also returns the OpenDRIVE [`Provenance`] of
@@ -668,10 +669,20 @@ pub fn load_str_with_provenance(xml: &str) -> Result<(RoadNetwork, Provenance), 
 /// or has the wrong root is left out, with a [`Warning::IncludeDropped`].
 pub fn load_str_with(
     xml: &str,
+    read: impl FnMut(&str) -> Result<String, String>,
+) -> Result<(RoadNetwork, Provenance), ImportError> {
+    load_with(xml, None, read)
+}
+
+/// [`load_str_with`] for a document read from `origin`, a file `read` can
+/// name, so an include of the document itself counts as a cycle.
+fn load_with(
+    xml: &str,
+    origin: Option<&str>,
     mut read: impl FnMut(&str) -> Result<String, String>,
 ) -> Result<(RoadNetwork, Provenance), ImportError> {
     let mut warnings = Vec::new();
-    let expanded = include::expand(&sanitize(xml), &mut read, &mut warnings);
+    let expanded = include::expand(&sanitize(xml), origin, &mut read, &mut warnings);
     bake(&expanded, warnings)
 }
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- An `<include>` inside another `<include>` no longer panics. The outer one
+  replaces it, as before.
+- A map that includes itself is read once, and `./name` and `name` count as
+  one file, so a self-include is a `Cycle` rather than copies of the map
+  down to the depth limit. Includes are spliced in one pass, so a file of
+  many includes no longer takes quadratic time.
+
 ## 0.7.1 - 2026-10-18
 
 The crate changes only in its docs. The rest of this release is the
