@@ -177,3 +177,58 @@ fn a_deprecated_bidirectional_lane_runs_both_ways() {
     let (net, prov) = load_str_with_provenance(&xml).unwrap();
     assert_eq!(lane(&net, &prov, "2", -1).direction, Direction::Both);
 }
+
+/// A hand-built lane: `points` its centerline, running `direction`.
+fn built(id: usize, points: &[[f32; 3]], direction: Direction, successors: &[usize]) -> Lane {
+    Lane {
+        id: LaneId(id),
+        kind: xodr::LaneType::Driving,
+        layer: xodr::Layer::Permanent,
+        direction,
+        center: xodr::Polyline::new(points.iter().map(|p| Point::from_array(*p)).collect()),
+        width: 3.5,
+        widths: Vec::new(),
+        bank: Vec::new(),
+        successors: successors.iter().map(|&i| LaneId(i)).collect(),
+        predecessors: Vec::new(),
+        neighbors: Vec::new(),
+    }
+}
+
+#[test]
+fn a_route_through_a_both_lane_leaves_by_its_other_end() {
+    let net = RoadNetwork::new(vec![
+        built(
+            0,
+            &[[0., -1.75, 0.], [100., -1.75, 0.]],
+            Direction::Forward,
+            &[1],
+        ),
+        built(
+            1,
+            &[[100., -1.75, 0.], [150., -1.75, 0.]],
+            Direction::Both,
+            &[2, 3],
+        ),
+        built(
+            2,
+            &[[100., 1.75, 0.], [0., 1.75, 0.]],
+            Direction::Forward,
+            &[],
+        ),
+        built(
+            3,
+            &[[150., -1.75, 0.], [250., -1.75, 0.]],
+            Direction::Forward,
+            &[],
+        ),
+    ]);
+    let back = Point::new(10.0, 1.75, 0.0);
+    assert!(net.route(Point::new(10.0, -1.75, 0.0), back).is_none());
+    let on = net
+        .route(Point::new(10.0, -1.75, 0.0), Point::new(200.0, -1.75, 0.0))
+        .expect("a route");
+    let x: Vec<f32> = on.iter().map(|p| p.x).collect();
+    assert!(x.windows(2).all(|w| w[1] >= w[0] - 1e-3), "{x:?}");
+    assert!((x[x.len() - 1] - 200.0).abs() < 1e-3);
+}

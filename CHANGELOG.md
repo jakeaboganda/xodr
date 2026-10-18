@@ -73,6 +73,10 @@
 - A junction's `<controller>` naming no top-level `<controller>` raises a
   `SignalLinkDropped`, as every other dangling signal link does. Before,
   it was dropped without one.
+- A route through a two-way lane leaves it by the end it didn't come in
+  by, and enters a two-way successor at the end it meets. Before, a route
+  could enter a two-way lane and leave it at the same end, a U-turn that
+  drove none of it.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 

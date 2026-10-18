@@ -103,7 +103,9 @@ impl RoadNetwork {
     /// The labels one edge on from `from`: a successor entered at the start
     /// of its travel, or a neighbour entered beside the point
     /// [`LANE_CHANGE_DIST`] on, as [`Self::sample_route`] drives it. Each is
-    /// yet to be linked to `from`.
+    /// yet to be linked to `from`. A two-way lane entered at one end is left
+    /// only by the successors at its other end, so a route never turns back
+    /// on it, and a two-way successor is entered at the end it meets.
     fn edges(&self, from: &Label, policy: LayerPolicy) -> Vec<Label> {
         let Some(l) = self.lane(from.lane) else {
             return Vec::new();
@@ -117,11 +119,32 @@ impl RoadNetwork {
             cost,
             prev: None,
         };
+        let leaves_at_end = |n: &LaneId| match (l.direction, from.entry) {
+            (Direction::Forward, _) => true,
+            (Direction::Backward, _) => false,
+            (Direction::Both, Entry::Start) => from.at < len / 2.0,
+            (Direction::Both, Entry::Change) => self.nearer_end(l, Some(n)),
+        };
         let successors = l.successors.iter().filter_map(|&n| {
             let next = self.lane(n)?;
+            let at_end = leaves_at_end(&n);
+            if l.direction == Direction::Both && at_end != self.nearer_end(l, Some(&n)) {
+                return None;
+            }
             let at = match next.direction {
+                Direction::Forward => 0.0,
                 Direction::Backward => next.center.length(),
-                _ => 0.0,
+                Direction::Both => {
+                    let exit = l.center.point_at(if at_end { len } else { 0.0 });
+                    let points = next.center.points();
+                    let first = points[0].distance_squared_to(exit);
+                    let last = points[points.len() - 1].distance_squared_to(exit);
+                    if first <= last {
+                        0.0
+                    } else {
+                        next.center.length()
+                    }
+                }
             };
             Some(label(n, Entry::Start, at, from.cost + len))
         });
