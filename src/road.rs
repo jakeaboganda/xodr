@@ -814,12 +814,12 @@ fn turn(angle: f64) -> f64 {
     (angle + PI).rem_euclid(TAU) - PI
 }
 
+/// The geometry, of `geoms` sorted by start, that `s` falls in: the last
+/// to start at or before it, or else the first. A binary search, as a
+/// converter's plan view can hold a record every few metres.
 pub(crate) fn geom_at(geoms: &[GeomRec], s: f64) -> &GeomRec {
-    geoms
-        .iter()
-        .rev()
-        .find(|g| g.s <= s + 1e-9)
-        .unwrap_or(&geoms[0])
+    let i = geoms.partition_point(|g| g.s <= s + 1e-9);
+    &geoms[i.saturating_sub(1)]
 }
 
 // --- Profiles -----------------------------------------------------------------
