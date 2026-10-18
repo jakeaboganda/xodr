@@ -79,6 +79,10 @@
   `$ROAD_CRG_FILE`, as `viewer_export` does. Before, the page refused it.
 - `viewer_export` writes each scene whole or not at all. Before, a failed
   write left a truncated scene that `--refresh` took as up to date.
+- The page escapes an error's message unless it wrote the message as HTML,
+  shows why the WebAssembly baker failed to load, reports a failure to keep
+  the opened files, refuses a `?scene=` URL on another site, and draws no
+  grid for a map with no road surface.
 - `viewer_export --refresh` fails, naming the folder, when there is no
   `viewer/web` where it runs. Before, it said every scene was up to date.
 

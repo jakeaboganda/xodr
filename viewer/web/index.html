@@ -302,7 +302,11 @@ document.getElementById('open').addEventListener('change', async e => {
   const files = [...e.target.files];
   const maps = files.filter(f => /\.xodr$/i.test(f.name));
   if (maps.length !== 1) return alert('Open one .xodr, and any .crg and included .xml files it uses.');
-  await openedFiles('readwrite', store => store.put(files, 'files'));
+  try {
+    await openedFiles('readwrite', store => store.put(files, 'files'));
+  } catch (err) {
+    return showError(err);
+  }
   location.search = '?open=' + encodeURIComponent(maps[0].name);
 });
 
@@ -324,11 +328,15 @@ function openedFiles(mode, use) {
 
 // Fill the map picker from the exporter's scenes.json, and return the scene
 // ?scene= names or the opened map ?open= names, and how many scenes there
-// are. Picking a scene reloads the page on it.
+// are. Picking a scene reloads the page on it. A scene must be on this site,
+// so a link can't show a scene from elsewhere as if it were baked here.
 async function pickScene() {
   const names = await fetch('scenes.json').then(r => r.ok ? r.json() : []).catch(() => []);
   const params = new URLSearchParams(location.search);
   const chosen = params.get('scene');
+  if (chosen && /^[a-z][a-z0-9+.-]*:|^[\\/]{2}/i.test(chosen)) {
+    throw new Error('?scene= names a scene beside this page, not a URL elsewhere.');
+  }
   const opened = params.get('open');
   const picker = document.getElementById('map');
   if (!chosen) {
@@ -352,13 +360,15 @@ async function pickScene() {
 async function bakeOpened(name) {
   const files = await openedFiles('readonly', store => store.get('files'));
   const map = files?.find(f => f.name === name);
-  if (!map) throw new Error(`${escapeHtml(name)} is not open any more. Open it again with <strong>open .xodr</strong>.`);
+  if (!map) throw htmlError(`${escapeHtml(name)} is not open any more. Open it again with <strong>open .xodr</strong>.`);
   let baker;
   try {
     baker = await import('./pkg/xodr_viewer.js');
     await baker.default();
   } catch (e) {
-    throw new Error('The WebAssembly baker is not built. Run <code>sh viewer/build.sh</code>, then reload.');
+    console.error(e);
+    throw htmlError('The WebAssembly baker is not built. Run <code>sh viewer/build.sh</code>, then reload.' +
+      `<br><small>${escapeHtml(e.message ?? e)}</small>`);
   }
   showMessage(`<div><p>Baking ${escapeHtml(name)}...</p></div>`);
   const crg = new Map(await Promise.all(files.filter(f => f !== map)
@@ -369,7 +379,7 @@ async function bakeOpened(name) {
   try {
     json = baker.bake(xodr, file => crg.get(file.split(/[\\/]/).pop()));
   } catch (e) {
-    throw new Error(`${escapeHtml(name)}: ${escapeHtml(e.message)}`);
+    throw htmlError(`${escapeHtml(name)}: ${escapeHtml(e.message)}`);
   }
   document.getElementById('err').style.display = 'none';
   return JSON.parse(json);
@@ -436,7 +446,7 @@ async function init() {
     try {
       data = await (await fetch(sceneUrl)).json();
     } catch (e) {
-      throw new Error(`could not load ${escapeHtml(sceneUrl)}. Serve this folder over HTTP ` +
+      throw htmlError(`could not load ${escapeHtml(sceneUrl)}. Serve this folder over HTTP ` +
         `(e.g. <code>python3 -m http.server</code>) rather than opening the file directly, ` +
         `and bake a map with <code>viewer_export</code> first.`);
     }
@@ -576,6 +586,7 @@ function buildMesh(data) {
 
   // Ground grid for orientation, sized to the map.
   const bb = g.boundingBox, span = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y);
+  if (bb.isEmpty()) return;
   const grid = new THREE.GridHelper(Math.ceil(span * 1.2), 40, 0x2a2f3a, 0x20242c);
   grid.rotation.x = Math.PI / 2;                       // grid is XZ by default; lay it in XY
   grid.position.set((bb.min.x + bb.max.x) / 2, (bb.min.y + bb.max.y) / 2, bb.min.z - 0.05);
@@ -1857,7 +1868,7 @@ function solidRows(o) {
 }
 
 function escapeHtml(s) {
-  return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  return String(s ?? '?').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 }
 
 function vec3(v) {
@@ -2415,11 +2426,19 @@ function animate() {
 
 function dist3(a, b) { return Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]); }
 
+// An error whose message is HTML, escaped where it quotes the map, for
+// showError to show as written.
+function htmlError(html) {
+  return Object.assign(new Error(html), { html: true });
+}
+
+// Show `e` in place of the map. Its message is escaped unless htmlError made it.
 function showError(e) {
   const el = document.getElementById('err');
   el.classList.remove('prompt');
   el.style.display = 'grid';
-  el.innerHTML = `<div><p><strong>Viewer could not start.</strong></p><p>${e.message}</p></div>`;
+  const message = e?.html ? e.message : escapeHtml(e?.message ?? e);
+  el.innerHTML = `<div><p><strong>Viewer could not start.</strong></p><p>${message}</p></div>`;
   console.error(e);
 }
 </script>
