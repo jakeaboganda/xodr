@@ -223,6 +223,13 @@ pub enum Warning {
         /// Its `<lane id>`.
         lane: i32,
     },
+    /// A `<junction>` whose `id` an earlier junction has. The spec makes
+    /// junction ids unique. The crate keeps the first and drops this one
+    /// whole, so roads that name the id link through the first.
+    JunctionIdRepeated {
+        /// The `<junction id>`.
+        junction_id: String,
+    },
     /// A `<lane>` whose `id` an earlier lane of its lane section has. The
     /// spec makes lane ids unique in a section. The crate keeps the first
     /// and drops this one.
@@ -963,7 +970,8 @@ impl Warning {
             | Self::ElevationGridDropped { .. }
             | Self::JunctionObjectsDropped { .. }
             | Self::BoundaryNotClosed { .. }
-            | Self::BoundaryClockwise { .. } => "",
+            | Self::BoundaryClockwise { .. }
+            | Self::JunctionIdRepeated { .. } => "",
         }
     }
 }
@@ -1028,6 +1036,9 @@ impl fmt::Display for Warning {
                 f,
                 "road {road_id:?}, lane section {section}: lane {lane} is on the other side from its id, dropped"
             ),
+            Self::JunctionIdRepeated { junction_id } => {
+                write!(f, "junction {junction_id:?}: a second junction of that id, dropped")
+            }
             Self::LaneIdRepeated {
                 road_id,
                 section,
