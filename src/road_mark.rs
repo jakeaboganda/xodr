@@ -208,8 +208,8 @@ pub struct RoadMarkLine {
     /// The colour the map names, such as `white`, or `standard`, meaning
     /// white. Free text. The mark's colour where the line gives none.
     pub color: String,
-    /// Metres across. The line's own width, or its `<type>`'s, or the
-    /// mark's [`width`](RoadMark::width), the first given above 0. The
+    /// Metres across. The line's own width, or its `<type>`'s if the type
+    /// has one line, or the `<roadMark>`'s `width`, the first given above 0. The
     /// OpenDRIVE spec says each is above 0, and esmini writes 0 on all three.
     pub width: f32,
     /// How far the middle of the line is from the lane border, in metres,
@@ -261,9 +261,9 @@ pub struct RoadMark {
     /// white. Free text. The OpenDRIVE spec requires one. A mark the map
     /// gives none is `standard`, as libOpenDRIVE and esmini read it.
     pub color: String,
-    /// Metres across. The mark's width, or its `<type>`'s, or 0.12 for a
-    /// standard weight and 0.25 for a bold one where it gives neither, as
-    /// libOpenDRIVE has them. The OpenDRIVE spec says a width is above 0,
+    /// Metres across. Its `<type>`'s width, which the spec says supersedes
+    /// the mark's, or the mark's, or 0.12 for a standard weight and 0.25 for
+    /// a bold one where it gives neither, as libOpenDRIVE has them. The OpenDRIVE spec says a width is above 0,
     /// and a width of 0 counts as none, since esmini writes one on every
     /// mark.
     pub width: f32,
