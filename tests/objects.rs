@@ -1502,3 +1502,40 @@ fn a_tunnel_without_a_length_is_dropped_with_a_warning() {
         }]
     );
 }
+
+#[test]
+fn a_dimension_the_spec_rules_out_counts_as_not_given() {
+    let xml = on_straight_road(
+        r#"<object id="a" s="5" t="-5" radius="0" length="4" width="2" height="1"/>
+        <object id="b" s="9" t="-5" radius="0.2" height="-1.5"/>
+        <object id="c" s="13" t="-5" length="-4" width="2"/>"#,
+    );
+    let net = xodr::load_str(&xml).unwrap();
+    let extents: Vec<_> = net
+        .objects()
+        .iter()
+        .map(|o| match &o.shape {
+            Shape::Solid { extent, .. } => *extent,
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        extents,
+        [
+            Some(Extent::Box {
+                length: 4.0,
+                width: 2.0,
+                height: 1.0
+            }),
+            Some(Extent::Cylinder {
+                radius: 0.2,
+                height: 0.0
+            }),
+            Some(Extent::Box {
+                length: 0.0,
+                width: 2.0,
+                height: 0.0
+            }),
+        ]
+    );
+}

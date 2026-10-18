@@ -34,6 +34,11 @@
   point. `road_position_on` an unknown road returns at once rather than
   searching the whole map, and a deserialized section whose start is past
   its end no longer panics a position query.
+- An object `length`, `width` or `radius` of 0 or less, or a negative
+  `height`, reads as not given, on the object and along its `<repeat>`.
+  The spec rules them out. Before, `radius="0"` beside a `length` and
+  `width` made a cylinder of no size, and a negative one an inside-out
+  solid.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 

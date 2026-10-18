@@ -3119,6 +3119,21 @@ struct Station {
     radius: Option<f64>,
 }
 
+impl Station {
+    /// Its dimensions, less those the spec rules out: a `length`, `width` or
+    /// `radius` of 0 or less, or a negative `height`.
+    fn sized(self) -> Self {
+        let above = |v: Option<f64>| v.filter(|v| *v > 0.0);
+        Self {
+            length: above(self.length),
+            width: above(self.width),
+            height: self.height.filter(|h| *h >= 0.0),
+            radius: above(self.radius),
+            ..self
+        }
+    }
+}
+
 /// An object's own frame at one station: its origin, and its u, v and z
 /// axes in the network's frame.
 struct Frame {
@@ -3556,7 +3571,8 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         width: attr_f64(node, "width"),
         height: attr_f64(node, "height"),
         radius: attr_f64(node, "radius"),
-    };
+    }
+    .sized();
     let hdg = attr_f64(node, "hdg").unwrap_or(0.0);
     let pitch = attr_f64(node, "pitch").unwrap_or(0.0);
     let roll = attr_f64(node, "roll").unwrap_or(0.0);
@@ -4170,6 +4186,7 @@ impl<'a> Repeat<'a> {
             height: lerp("height", base.height),
             radius: lerp("radius", base.radius),
         }
+        .sized()
     }
 
     /// The least baking it can cost, known before it is baked: an object
