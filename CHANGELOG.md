@@ -44,6 +44,10 @@
   the triangulation part way and leave a hole: up to 1,500 m² of a city
   junction. Each step of the ear clipping tests only the corners that turn
   in, so a long boundary no longer takes cubic time.
+- `RoadNetwork::object_mesh` triangulates a large outline in about linear
+  time: an ear tests only the corners near it that turn in, and the ring
+  is linked rather than shifted. An outline of 100,000 corners takes
+  under 0.1 s, where it took 14 s, and the parser allows a million.
 - A `<roadMark>` past the end of its lane section that no single-side
   section carries on raises a `RoadMarkDropped`. Before, it was dropped
   without one.
