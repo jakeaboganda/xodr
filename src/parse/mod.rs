@@ -3988,9 +3988,13 @@ fn outline_parts(
                 owner
                     .markings
                     .extend(markings(node, outline_node, &ring, faults));
-                owner
-                    .borders
-                    .extend(borders(node, outline_node, &ring, ring.closed));
+                owner.borders.extend(borders(
+                    node,
+                    outline_node,
+                    &ring,
+                    faults,
+                    owner.cost().pieces,
+                ));
             }
             let painted = owner.fill_type == "paint";
             if let Shape::Outline { holes, .. } = &mut owner.shape {
@@ -4033,7 +4037,7 @@ fn area(
         ring.stretch,
     );
     part.markings = markings(node, outline_node, ring, faults);
-    part.borders = borders(node, outline_node, ring, ring.closed);
+    part.borders = borders(node, outline_node, ring, faults, part.cost().pieces);
     part.fill_type = outline_node
         .attribute("fillType")
         .unwrap_or_default()
@@ -4805,16 +4809,21 @@ fn paint(
 /// `outlineId`, to any outline that fits it. With `useCompleteOutline` it
 /// runs along every edge, the closing one too if the outline is `closed`.
 /// Otherwise it follows the corners its `<cornerReference>`s name, as a
-/// [`Marking`] does. One with no width is skipped.
+/// [`Marking`] does. One with no width is skipped. The part they join has
+/// `already` pieces. One past what `faults` has left gets no pieces and sets
+/// [`Faults::too_many`], so the borders never hold more than the object may
+/// bake.
 fn borders(
     object: roxmltree::Node,
     outline: roxmltree::Node,
     ring: &Ring,
-    closed: bool,
+    faults: &Faults,
+    already: usize,
 ) -> Vec<Border> {
     let Some(borders) = child(object, "borders") else {
         return Vec::new();
     };
+    let mut used = already;
     borders
         .children()
         .filter(|n| n.has_tag_name("border"))
@@ -4826,17 +4835,23 @@ fn borders(
             let width = attr_f64(b, "width").filter(|w| *w > 0.0)?;
             let path = if matches!(b.attribute("useCompleteOutline"), Some("true" | "1")) {
                 let mut path = ring.path();
-                if closed {
+                if ring.closed {
                     path.push(path[0]);
                 }
                 path
             } else {
                 corner_path(b, ring)?
             };
+            let most = faults.pieces_left.get().saturating_sub(used);
+            let pieces = strip(&path, 0.0, 0.0, None, width / 2.0, most).unwrap_or_else(|| {
+                faults.too_many.set(true);
+                Vec::new()
+            });
+            used += pieces.len();
             Some(Border {
                 kind: b.attribute("type").unwrap_or_default().to_string(),
                 width: width as f32,
-                pieces: strip(&path, 0.0, 0.0, None, width / 2.0, usize::MAX).unwrap_or_default(),
+                pieces,
             })
         })
         .collect()
