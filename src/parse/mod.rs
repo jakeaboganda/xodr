@@ -102,7 +102,9 @@ const MAX_OBJECTS: usize = 100_000;
 /// The most corners of outlines, vertices of skeletons, sections of
 /// continuous repeats and pieces of markings and borders one load bakes for
 /// its objects, an `<objectReference>` counting again. The 60 km A9 test field, lined with
-/// guardrails, bakes about 750,000.
+/// guardrails, bakes about 750,000. Before a `<repeat>` bakes, each of its
+/// object's outline markings counts as at least one piece a copy, as it is
+/// worked out at every copy even where it paints nothing.
 const MAX_OBJECT_PIECES: usize = 2_000_000;
 
 /// What baking objects costs: how many objects, and how many corners,
@@ -3718,12 +3720,13 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         });
     }
     let outlines = outline_nodes(node);
+    let owned = with_markings(node, &outlines);
     let skeleton = child(node, "skeleton");
     let shaped = !outlines.is_empty() || skeleton.is_some();
     let outlined = |st: &Station| {
         let origin = road.on_road(st.s).then(|| frame(st));
         let shift = (at.shift.0 + st.s - base.s, at.shift.1 + st.t - base.t);
-        let mut parts = outline_parts(node, &outlines, origin.as_ref(), st, shift, road, &faults);
+        let mut parts = outline_parts(node, &owned, origin.as_ref(), st, shift, road, &faults);
         let bones =
             skeleton.and_then(|n| skeleton_part(n, origin.as_ref(), st, shift, road, &faults));
         match bones {
@@ -3733,8 +3736,19 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
         }
         parts
     };
+    let marked: usize = owned
+        .iter()
+        .map(|(outline, marks)| marks.len() + marking_nodes(*outline).count())
+        .sum();
     for repeat in &repeats {
-        if !faults.affords(out, repeat.least_cost(road)) {
+        let least = repeat.least_cost(road);
+        let least = Cost {
+            pieces: least
+                .pieces
+                .saturating_add(least.objects.saturating_mul(marked)),
+            ..least
+        };
+        if !faults.affords(out, least) {
             too_many.set(true);
         } else if repeat.distance > 0.0 {
             let Some(stations) = repeat.stations(&base, road) else {
@@ -3903,10 +3917,9 @@ fn place_object(node: roxmltree::Node, at: &Placement, road: &Road, out: &mut Ob
             object_id: text("id"),
         });
     }
-    let outlines_of = outline_nodes(node);
     let unclaimed = marking_nodes(node).any(|m| {
         let named = m.children().any(|n| n.has_tag_name("cornerReference"));
-        named && !outlines_of.iter().any(|o| names_corners_of(&m, o))
+        named && !owned.iter().any(|(_, marks)| marks.contains(&m))
     });
     if faults.marking_dropped.get() || unclaimed {
         out.warnings.push(Warning::MarkingDropped {
@@ -4029,7 +4042,7 @@ fn object_crg(crg: roxmltree::Node, part: &Part, road: &Road) -> Option<(CrgSurf
 /// it, and it is dropped if none does.
 fn outline_parts(
     node: roxmltree::Node,
-    outlines: &[roxmltree::Node],
+    outlines: &[(roxmltree::Node, Vec<roxmltree::Node>)],
     origin: Option<&Frame>,
     st: &Station,
     shift: (f64, f64),
@@ -4038,7 +4051,8 @@ fn outline_parts(
 ) -> Vec<Part> {
     let mut parts = Vec::new();
     let mut holes = Vec::new();
-    for &outline_node in outlines {
+    for (outline_node, owned) in outlines {
+        let outline_node = *outline_node;
         let Some(ring) = outline(outline_node, origin, st.s, shift, road) else {
             faults.outline_dropped.set(true);
             continue;
@@ -4046,13 +4060,13 @@ fn outline_parts(
         faults.gap.set(faults.gap.get().max(ring.gap));
         faults.turned.set(faults.turned.get() || ring.turned);
         if matches!(outline_node.attribute("outer"), Some("false" | "0")) {
-            holes.push((outline_node, ring));
+            holes.push((outline_node, owned, ring));
         } else {
-            parts.push(area(node, outline_node, &ring, st, faults));
+            parts.push(area(node, outline_node, owned, &ring, st, faults));
         }
     }
     let outer = parts.len();
-    for (outline_node, ring) in holes {
+    for (outline_node, owned, ring) in holes {
         let filled = outline_node.attribute("fillType").is_some()
             || outline_node.attribute("laneType").is_some();
         let corners = &ring.corners;
@@ -4067,7 +4081,7 @@ fn outline_parts(
             if !filled {
                 owner
                     .markings
-                    .extend(markings(node, outline_node, &ring, faults));
+                    .extend(markings(outline_node, owned, &ring, faults));
                 owner.borders.extend(borders(
                     node,
                     outline_node,
@@ -4086,7 +4100,7 @@ fn outline_parts(
             }
         }
         if filled {
-            parts.push(area(node, outline_node, &ring, st, faults));
+            parts.push(area(node, outline_node, owned, &ring, st, faults));
         }
     }
     parts
@@ -4098,6 +4112,7 @@ fn outline_parts(
 fn area(
     node: roxmltree::Node,
     outline_node: roxmltree::Node,
+    owned: &[roxmltree::Node],
     ring: &Ring,
     st: &Station,
     faults: &Faults,
@@ -4116,7 +4131,7 @@ fn area(
         st,
         ring.stretch,
     );
-    part.markings = markings(node, outline_node, ring, faults);
+    part.markings = markings(outline_node, owned, ring, faults);
     part.borders = borders(node, outline_node, ring, faults, part.cost().pieces);
     part.fill_type = outline_node
         .attribute("fillType")
@@ -4749,26 +4764,16 @@ fn marking_nodes<'a>(
         .filter(|n| n.has_tag_name("marking"))
 }
 
-/// The `<marking>`s that run along edges of one of `object`'s outlines,
-/// `outline`, placed as `ring`: those under the outline's own `<markings>`,
-/// as OpenDRIVE 1.9 writes them, then those under the object's.
-///
-/// A marking follows the corners its `<cornerReference>`s name, in order, by
-/// the corners' `id`s. One under the object belongs to the first outline
-/// that has every one of them, as corner ids are unique only within an
-/// outline. One under the outline naming a corner it lacks is skipped. So is
-/// one with fewer than two references.
+/// The markings of `outline`, placed as `ring`: its own, and `owned`, those
+/// of its object that name its corners.
 fn markings(
-    object: roxmltree::Node,
     outline: roxmltree::Node,
+    owned: &[roxmltree::Node],
     ring: &Ring,
     faults: &Faults,
 ) -> Vec<(Marking, RoadMarkWeight)> {
-    let outlines = outline_nodes(object);
-    let owned =
-        |m: &roxmltree::Node| outlines.iter().find(|o| names_corners_of(m, o)) == Some(&outline);
     marking_nodes(outline)
-        .chain(marking_nodes(object).filter(owned))
+        .chain(owned.iter().copied())
         .filter_map(|m| match corner_path(m, ring) {
             Some(path) => paint(m, &path, faults),
             None => {
@@ -4779,17 +4784,32 @@ fn markings(
         .collect()
 }
 
-/// Whether every `<cornerReference>` of `marking` names a corner of
-/// `outline`.
-fn names_corners_of(marking: &roxmltree::Node, outline: &roxmltree::Node) -> bool {
-    let ids: Vec<&str> = outline
-        .children()
-        .filter_map(|c| c.attribute("id"))
+/// Each of `outlines` with the `<marking>`s under `object`'s `<markings>`
+/// it owns: those whose `<cornerReference>`s all name its corners, and that
+/// no outline before it owns. Worked out once for an object, by a set of
+/// each outline's corner ids.
+fn with_markings<'a>(
+    object: roxmltree::Node<'a, 'a>,
+    outlines: &[roxmltree::Node<'a, 'a>],
+) -> Vec<(roxmltree::Node<'a, 'a>, Vec<roxmltree::Node<'a, 'a>>)> {
+    let ids: Vec<HashSet<&str>> = outlines
+        .iter()
+        .map(|o| o.children().filter_map(|c| c.attribute("id")).collect())
         .collect();
-    marking
-        .children()
-        .filter(|n| n.has_tag_name("cornerReference"))
-        .all(|r| r.attribute("id").is_some_and(|id| ids.contains(&id)))
+    let mut owned = vec![Vec::new(); outlines.len()];
+    for m in marking_nodes(object) {
+        let refs: Vec<Option<&str>> = m
+            .children()
+            .filter(|n| n.has_tag_name("cornerReference"))
+            .map(|r| r.attribute("id"))
+            .collect();
+        let names =
+            |set: &HashSet<&str>| refs.iter().all(|id| id.is_some_and(|id| set.contains(id)));
+        if let Some(k) = ids.iter().position(names) {
+            owned[k].push(m);
+        }
+    }
+    outlines.iter().copied().zip(owned).collect()
 }
 
 /// The `<marking>`s under `object`'s `<markings>` with no

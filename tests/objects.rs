@@ -1612,3 +1612,22 @@ fn a_junction_object_with_too_many_copies_names_its_junction() {
         .to_string()
         .starts_with(r#"junction "J": object "o""#));
 }
+
+#[test]
+fn a_repeat_of_many_markings_is_refused_before_it_is_baked() {
+    let marks =
+        r#"<marking><cornerReference id="a"/><cornerReference id="b"/></marking>"#.repeat(10_000);
+    let xml = on_straight_road(&format!(
+        r#"<object id="o" s="0" t="-10"><outlines><outline id="1" closed="true">
+        <cornerLocal id="a" u="0" v="0"/><cornerLocal id="b" u="1" v="0"/><cornerLocal id="c" u="0" v="1"/>
+        </outline></outlines><markings>{marks}</markings>
+        <repeat s="0" length="100" distance="0.0011"/></object>"#
+    ));
+    let started = std::time::Instant::now();
+    let (_, prov) = xodr::load_str_with_provenance(&xml).unwrap();
+    assert!(started.elapsed().as_secs() < 5, "{:?}", started.elapsed());
+    assert!(prov
+        .warnings
+        .iter()
+        .any(|w| matches!(w, xodr::Warning::TooManyCopies { .. })));
+}

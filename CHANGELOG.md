@@ -44,6 +44,12 @@
   the triangulation part way and leave a hole: up to 1,500 m² of a city
   junction. Each step of the ear clipping tests only the corners that turn
   in, so a long boundary no longer takes cubic time.
+- Which outline owns each object `<marking>` is worked out once per
+  object, by a set of each outline's corner ids. Before, it was searched
+  again at every copy of a repeat. A repeat's cost counts each marking as
+  at least one piece a copy, so a repeat of thousands of markings that
+  paint nothing is refused with a `TooManyCopies` rather than hanging the
+  import.
 - `RoadNetwork::object_mesh` triangulates a large outline in about linear
   time: an ear tests only the corners near it that turn in, and the ring
   is linked rather than shifted. An outline of 100,000 corners takes
