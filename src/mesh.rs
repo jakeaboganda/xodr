@@ -231,7 +231,7 @@ impl<'a> MeshSampler<'a> {
             .filter_map(|t| {
                 let corners = mesh.corners(t)?;
                 let b = Aabb::around(corners.map(|v| (v.x, v.y)))?;
-                let slack = EDGE_SLACK * ((b.max_x - b.min_x) + (b.max_y - b.min_y));
+                let slack = 2.0 * EDGE_SLACK * ((b.max_x - b.min_x) + (b.max_y - b.min_y));
                 let grown = Aabb {
                     min_x: b.min_x - slack,
                     max_x: b.max_x + slack,
