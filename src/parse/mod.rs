@@ -4877,7 +4877,8 @@ fn corner_path(node: roxmltree::Node, ring: &Ring) -> Option<Vec<(Point, Vector)
 /// of `path` comes with the normal of the surface it is on, and each quad
 /// lies in the surface its edge's ends share, anticlockwise seen from that
 /// normal. An edge along that normal has no across to measure, and gets no
-/// quad. `None` for a pattern of more than [`MAX_REPEAT_INSTANCES`] dashes.
+/// quad. `None` for a pattern of more than [`MAX_REPEAT_INSTANCES`] dashes
+/// on the path. Each edge visits only the dashes it overlaps.
 fn strip(
     path: &[(Point, Vector)],
     start: f64,
@@ -4893,14 +4894,23 @@ fn strip(
     let end = along.last().unwrap() - stop;
     let painted: Vec<(f64, f64)> = match dashes {
         None => vec![(start, end)],
-        Some((line, space)) if (end - start) / (line + space) > MAX_REPEAT_INSTANCES => {
-            return None
+        Some((line, space)) => {
+            let period = line + space;
+            let before = if start < 0.0 && period > 0.0 {
+                (-start / period).floor()
+            } else {
+                0.0
+            };
+            let first = start + before * period;
+            if (end - first) / period > MAX_REPEAT_INSTANCES {
+                return None;
+            }
+            (0..)
+                .map(|k| first + k as f64 * period)
+                .take_while(|&a| a < end)
+                .map(|a| (a, (a + line).min(end)))
+                .collect()
         }
-        Some((line, space)) => (0..)
-            .map(|k| start + k as f64 * (line + space))
-            .take_while(|&a| a < end)
-            .map(|a| (a, (a + line).min(end)))
-            .collect(),
     };
     let mut pieces = Vec::new();
     for (i, w) in path.windows(2).enumerate() {
@@ -4910,7 +4920,8 @@ fn strip(
             continue;
         }
         let (from, to) = (along[i], along[i + 1]);
-        for &(p, q) in &painted {
+        let first = painted.partition_point(|&(_, q)| q <= from);
+        for &(p, q) in painted[first..].iter().take_while(|&&(p, _)| p < to) {
             let (p, q) = (p.max(from), q.min(to));
             if q - p < 1e-6 {
                 continue;
@@ -6521,6 +6532,30 @@ mod tests {
                 .unwrap()
                 .len(),
             10
+        );
+    }
+
+    #[test]
+    fn dashes_from_far_before_a_strip_count_only_those_on_it() {
+        let path = level(&[Point::ORIGIN, Point::new(10.0, 0.0, 0.0)]);
+        let pieces = strip(&path, -1e6, 0.0, Some((1.0, 1.0)), 0.1, usize::MAX).unwrap();
+        assert_eq!(pieces.len(), 5);
+    }
+
+    #[test]
+    fn a_strip_lies_half_its_width_either_side_anticlockwise() {
+        let path = level(&[Point::ORIGIN, Point::new(10.0, 0.0, 0.0)]);
+        let pieces = strip(&path, 0.0, 0.0, None, 0.1, usize::MAX).unwrap();
+        let want = [(0.0, -0.1), (10.0, -0.1), (10.0, 0.1), (0.0, 0.1)];
+        for (p, (x, y)) in pieces[0].iter().zip(want) {
+            assert!((p.x - x).abs() < 1e-6 && (p.y - y).abs() < 1e-6, "{p:?}");
+        }
+        assert!(strip(&path, 0.0, 0.0, Some((1.0, 1.0)), 0.1, 3).is_none());
+        assert_eq!(
+            strip(&path, 0.0, 0.0, Some((1.0, 1.0)), 0.1, 5)
+                .unwrap()
+                .len(),
+            5
         );
     }
 
