@@ -59,6 +59,9 @@ harness = false
 # usd/ exports maps as OpenUSD stages.
 [workspace]
 members = ["usd", "viewer"]
+# Prefer dependency versions that build on each package's rust-version, so
+# the MSRV job checks the declared MSRV rather than the newest releases.
+resolver = "3"
 
 [package.metadata.docs.rs]
 all-features = true
