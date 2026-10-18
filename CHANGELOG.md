@@ -62,6 +62,8 @@
   before parsing, and only once. Before, a second pass could cut from a
   `<?xml` inside a comment to a later processing instruction, losing the
   roads between.
+- A road skipped as `OutOfRange` no longer drops the links of an earlier
+  road with the same id.
 - A lane's length sums in `f64`, so a 16 km lane is no longer about 2 m
   too long.
 

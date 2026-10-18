@@ -1931,13 +1931,17 @@ fn parse_road(
         warnings,
     };
     let (lanes_before, metas_before, next_before) = (out.len(), topo.metas.len(), topo.next_id);
+    let info_before = topo.roads.remove(&baked.road.od_id);
     bake_lanes(road, &mut baked, out, topo);
     if !out[lanes_before..].iter().all(finite) {
         out.truncate(lanes_before);
         topo.metas.truncate(metas_before);
         topo.next_id = next_before;
         topo.registry.retain(|_, id| id.0 < next_before);
-        topo.roads.remove(&baked.road.od_id);
+        match info_before {
+            Some(info) => topo.roads.insert(baked.road.od_id.clone(), info),
+            None => topo.roads.remove(&baked.road.od_id),
+        };
         return Err(RoadSkipReason::OutOfRange);
     }
     if let Some(objects_node) = child(road, "objects") {

@@ -709,3 +709,41 @@ fn a_lane_link_id_may_be_padded_like_every_other_id() {
         .unwrap();
     assert_eq!(first.successors.len(), 1);
 }
+
+#[test]
+fn a_duplicate_road_skipped_out_of_range_leaves_the_first_one_linked() {
+    let road = |id: &str, x: f64, profile: &str, link: &str, lane_link: &str| {
+        format!(
+            r#"<road id="{id}" length="10" junction="-1"><link>{link}</link>{profile}<planView>
+            <geometry s="0" x="{x}" y="0" hdg="0" length="10"><line/></geometry></planView>
+            <lanes><laneSection s="0"><right><lane id="-1" type="driving">
+            <link>{lane_link}</link><width sOffset="0" a="3"/></lane>
+            </right></laneSection></lanes></road>"#
+        )
+    };
+    let high =
+        r#"<elevationProfile><elevation s="0" a="1e39" b="0" c="0" d="0"/></elevationProfile>"#;
+    let to_2 = r#"<successor elementType="road" elementId="2" contactPoint="start"/>"#;
+    let xml = format!(
+        "<OpenDRIVE>{}{}{}</OpenDRIVE>",
+        road("1", 0.0, "", to_2, r#"<successor id="-1"/>"#),
+        road(
+            "2",
+            10.0,
+            "",
+            r#"<predecessor elementType="road" elementId="1" contactPoint="end"/>"#,
+            r#"<predecessor id="-1"/>"#
+        ),
+        road("1", 50.0, high, to_2, r#"<successor id="-1"/>"#),
+    );
+    let (net, prov) = load_str_with_provenance(&xml).unwrap();
+    assert!(prov
+        .warnings
+        .contains(&skipped("1", RoadSkipReason::OutOfRange)));
+    let first = net
+        .lanes()
+        .iter()
+        .find(|l| l.center.points()[0].x < 1.0)
+        .unwrap();
+    assert_eq!(first.successors.len(), 1);
+}
