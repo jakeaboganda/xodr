@@ -4,8 +4,6 @@
 # ///
 """Generate direct_junctions.xodr: roads joined end to end by direct junctions.
 
-    uv run tests/data/direct_junctions.py
-
 Every road is a flat straight with 3.5 m driving lanes and no lane links.
 
 Road 0 runs 50 m along +X from the origin, with lanes 1, -1 and -2. Its

@@ -4,8 +4,6 @@
 # ///
 """Generate lateral_shapes.xodr: roads with a lateral <shape> across them.
 
-    uv run tests/data/lateral_shapes.py
-
 scenariogeneration writes no lateral shapes, so this writes the XML itself.
 Every road is a flat 60 m straight heading +X, with a solid mark on every
 lane and on the center lane. Lanes 1 and -1 are 3.5 m driving lanes.

@@ -16,8 +16,6 @@ four roads, one per mode:
 - road 4, straight: crg_bumps.crg global, placed by xOffset and yOffset.
 
 Run from the repository root:
-
-    uv run tests/data/crg.py
 """
 
 import math

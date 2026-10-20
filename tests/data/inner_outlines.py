@@ -5,8 +5,6 @@
 """Generate inner_outlines.xodr: an object whose inner outlines are areas of
 their own, beside plain holes.
 
-    uv run tests/data/inner_outlines.py
-
 Road 1 is a flat 60 m straight from the origin heading +X, with one left and
 two right lanes, 3 m wide, so a road station `(s, t)` is the point `(s, t)`.
 Object 1, "Island", at s = 20, t = -4, has outlines in road coordinates, 0.2

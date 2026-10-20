@@ -5,8 +5,6 @@
 """Generate ignored.xodr: a file with every feature the crate ignores, in
 counts that tell the uses apart, and the near misses that look like them.
 
-    uv run tests/data/ignored.py
-
 Road 1 holds a <lanes layer="temporary">, which the crate reads, then a
 second permanent <lanes>, which it ignores, and a lane section with
 singleSide="true", which the crate reads. Road 2 holds the objects: three

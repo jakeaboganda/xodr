@@ -4,8 +4,6 @@
 # ///
 """Generate signal_semantics.xodr: what signals mean, and the boards they are.
 
-    uv run tests/data/signal_semantics.py
-
 Road 0 is a flat 100 m straight heading +X, with 3.5 m driving lanes 1 and
 -1. Its signals all face traffic along +s, so their boards face -X:
 

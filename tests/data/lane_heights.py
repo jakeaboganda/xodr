@@ -4,8 +4,6 @@
 # ///
 """Generate lane_heights.xodr: raised sidewalks on four roads.
 
-    uv run tests/data/lane_heights.py
-
 Every road has the same cross-section: lanes 1 and -1 are 3.5 m driving
 lanes, and lanes 2 and -2 are 2 m sidewalks. Sidewalk 2 is flat at 0.12 m.
 Sidewalk -2 slopes from 0.02 m at the kerb to 0.12 m at its outer edge, and

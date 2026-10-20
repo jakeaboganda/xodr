@@ -5,8 +5,6 @@
 """Generate outline_markings.xodr: markings inside outlines, as OpenDRIVE 1.9
 writes them, and areas of paint.
 
-    uv run tests/data/outline_markings.py
-
 Road 1 is a 60 m straight from the origin heading +X, banked 0.1 rad about
 its reference line. It has one left lane and two right lanes, 3 m wide. Its
 objects:

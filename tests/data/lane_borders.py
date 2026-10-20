@@ -4,8 +4,6 @@
 # ///
 """Generate lane_borders.xodr: lanes whose extent is a <border>.
 
-    uv run tests/data/lane_borders.py
-
 scenariogeneration writes no lane borders, so this writes the XML itself.
 Every road is a flat 60 m straight heading +X, with a solid mark on every
 lane and on the center lane.

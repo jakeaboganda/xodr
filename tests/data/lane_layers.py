@@ -5,8 +5,6 @@
 """Generate lane_layers.xodr: roads with a temporary lane layer over a
 permanent one.
 
-    uv run tests/data/lane_layers.py
-
 Road 1 is a 200 m straight with a left lane 1 and right lanes -1 and -2,
 3.5 m wide. Its permanent layer has sections from 0, 40 and 160 m. Its
 temporary layer has lanes -1 and -2, 2.5 m wide, shifted 1.5 m right by

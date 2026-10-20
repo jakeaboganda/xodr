@@ -4,8 +4,6 @@
 # ///
 """Generate cross_paths.xodr: a pedestrian crossing over a road, as a cross path.
 
-    uv run tests/data/cross_paths.py
-
 Road 1 runs 50 m along +X from the origin, with 3.5 m driving lanes 1 and
 -1 and 2 m sidewalks 2 and -2. Road 20, in junction 5, crosses it at x =
 25, from the middle of sidewalk 2 at (25, 4.5) to the middle of sidewalk -2

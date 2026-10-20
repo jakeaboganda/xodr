@@ -15,8 +15,7 @@ It checks each stage alone, under the catalogue, and flattened, for:
 - added structures that stand in traffic or go through a board.
 
 It also fails on a catalogue type that no board uses, to catch typos.
-Exits 1 if any check fails. `uv run` fetches the OpenUSD Python module
-its header names.
+Exits 1 if any check fails.
 """
 
 import sys

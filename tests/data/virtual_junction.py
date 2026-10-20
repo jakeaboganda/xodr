@@ -4,8 +4,6 @@
 # ///
 """Generate virtual_junction.xodr: a driveway off a main road.
 
-    uv run tests/data/virtual_junction.py
-
 Road 1 is a 100 m main road heading +X, with lane 1 on its left and lanes
 -1 and -2 on its right, each 3.5 m. Road 99 is a 30 m lot road heading -Y
 from (50, -20), with lanes -1 and 1, each 3 m.

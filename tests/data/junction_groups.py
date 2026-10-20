@@ -4,8 +4,6 @@
 # ///
 """Generate junction_groups.xodr: junctions grouped as one, as round a roundabout.
 
-    uv run tests/data/junction_groups.py
-
 Roads 1, 2 and 3 are flat 20 m straights heading +X, from x = 0, 30 and 60,
 each with a 3.5 m driving lane -1. Connecting road 10, in junction 5, joins
 road 1 to road 2, and connecting road 11, in junction 6, road 2 to road 3.

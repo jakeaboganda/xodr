@@ -4,8 +4,6 @@
 # ///
 """Generate skeleton.xodr: objects described by <skeleton> polylines.
 
-    uv run tests/data/skeleton.py
-
 Road 1 is a 60 m straight from the origin heading +X, at elevation
 `1 + 0.02 s`, with one left lane and two right lanes, 3 m wide. Its objects:
 

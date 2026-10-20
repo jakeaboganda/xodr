@@ -4,8 +4,6 @@
 # ///
 """Generate gantries.xodr: demo scenes of signs on gantries.
 
-    uv run tests/data/gantries.py
-
 Road 1 is a motorway, 300 m long heading +X. Each carriageway has three
 3.75 m driving lanes and a 2.5 m shoulder, with a border beyond it. A 4 m
 median separates the carriageways. It has three gantries:

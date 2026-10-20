@@ -5,8 +5,6 @@
 """Generate junction_objects.xodr: objects placed along a junction's
 reference line.
 
-    uv run tests/data/junction_objects.py
-
 Junction 100 is a flat tee of roads 1, 2 and 3, with connecting roads from
 1000. Its reference line is a 40 m <line> from (-20, -10) heading 0.3 rad.
 Its <objects> hold:

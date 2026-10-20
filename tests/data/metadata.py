@@ -5,8 +5,6 @@
 """Generate metadata.xodr and metadata_bare.xodr: the descriptive attributes
 a map carries that the crate keeps for the caller and builds nothing from.
 
-    uv run tests/data/metadata.py
-
 metadata.xodr is a 100 m road 1, named "Main Street", and a tee of roads
 11, 12 and 13 round junction 100, named "Market Square". Its <header> gives
 every attribute the schema allows: revMajor 1, revMinor 9, name, version,

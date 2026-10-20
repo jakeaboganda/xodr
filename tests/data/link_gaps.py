@@ -4,8 +4,6 @@
 # ///
 """Generate link_gaps.xodr: lane links across a gap, and ones that meet.
 
-    uv run tests/data/link_gaps.py
-
 Every road is a flat straight heading +X with right lanes only.
 
 Road 0 runs 50 m from the origin. Its lane section at 0 has lane -1, 7 m

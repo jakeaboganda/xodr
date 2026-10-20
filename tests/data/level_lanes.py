@@ -4,8 +4,6 @@
 # ///
 """Generate level_lanes.xodr: lanes with level="true" beside tilted roads.
 
-    uv run tests/data/level_lanes.py
-
 Every road is a 50 m straight heading +X, on flat ground, with one lane
 section.
 

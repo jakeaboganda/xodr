@@ -4,8 +4,6 @@
 # ///
 """Generate crossings.xodr: a railway crossing a road at one level.
 
-    uv run tests/data/crossings.py
-
 Road 1 runs 200 m along +X from (0, 0), with 3.5 m driving lanes 1 and
 -1. Road 2, a railway, runs 300 m along +Y from (55, -150), with one rail
 lane -1, 1.5 m wide, so it crosses road 1 at its s = 55 and its own

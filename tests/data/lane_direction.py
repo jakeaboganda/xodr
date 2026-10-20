@@ -4,8 +4,6 @@
 # ///
 """Generate lane_direction.xodr: lanes whose direction overrides their side's.
 
-    uv run tests/data/lane_direction.py
-
 Roads 0 and 1 are flat 50 m straights heading +X, from (0, 0) and (50, 0),
 joined end to start, in right-hand traffic. Each has 3.5 m driving lanes,
 each linked to the same lane of the other road:

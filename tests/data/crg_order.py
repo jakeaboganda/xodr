@@ -5,8 +5,6 @@
 """Generate crg_order.xodr: roads and a junction whose <CRG> records overlap,
 to show the last record in the file wins.
 
-    uv run tests/data/crg_order.py
-
 Roads 1 and 2 are 100 m straights, 40 m apart. Both list three elevation
 records over one file, `elev.crg`, each lifting the road by its own
 `zOffset`, and two friction records over `f1.crg` and `f2.crg`:
