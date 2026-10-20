@@ -101,6 +101,13 @@ sample the road surface. The viewer and xodr-usd use the meshes.](docs/data-flow
 
 The published crate has no tests or maps. Run them from a git checkout.
 
+The Python scripts that generate the test maps and check the OpenUSD
+stages run with [uv]: `uv run tests/data/city.py`. Each names its Python
+and packages in a `# /// script` block, so nothing is installed into the
+system's Python. `viewer/run.sh` and `usd/run.sh` need uv too.
+
+[uv]: https://docs.astral.sh/uv/
+
 MSRV is 1.85.
 
 ## License
