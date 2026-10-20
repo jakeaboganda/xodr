@@ -1,8 +1,12 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate src/parse/introduced.rs: the elements and attributes OpenDRIVE
 1.8 and 1.9 introduced, by path from <OpenDRIVE>, from the 1.9 XSD and the
 spec's revision history annexes. Needs target/asam/ (see ROADMAP.md).
 
-    python3 tests/data/introduced.py
+    uv run tests/data/introduced.py
 """
 import glob, re, subprocess, xml.etree.ElementTree as ET
 from pathlib import Path

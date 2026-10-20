@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate road_neighbors.xodr: roads that name the road beside them.
 
-    python3 tests/data/road_neighbors.py
+    uv run tests/data/road_neighbors.py
 
 Roads 1, 2 and 3 are flat 50 m straights, each with a 3.5 m driving lane
 -1. Road 1 heads +X from the origin. Road 2 heads +X from (0, 5), on road

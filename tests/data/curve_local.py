@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate curve_local.xodr: outlines drawn with <curveLocal> lines, arcs
 and paramPoly3 curves.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/curve_local.py
+    uv run tests/data/curve_local.py
 
 Road 1 is a flat 60 m straight from the origin heading +X, with one left and
 two right lanes, 3 m wide. So `(s, t)` is `(x, y)`. Its objects:

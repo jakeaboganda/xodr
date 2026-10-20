@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate lane_visibility.xodr: lane <visibility>s.
 
-    python3 tests/data/lane_visibility.py
+    uv run tests/data/lane_visibility.py
 
 Road 0 is a 100 m straight heading +X, with lane sections at s = 0 and
 s = 60, and 3.5 m lanes 1 and -1 in each. The header says OpenDRIVE 1.4,

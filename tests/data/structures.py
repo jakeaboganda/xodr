@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate structures.xodr: signs over traffic that need each kind of
 structure the OpenUSD exporter adds.
 
-    python3 tests/data/structures.py
+    uv run tests/data/structures.py
 
 Four straight roads, each 100 m long heading +X, with 3.5 m driving lanes
 on the right only, 60 m apart. Every sign is at s = 50, 5 m up.

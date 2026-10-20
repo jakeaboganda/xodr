@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate lane_borders.xodr: lanes whose extent is a <border>.
 
-    python3 tests/data/lane_borders.py
+    uv run tests/data/lane_borders.py
 
 scenariogeneration writes no lane borders, so this writes the XML itself.
 Every road is a flat 60 m straight heading +X, with a solid mark on every

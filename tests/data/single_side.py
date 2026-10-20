@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate single_side.xodr: lane sections that give one side of the road.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/single_side.py
+    uv run tests/data/single_side.py
 
 Road 1 is a 200 m straight of four lane sections, 3 m wide lanes unless
 said:

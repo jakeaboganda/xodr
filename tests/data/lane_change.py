@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate lane_change.xodr: road marks that allow or forbid a lane change.
 
-    python3 tests/data/lane_change.py
+    uv run tests/data/lane_change.py
 
 Road 0 is a flat 100 m straight heading +X from the origin, in right-hand
 traffic, with 3.5 m driving lanes 1, -1, -2 and -3. Its road marks:

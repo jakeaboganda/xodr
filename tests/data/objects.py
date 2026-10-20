@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate objects.xodr: an arc road with objects placed along it, and a
 straight road that places some of them again by reference.
 
-    uv run --with scenariogeneration==0.16.6 tests/data/objects.py
+    uv run tests/data/objects.py
 
 Road 0 is a 100 m left arc of radius 200 m starting at the origin heading +X,
 climbing at 2 %. Road 1 is a flat 60 m straight from (0, -40) heading +X, and

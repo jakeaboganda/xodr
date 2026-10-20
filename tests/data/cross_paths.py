@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate cross_paths.xodr: a pedestrian crossing over a road, as a cross path.
 
-    python3 tests/data/cross_paths.py
+    uv run tests/data/cross_paths.py
 
 Road 1 runs 50 m along +X from the origin, with 3.5 m driving lanes 1 and
 -1 and 2 m sidewalks 2 and -2. Road 20, in junction 5, crosses it at x =

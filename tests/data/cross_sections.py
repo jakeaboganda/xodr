@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate cross_sections.xodr: road surfaces given as cross-section strips.
 
-    python3 tests/data/cross_sections.py
+    uv run tests/data/cross_sections.py
 
 Road 0 is a flat 60 m straight heading +X, with 3 m driving lanes 1, 2, -1
 and -2. Its <crossSectionSurface> is shifted 0.5 m left by its <tOffset>.

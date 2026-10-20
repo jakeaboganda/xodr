@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate junction_areas.xodr: junction boundaries and an elevation grid.
 
-    python3 tests/data/junction_areas.py
+    uv run tests/data/junction_areas.py
 
 Roads 1 and 2 run 20 m along +X from (0, 0) and (30, 0), with 3.5 m driving
 lanes 1 and -1, flat at 0 m. Connecting road 10, in junction 7, joins them

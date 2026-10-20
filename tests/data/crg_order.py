@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate crg_order.xodr: roads and a junction whose <CRG> records overlap,
 to show the last record in the file wins.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/crg_order.py
+    uv run tests/data/crg_order.py
 
 Roads 1 and 2 are 100 m straights, 40 m apart. Both list three elevation
 records over one file, `elev.crg`, each lifting the road by its own

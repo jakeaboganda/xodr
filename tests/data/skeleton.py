@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate skeleton.xodr: objects described by <skeleton> polylines.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/skeleton.py
+    uv run tests/data/skeleton.py
 
 Road 1 is a 60 m straight from the origin heading +X, at elevation
 `1 + 0.02 s`, with one left lane and two right lanes, 3 m wide. Its objects:

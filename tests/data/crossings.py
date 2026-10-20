@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate crossings.xodr: a railway crossing a road at one level.
 
-    python3 tests/data/crossings.py
+    uv run tests/data/crossings.py
 
 Road 1 runs 200 m along +X from (0, 0), with 3.5 m driving lanes 1 and
 -1. Road 2, a railway, runs 300 m along +Y from (55, -150), with one rail

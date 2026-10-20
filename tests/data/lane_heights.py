@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate lane_heights.xodr: raised sidewalks on four roads.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/lane_heights.py
+    uv run tests/data/lane_heights.py
 
 Every road has the same cross-section: lanes 1 and -1 are 3.5 m driving
 lanes, and lanes 2 and -2 are 2 m sidewalks. Sidewalk 2 is flat at 0.12 m.

@@ -21,11 +21,21 @@ repeat, and some of its validities contradict their orientation.
 
 ## Written here
 
+Each script runs with [uv] from the repository root, as `uv run
+tests/data/NAME.py`. It declares the Python it needs and its packages,
+such as [scenariogeneration] at a pinned version, in a `# /// script`
+block at its top, so uv fetches them into a cached environment of its own
+and nothing is installed into the system's Python. CI runs every script
+this way and fails if a map it writes differs from the one committed, but
+for the date some writers stamp in the header.
+
+[uv]: https://docs.astral.sh/uv/
+
 `cross_paths.xodr` comes from `cross_paths.py`, which writes the XML
 itself. It has a crosswalk from one sidewalk of a road to the other, as a
 cross path, and one naming an `s` past the road's end. Regenerate with
 
-    python3 tests/data/cross_paths.py
+    uv run tests/data/cross_paths.py
 
 `include/main.xodr` is written by hand. Its plan view and lanes come from
 included files in `include/parts/`, the lanes through a nested include. It
@@ -37,14 +47,14 @@ It has a railway crossing a road at one level, as a crossing junction with
 the spec's priority, a section with its ends the wrong way round, and one
 naming a road the file lacks. Regenerate with
 
-    python3 tests/data/crossings.py
+    uv run tests/data/crossings.py
 
 `cross_sections.xodr` comes from `cross_sections.py`, which writes the XML
 itself. It has a cross-section surface with an offset, both inner strips
 and a relative outer strip, and one with superelevation and a strip mode
 the spec doesn't allow. Regenerate with
 
-    python3 tests/data/cross_sections.py
+    uv run tests/data/cross_sections.py
 
 `demo.xodr` is the OpenDRIVE twin of the `demo_road` fixture in `src`.
 `testtrack.xodr` is a purpose-built vehicle-tuning track: straight, crest, dip,
@@ -58,26 +68,26 @@ files aimed at one behaviour each. So are the malformed ones: `no_geometry`,
 potholes and ruts, and `crg_grip.crg`, a friction grid with a wet patch.
 `crg.py` writes all three. Regenerate with
 
-    python3 tests/data/crg.py
+    uv run tests/data/crg.py
 
 `objects.xodr` is generated rather than written by hand: `objects.py` builds it
 with [scenariogeneration], so the object fixture comes from a writer other than
 this crate. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/objects.py
+    uv run tests/data/objects.py
 
 `signals.xodr` comes from `signals.py` the same way. It has signs and
 traffic lights on three straight roads, with signal references and
 controllers. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/signals.py
+    uv run tests/data/signals.py
 
 `road_marks.xodr` comes from `road_marks.py` the same way. It has every
 road mark type on one straight, banked road with a laneOffset and two lane
 sections, a road whose marks give `<type><line>`s, and one with
 `<explicit>` lines and a `<sway>`. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/road_marks.py
+    uv run tests/data/road_marks.py
 
 `structures.xodr` comes from `structures.py`, which writes the XML
 itself. It has four straight roads with signs over traffic. Road 1 gets a
@@ -86,21 +96,21 @@ Road 3 gets a space frame. Road 4 has too much sign for a cantilever, so it
 gets a span gantry.
 Regenerate with
 
-    python3 tests/data/structures.py
+    uv run tests/data/structures.py
 
 `gantries.xodr` comes from `gantries.py`, which writes the XML itself. It
 is a demo of signs on gantries: a motorway with a lane-control gantry, a
 space frame over both carriageways and a message-board gantry, and an urban
 road with a traffic-light gantry. Regenerate with
 
-    python3 tests/data/gantries.py
+    uv run tests/data/gantries.py
 
 `traffic_rule.xodr` comes from `traffic_rule.py`, which writes the XML
 itself. It has the same pair of linked roads in right- and left-hand
 traffic, each with a signal, and a road whose `rule` the spec does not
 allow. Regenerate with
 
-    python3 tests/data/traffic_rule.py
+    uv run tests/data/traffic_rule.py
 
 `direct_junctions.xodr` comes from `direct_junctions.py`, which writes the
 XML itself. It has a road splitting in two through a direct junction that
@@ -108,34 +118,34 @@ gives its connections one way, two roads joined through one that gives
 them both ways, and a connection of each junction type without the road
 it leads into. Regenerate with
 
-    python3 tests/data/direct_junctions.py
+    uv run tests/data/direct_junctions.py
 
 `lane_rules.xodr` comes from `lane_rules.py`, which writes the XML
 itself. It has lane rules, one without a value, access in the 1.8 form
 and the older one, one without a rule, and materials, some out of order,
 across two lane sections. Regenerate with
 
-    python3 tests/data/lane_rules.py
+    uv run tests/data/lane_rules.py
 
 `junction_areas.xodr` comes from `junction_areas.py`, which writes the
 XML itself. It has a junction with a boundary, a reference line and an
 elevation grid with a hump in it, and a clockwise boundary with a segment
 on a road the file lacks. Regenerate with
 
-    python3 tests/data/junction_areas.py
+    uv run tests/data/junction_areas.py
 
 `junction_groups.xodr` comes from `junction_groups.py`, which writes the
 XML itself. It has a roundabout group of two junctions that also names a
 junction the file lacks, and a group with a type the spec doesn't allow.
 Regenerate with
 
-    python3 tests/data/junction_groups.py
+    uv run tests/data/junction_groups.py
 
 `junction_links.xodr` comes from `junction_links.py`, which writes the
 XML itself. It has an incoming road whose `<link>` leaves out its junction,
 and one whose connecting road doesn't name it either. Regenerate with
 
-    python3 tests/data/junction_links.py
+    uv run tests/data/junction_links.py
 
 `link_gaps.xodr` comes from `link_gaps.py`, which writes the XML itself.
 It has a lane that narrows onto one half of a split across a lane section
@@ -143,54 +153,54 @@ seam, one that hands over to a lane opening out of nothing beside it, a
 link across a 2 m gap, and a road whose `length` is short of its
 `<planView>`. Regenerate with
 
-    python3 tests/data/link_gaps.py
+    uv run tests/data/link_gaps.py
 
 `lane_direction.xodr` comes from `lane_direction.py`, which writes the XML
 itself. It has standard, reversed and two-way lanes, and one with a
 `direction` the spec doesn't allow, on two linked roads. Regenerate with
 
-    python3 tests/data/lane_direction.py
+    uv run tests/data/lane_direction.py
 
 `junction_priority.xodr` comes from `junction_priority.py`, which writes
 the XML itself. It has a junction giving one connecting road priority over
 another, and a priority naming a road the file lacks. Regenerate with
 
-    python3 tests/data/junction_priority.py
+    uv run tests/data/junction_priority.py
 
 `lane_visibility.xodr` comes from `lane_visibility.py`, which writes the
 XML itself. It has lane visibilities out of order, one without `sOffset`,
 and two with a distance the crate can't read, across two lane sections.
 Regenerate with
 
-    python3 tests/data/lane_visibility.py
+    uv run tests/data/lane_visibility.py
 
 `virtual_junction.xodr` comes from `virtual_junction.py`, which writes the
 XML itself. It has a driveway: two connecting roads meeting a main road
 part way along it, a lot road, and two deprecated virtual connections, one
 naming a road the file lacks. Regenerate with
 
-    python3 tests/data/virtual_junction.py
+    uv run tests/data/virtual_junction.py
 
 `railways.xodr` comes from `railways.py`, which writes the XML itself. It
 has a switch from a track onto a side track, a switch naming a track the
 file lacks, and a station with a platform and a segment whose side the spec
 doesn't allow. Regenerate with
 
-    python3 tests/data/railways.py
+    uv run tests/data/railways.py
 
 `road_neighbors.xodr` comes from `road_neighbors.py`, which writes the XML
 itself. It has roads naming the roads beside them, the same way and the
 other, one naming a road the file lacks, and one with a `side` 1.4 doesn't
 allow. Regenerate with
 
-    python3 tests/data/road_neighbors.py
+    uv run tests/data/road_neighbors.py
 
 `signal_semantics.xodr` comes from `signal_semantics.py`, which writes the
 XML itself. It has a speed sign's semantics with an exception for buses, a
 gantry's static board of two signs, a variable message board with two
 display areas, and a stop line's priority. Regenerate with
 
-    python3 tests/data/signal_semantics.py
+    uv run tests/data/signal_semantics.py
 
 `speed_limits.xodr` comes from `speed_limits.py`, which writes the XML
 itself. It has road types with speed limits in km/h, mph and none, lane
@@ -198,21 +208,21 @@ speeds that override them, a road with two lane sections whose first type
 starts part way along, a road with a type and speeds the crate can't
 read, and a lane speed too large for an `f32`. Regenerate with
 
-    python3 tests/data/speed_limits.py
+    uv run tests/data/speed_limits.py
 
 `lane_change.xodr` comes from `lane_change.py`, which writes the XML
 itself. It has one road whose marks allow a lane change both ways, one way
 and neither way, a border without a mark for its first 20 m, and a
 `laneChange` the spec doesn't allow. Regenerate with
 
-    python3 tests/data/lane_change.py
+    uv run tests/data/lane_change.py
 
 `level_lanes.xodr` comes from `level_lanes.py`, which writes the XML
 itself. It has level shoulders and a raised level sidewalk beside a
 superelevated road, a level shoulder beside a crowned road, and a lane
 outside a level lane that isn't level. Regenerate with
 
-    python3 tests/data/level_lanes.py
+    uv run tests/data/level_lanes.py
 
 `lane_heights.xodr` comes from `lane_heights.py`, which uses
 [scenariogeneration] like `objects.py`. It has
@@ -221,7 +231,7 @@ banked and climbing road, a road with two lane sections, and an arc. The
 flat road also has poles, a sign and road marks on and beside them.
 Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/lane_heights.py
+    uv run tests/data/lane_heights.py
 
 `lane_borders.xodr` comes from `lane_borders.py`, which writes the XML
 itself, since scenariogeneration writes no lane borders. It has a lane
@@ -229,7 +239,7 @@ opening out of nothing as in ASAM's `Ex_Lane-Border.xodr`, border and width
 lanes stacked on each other, a lane with both, borders under a
 `laneOffset`, and a border that crosses the lane inside it. Regenerate with
 
-    python3 tests/data/lane_borders.py
+    uv run tests/data/lane_borders.py
 
 `lateral_shapes.xodr` comes from `lateral_shapes.py` the same way. It has a
 crown that breaks on the center line, a parabolic crown flattening over
@@ -237,68 +247,68 @@ crown that breaks on the center line, a parabolic crown flattening over
 sidewalk on a crown, and a profile that starts inside the road. Regenerate
 with
 
-    python3 tests/data/lateral_shapes.py
+    uv run tests/data/lateral_shapes.py
 
 `ignored.xodr` comes from `ignored.py`, which uses [scenariogeneration] and
 splices in what it can't write. It uses each feature the crate ignores,
 in counts that tell the uses apart, beside the values that look like them
 and mean nothing. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/ignored.py
+    uv run tests/data/ignored.py
 
 `types.xodr` comes from `types.py` the same way. It has one lane of each lane
 type and one object of each object type the schema names, and shared lanes
 beside driving and sidewalk lanes. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/types.py
+    uv run tests/data/types.py
 
 `crg_order.xodr` comes from `crg_order.py`. It has roads and a junction whose
 `<CRG>` records overlap, to show the last in the file wins. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/crg_order.py
+    uv run tests/data/crg_order.py
 
 `signal_direction.xodr` comes from `signal_direction.py`. It has signals on
 roads with reversed, two-way and left-hand lanes. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/signal_direction.py
+    uv run tests/data/signal_direction.py
 
 `metadata.xodr` and `metadata_bare.xodr` come from `metadata.py`. The first
 gives every descriptive attribute the crate keeps, from the header to a sign
 on a board. The second gives none, or an unreadable one. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/metadata.py
+    uv run tests/data/metadata.py
 
 `lane_layers.xodr` comes from `lane_layers.py`. It has roads with a temporary
 lane layer over a permanent one, with links between the layers, a layer
 listed first, validities of each layer, and a junction link between
 temporary lanes. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/lane_layers.py
+    uv run tests/data/lane_layers.py
 
 `object_poses.xodr` comes from `object_poses.py`. It has a box, an
 outlined shelter and a post on a graded, banked road, each standing upright
 and each following the road with `perpToRoad`. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/object_poses.py
+    uv run tests/data/object_poses.py
 
 `curve_local.xodr` comes from `curve_local.py`. It has outlines drawn with
 `<curveLocal>` lines, arcs and paramPoly3 curves, with and without lengths,
 one with gaps between its curves, and one that cannot be drawn. Regenerate
 with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/curve_local.py
+    uv run tests/data/curve_local.py
 
 `inner_outlines.xodr` comes from `inner_outlines.py`. It has an island whose
 inner outlines are filled areas, a laned one and plain holes, two of them
 outside the outer outline. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/inner_outlines.py
+    uv run tests/data/inner_outlines.py
 
 `junction_objects.xodr` comes from `junction_objects.py`. It has a tee
 junction with objects along its reference line, and a junction whose objects
 have no line to stand along. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/junction_objects.py
+    uv run tests/data/junction_objects.py
 
 `object_surface.xodr` comes from `object_surface.py`. It has objects with a
 `<surface>` CRG on roads with no road CRG, an `attached` one and an
@@ -307,40 +317,40 @@ CRG files it names, `plate.crg`, `small.crg` and `road.crg`, so the viewer
 can show them. The tests make their own copies.
 Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/object_surface.py
+    uv run tests/data/object_surface.py
 
 `outline_markings.xodr` comes from `outline_markings.py`. It has markings
 inside outlines, beside one under its object, and closed and open areas of
 paint, one with a hole and one with a border and a yellow `roadMarkColor`,
 on a banked road. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/outline_markings.py
+    uv run tests/data/outline_markings.py
 
 `repeats.xodr` comes from `repeats.py`. It has repeats whose `t` is a
 cubic, one whose cubic misses its `tEnd`, and repeats detached from the
 reference line, on an arc. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/repeats.py
+    uv run tests/data/repeats.py
 
 `skeleton.xodr` comes from `skeleton.py`. It has objects described by
 `<skeleton>` polylines in road and local coordinates, repeated and
 referenced, polylines that cannot be placed, and signals on and under a
 skeleton pole. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/skeleton.py
+    uv run tests/data/skeleton.py
 
 `single_side.xodr` comes from `single_side.py`. It has lane sections that give
 only the left or only the right side, with widths, heights, marks and links
 the other side carries on. Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/single_side.py
+    uv run tests/data/single_side.py
 
 `junction_wraps.xodr` comes from `junction_wraps.py`. It has fourteen
 junctions laid out to stress the OpenUSD junction wrap: crossroads, tees,
 rings, slopes, a flyover, kerbs and a boundary with an elevation grid.
 Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/junction_wraps.py
+    uv run tests/data/junction_wraps.py
 
 `city.xodr` comes from `city.py`. It is a seaside town, loosely after
 Barcelona's Eixample, to look at in the viewer and OpenUSD: 25 junctions
@@ -353,6 +363,6 @@ buildings, courtyards, a park, trees, lamps, benches, parked cars and a
 beach. Each junction has a boundary and an elevation grid on the slope.
 Regenerate with
 
-    uv run --with scenariogeneration==0.16.6 tests/data/city.py
+    uv run tests/data/city.py
 
 [scenariogeneration]: https://github.com/pyoscx/scenariogeneration
