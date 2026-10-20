@@ -23,7 +23,7 @@ map at <http://localhost:8001>.
 
 - Catalogues are optional.
 - Set `PORT` to use another port.
-- The first run installs OpenUSD's Python module into `target/usd-venv`.
+- It needs [uv], which fetches OpenUSD's Python module the first time.
 
 To see every kind of structure that holds signs over traffic, open
 `tests/data/structures.xodr` the same way. For realistic gantry scenes,
@@ -46,18 +46,24 @@ different colours gets its first line's colour.
 ## Use a catalogue
 
 [`catalogues/sample.usda`](catalogues/sample.usda) styles the signal types
-in the test maps. `catalogues/sample.py` writes it. [SCHEMA.md](SCHEMA.md#catalogues) explains how to write a
+in the test maps. `uv run usd/catalogues/sample.py > usd/catalogues/sample.usda`
+writes it. [SCHEMA.md](SCHEMA.md#catalogues) explains how to write a
 catalogue.
 
 Full USD tools such as `usdview` stack a catalogue over a stage
 themselves. Other readers, such as three.js's `USDLoader`, need a flat
 file: one layer, with inherits and sublayers already applied. To make one,
-install OpenUSD's Python module and run `flatten.py`:
+run `flatten.py`:
 
 ```sh
-pip install usd-core
-python usd/flatten.py town07.flat.usda town07.usda usd/catalogues/sample.usda
+uv run usd/flatten.py town07.flat.usda town07.usda usd/catalogues/sample.usda
 ```
+
+The Python scripts here run with [uv]. Each declares its Python and OpenUSD
+version in a `# /// script` block at its top, so `uv run` fetches them into
+a cached environment and nothing is installed into the system's Python.
+
+[uv]: https://docs.astral.sh/uv/
 
 ## Check stages with OpenUSD
 
@@ -65,7 +71,7 @@ python usd/flatten.py town07.flat.usda town07.usda usd/catalogues/sample.usda
 catalogue, and flattened. CI runs it on every test map:
 
 ```sh
-python usd/check.py usd/catalogues/sample.usda target/usd/*.usda
+uv run usd/check.py usd/catalogues/sample.usda target/usd/*.usda
 ```
 
 ## What's in the stage

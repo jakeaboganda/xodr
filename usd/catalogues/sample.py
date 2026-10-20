@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate sample.usda, the sample signal catalogue.
 
-    python3 usd/catalogues/sample.py > usd/catalogues/sample.usda
+    uv run usd/catalogues/sample.py > usd/catalogues/sample.usda
 
 Each entry in `types` overrides one type class: its labels and its meshes,
 in board units. See usd/SCHEMA.md, section Catalogues.
