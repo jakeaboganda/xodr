@@ -15,6 +15,10 @@
 
 ### Test maps
 
+- `tests/data/types.py` and `types.xodr` are now `all_types.py` and
+  `all_types.xodr`. A script's folder comes first on its import path, so on
+  Ubuntu's Python every generator in `tests/data` imported `types.py` in
+  place of the standard `types` module and failed.
 - The grass in the middle of `city.xodr`'s roundabout follows the slope.
   Its corners stood level with one point on the ring, so it rose up to
   2.5 m above the road on the downhill side and sank under it uphill. Each
