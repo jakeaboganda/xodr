@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Tooling
+
+- The repository's Python scripts run with uv: `uv run tests/data/NAME.py`,
+  `uv run usd/check.py` and so on. Each names its Python and packages in a
+  `# /// script` block, so nothing is installed into the system's Python,
+  which Ubuntu's refuses. `usd/run.sh` no longer makes a venv with pip, and
+  `viewer/run.sh` and `usd/run.sh` serve with uv's Python.
+- CI runs the OpenUSD check with uv, and a new job runs every test-map
+  generator with uv and fails if a map it writes differs from the committed
+  one, but for its header date.
+
 ### Test maps
 
 - The grass in the middle of `city.xodr`'s roundabout follows the slope.
