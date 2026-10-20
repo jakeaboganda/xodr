@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate railways.xodr: a railway switch and a station.
 
-    python3 tests/data/railways.py
+    uv run tests/data/railways.py
 
 Road 1 is a 100 m straight track heading +X, with a 1.5 m rail lane -1.
 Road 2 is a 40 m side track leaving it at s = 30. Road 1's <railroad> has

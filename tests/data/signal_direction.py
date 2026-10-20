@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate signal_direction.xodr: signals on roads whose lanes run against
 their side of the road.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/signal_direction.py
+    uv run tests/data/signal_direction.py
 
 All three roads are 100 m straights heading +X, 30 m apart.
 

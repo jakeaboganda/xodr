@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Write crg.xodr and the two OpenCRG files it names.
 
 crg_bumps.crg is a 40 m by 7 m elevation grid at 0.2 m with a speed bump,
@@ -13,7 +17,7 @@ four roads, one per mode:
 
 Run from the repository root:
 
-    python3 tests/data/crg.py
+    uv run tests/data/crg.py
 """
 
 import math

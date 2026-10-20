@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate lane_layers.xodr: roads with a temporary lane layer over a
 permanent one.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/lane_layers.py
+    uv run tests/data/lane_layers.py
 
 Road 1 is a 200 m straight with a left lane 1 and right lanes -1 and -2,
 3.5 m wide. Its permanent layer has sections from 0, 40 and 160 m. Its

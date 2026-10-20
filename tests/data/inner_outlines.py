@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate inner_outlines.xodr: an object whose inner outlines are areas of
 their own, beside plain holes.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/inner_outlines.py
+    uv run tests/data/inner_outlines.py
 
 Road 1 is a flat 60 m straight from the origin heading +X, with one left and
 two right lanes, 3 m wide, so a road station `(s, t)` is the point `(s, t)`.

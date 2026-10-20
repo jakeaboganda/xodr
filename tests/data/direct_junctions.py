@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate direct_junctions.xodr: roads joined end to end by direct junctions.
 
-    python3 tests/data/direct_junctions.py
+    uv run tests/data/direct_junctions.py
 
 Every road is a flat straight with 3.5 m driving lanes and no lane links.
 

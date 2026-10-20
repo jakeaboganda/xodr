@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate speed_limits.xodr: road types and speed limits on roads and lanes.
 
-    python3 tests/data/speed_limits.py
+    uv run tests/data/speed_limits.py
 
 Every road is a flat straight heading +X, with 3.5 m driving lanes.
 

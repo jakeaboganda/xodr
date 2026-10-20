@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate metadata.xodr and metadata_bare.xodr: the descriptive attributes
 a map carries that the crate keeps for the caller and builds nothing from.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/metadata.py
+    uv run tests/data/metadata.py
 
 metadata.xodr is a 100 m road 1, named "Main Street", and a tee of roads
 11, 12 and 13 round junction 100, named "Market Square". Its <header> gives

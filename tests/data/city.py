@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate city.xodr: a seaside town, loosely after Barcelona's Eixample,
 for the viewer and the OpenUSD export.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/city.py
+    uv run tests/data/city.py
 
 The town is a grid of five streets inland by four along the coast, 130 m
 apart, on land rising 2 % from the sea. Each road climbs with the land

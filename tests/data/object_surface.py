@@ -1,7 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["scenariogeneration==0.16.6"]
+# ///
 """Generate object_surface.xodr: objects whose <surface> CRG adds to the road
 height, over roads with and without road CRGs.
 
-    uv run -q --with scenariogeneration==0.16.6 tests/data/object_surface.py
+    uv run tests/data/object_surface.py
 
 Roads 1, 2 and 3 are flat 100 m straights heading +X from (0, 0), (0, 40)
 and (0, 80), with one 3.5 m lane each side. `plate.crg` and `small.crg` are

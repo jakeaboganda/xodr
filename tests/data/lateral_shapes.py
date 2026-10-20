@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate lateral_shapes.xodr: roads with a lateral <shape> across them.
 
-    python3 tests/data/lateral_shapes.py
+    uv run tests/data/lateral_shapes.py
 
 scenariogeneration writes no lateral shapes, so this writes the XML itself.
 Every road is a flat 60 m straight heading +X, with a solid mark on every

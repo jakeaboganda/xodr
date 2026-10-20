@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate traffic_rule.xodr: the same roads in right- and left-hand traffic.
 
-    python3 tests/data/traffic_rule.py
+    uv run tests/data/traffic_rule.py
 
 Every road is a flat 50 m straight heading +X, with a 3.5 m driving lane
 on each side. Lanes 1 and -1 link to the same lane on the next road.

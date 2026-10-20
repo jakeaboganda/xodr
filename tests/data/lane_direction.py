@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate lane_direction.xodr: lanes whose direction overrides their side's.
 
-    python3 tests/data/lane_direction.py
+    uv run tests/data/lane_direction.py
 
 Roads 0 and 1 are flat 50 m straights heading +X, from (0, 0) and (50, 0),
 joined end to start, in right-hand traffic. Each has 3.5 m driving lanes,

@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate lane_rules.xodr: lane <rule>s, <access>es and <material>s.
 
-    python3 tests/data/lane_rules.py
+    uv run tests/data/lane_rules.py
 
 Road 0 is a 100 m straight heading +X, with lane sections at s = 0 and
 s = 60, and 3.5 m lanes 1, -1 and -2 in each.

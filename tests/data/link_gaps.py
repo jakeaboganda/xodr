@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate link_gaps.xodr: lane links across a gap, and ones that meet.
 
-    python3 tests/data/link_gaps.py
+    uv run tests/data/link_gaps.py
 
 Every road is a flat straight heading +X with right lanes only.
 

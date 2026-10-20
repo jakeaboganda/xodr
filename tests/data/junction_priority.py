@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate junction_priority.xodr: a junction whose roads give way to each other.
 
-    python3 tests/data/junction_priority.py
+    uv run tests/data/junction_priority.py
 
 Every road is a flat straight with a 3.5 m driving lane -1.
 

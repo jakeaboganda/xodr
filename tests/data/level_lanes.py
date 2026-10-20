@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Generate level_lanes.xodr: lanes with level="true" beside tilted roads.
 
-    python3 tests/data/level_lanes.py
+    uv run tests/data/level_lanes.py
 
 Every road is a 50 m straight heading +X, on flat ground, with one lane
 section.
