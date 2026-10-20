@@ -4,12 +4,16 @@
 #
 #     PORT=8001 sh usd/run.sh [CATALOGUE.usda ...] MAP.xodr [MAP.xodr ...]
 #
-# The first run installs OpenUSD's Python module into target/usd-venv.
+# Needs uv (https://docs.astral.sh/uv/), which fetches OpenUSD's Python
+# module the first time.
 set -eu
 
 cd "$(dirname "$0")/.."
 port=${PORT:-8001}
-venv=target/usd-venv
+command -v uv >/dev/null || {
+    echo "usd/run.sh needs uv: https://docs.astral.sh/uv/getting-started/installation/" >&2
+    exit 2
+}
 
 maps=
 catalogues=
@@ -25,11 +29,6 @@ done
     exit 2
 }
 
-if [ ! -x "$venv/bin/python" ]; then
-    python3 -m venv "$venv"
-    "$venv/bin/pip" install -q --disable-pip-version-check usd-core==26.8
-fi
-
 cargo build --release -q -p xodr-usd
 mkdir -p target/usd
 first=
@@ -37,7 +36,7 @@ for map in $maps; do
     name=$(basename "$map" .xodr)
     ./target/release/xodr_usd "$map" "target/usd/$name.usda" >/dev/null
     # shellcheck disable=SC2086
-    "$venv/bin/python" usd/flatten.py "usd/web/$name.usda" "target/usd/$name.usda" $catalogues
+    uv run -q usd/flatten.py "usd/web/$name.usda" "target/usd/$name.usda" $catalogues
     echo "usd/web/$name.usda"
     first=${first:-$name}
 done
@@ -56,4 +55,4 @@ url=http://localhost:$port/?file=$first.usda
 ) &
 
 echo "viewer at $url"
-exec python3 -m http.server --bind 127.0.0.1 --directory usd/web "$port"
+exec uv run -q --no-project python -m http.server --bind 127.0.0.1 --directory usd/web "$port"

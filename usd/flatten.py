@@ -1,10 +1,14 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["usd-core==26.8"]
+# ///
 """Layer catalogues over a stage and flatten the result into one file.
 
-    python usd/flatten.py OUT.usda STAGE.usda [CATALOGUE.usda ...]
+    uv run usd/flatten.py OUT.usda STAGE.usda [CATALOGUE.usda ...]
 
 The flat file has no inherits or sublayers. Readers that can't combine
-layers, such as three.js's USDLoader, then draw it as usdview would. Needs
-OpenUSD's Python module: pip install usd-core.
+layers, such as three.js's USDLoader, then draw it as usdview would. `uv
+run` fetches the OpenUSD Python module its header names.
 """
 
 import os
@@ -13,7 +17,7 @@ import sys
 try:
     from pxr import Sdf, Usd
 except ImportError:
-    sys.exit("needs OpenUSD's Python module: pip install usd-core")
+    sys.exit(f"needs OpenUSD's Python module: run this script with uv run {sys.argv[0]}")
 
 
 def compose(stage, catalogues):

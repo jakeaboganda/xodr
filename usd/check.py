@@ -1,6 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["usd-core==26.8"]
+# ///
 """Check stages from xodr_usd with OpenUSD.
 
-    python usd/check.py CATALOGUE.usda STAGE.usda [STAGE.usda ...]
+    uv run usd/check.py CATALOGUE.usda STAGE.usda [STAGE.usda ...]
 
 It checks each stage alone, under the catalogue, and flattened, for:
 
@@ -11,8 +15,8 @@ It checks each stage alone, under the catalogue, and flattened, for:
 - added structures that stand in traffic or go through a board.
 
 It also fails on a catalogue type that no board uses, to catch typos.
-Exits 1 if any check fails. Needs OpenUSD's Python module:
-pip install usd-core.
+Exits 1 if any check fails. `uv run` fetches the OpenUSD Python module
+its header names.
 """
 
 import sys
@@ -23,7 +27,7 @@ try:
     # Register the validators of each schema module.
     from pxr import UsdPhysics, UsdShade, UsdSkel  # noqa: F401
 except ImportError:
-    sys.exit("needs OpenUSD's Python module: pip install usd-core")
+    sys.exit(f"needs OpenUSD's Python module: run this script with uv run {sys.argv[0]}")
 
 from flatten import compose
 
