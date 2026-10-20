@@ -57,14 +57,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install usd-core==26.8
+      - uses: astral-sh/setup-uv@v6
       - run: cargo build --release -p xodr-usd
       - run: |
           mkdir -p target/usd
           for map in tests/data/*.xodr; do
             target/release/xodr_usd "$map" "target/usd/$(basename "$map" .xodr).usda"
           done
-      - run: python usd/check.py usd/catalogues/sample.usda target/usd/*.usda
+      - run: uv run usd/check.py usd/catalogues/sample.usda target/usd/*.usda
+
+  # Run the scripts that generate the test maps and the sample catalogue
+  # with uv, as a contributor would, and check that what they write is what
+  # is committed, but for the date some writers stamp in the header.
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: for script in tests/data/*.py; do uv run "$script"; done
+      - run: uv run usd/catalogues/sample.py > usd/catalogues/sample.usda
+      - run: git diff --exit-code -I 'date="' -- tests/data usd/catalogues
