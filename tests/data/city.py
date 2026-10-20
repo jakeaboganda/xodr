@@ -5,8 +5,6 @@
 """Generate city.xodr: a seaside town, loosely after Barcelona's Eixample,
 for the viewer and the OpenUSD export.
 
-    uv run tests/data/city.py
-
 The town is a grid of five streets inland by four along the coast, 130 m
 apart, on land rising 2 % from the sea. Each road climbs with the land
 along it, and its superelevation lays it on the land across it.

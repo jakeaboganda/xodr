@@ -4,8 +4,6 @@
 # ///
 """Generate road_marks.xodr: every road mark type on one straight road.
 
-    uv run tests/data/road_marks.py
-
 Road 0 is a 100 m straight from the origin heading +X, banked at 0.05 rad,
 with a laneOffset of 0.5 m and three 3 m lanes each side. It has two lane
 sections, at s = 0 and s = 50. So every lane border is at a constant t, and

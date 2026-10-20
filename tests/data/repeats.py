@@ -5,8 +5,6 @@
 """Generate repeats.xodr: repeats whose t is a cubic, and repeats detached
 from the reference line.
 
-    uv run tests/data/repeats.py
-
 Road 1 is an 80 m left arc of radius 100 m from the origin heading +X, at
 elevation `0.002 s^2`. It has one left lane and two right lanes, 3 m wide.
 Its objects:

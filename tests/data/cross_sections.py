@@ -4,8 +4,6 @@
 # ///
 """Generate cross_sections.xodr: road surfaces given as cross-section strips.
 
-    uv run tests/data/cross_sections.py
-
 Road 0 is a flat 60 m straight heading +X, with 3 m driving lanes 1, 2, -1
 and -2. Its <crossSectionSurface> is shifted 0.5 m left by its <tOffset>.
 Strip 1 is 3 m wide and falls 2 % to the left. Strip 2, relative to it,

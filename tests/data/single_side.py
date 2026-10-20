@@ -4,8 +4,6 @@
 # ///
 """Generate single_side.xodr: lane sections that give one side of the road.
 
-    uv run tests/data/single_side.py
-
 Road 1 is a 200 m straight of four lane sections, 3 m wide lanes unless
 said:
 

@@ -4,8 +4,6 @@
 # ///
 """Generate junction_links.xodr: incoming roads whose <link> leaves out their junction.
 
-    uv run tests/data/junction_links.py
-
 Every road is a flat straight with 3.5 m driving lanes 1 and -1, and lane
 links on the connecting roads only.
 

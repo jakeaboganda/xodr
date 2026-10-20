@@ -4,8 +4,6 @@
 # ///
 """Generate speed_limits.xodr: road types and speed limits on roads and lanes.
 
-    uv run tests/data/speed_limits.py
-
 Every road is a flat straight heading +X, with 3.5 m driving lanes.
 
 Road 0, 100 m from the origin, has one lane section and lanes 1, -1 and

@@ -5,8 +5,6 @@
 """Generate signal_direction.xodr: signals on roads whose lanes run against
 their side of the road.
 
-    uv run tests/data/signal_direction.py
-
 All three roads are 100 m straights heading +X, 30 m apart.
 
 Road 1, right-hand traffic, has left lanes 1 (standard) and 2 (reversed),

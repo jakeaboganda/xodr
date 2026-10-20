@@ -5,8 +5,6 @@
 """Generate object_poses.xodr: objects standing upright on a graded, banked
 road, and the same objects following its surface with `perpToRoad`.
 
-    uv run tests/data/object_poses.py
-
 Road 1 is a 60 m straight from the origin heading 0.5 rad, at elevation
 `2 + 0.05 s`, banked 0.1 rad about its reference line. It has one left lane
 and two right lanes, 3 m wide. Its objects:

@@ -7,8 +7,7 @@
     uv run usd/flatten.py OUT.usda STAGE.usda [CATALOGUE.usda ...]
 
 The flat file has no inherits or sublayers. Readers that can't combine
-layers, such as three.js's USDLoader, then draw it as usdview would. `uv
-run` fetches the OpenUSD Python module its header names.
+layers, such as three.js's USDLoader, then draw it as usdview would.
 """
 
 import os

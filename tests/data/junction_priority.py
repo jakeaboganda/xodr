@@ -4,8 +4,6 @@
 # ///
 """Generate junction_priority.xodr: a junction whose roads give way to each other.
 
-    uv run tests/data/junction_priority.py
-
 Every road is a flat straight with a 3.5 m driving lane -1.
 
 Road 1 runs 50 m along +X from the origin into junction 5. Road 2 runs 50 m

@@ -5,8 +5,6 @@
 """Generate junction_wraps.xodr: junctions whose connecting lanes overlap in
 every way the OpenUSD junction wrap has to handle.
 
-    uv run tests/data/junction_wraps.py
-
 Each junction stands on its own, 400 m from the next along +X, its arms on
 a circle round its middle. Incoming roads are 30 m straights with 3 m
 lanes. Junction j's arms are roads 100 j + k and its connecting roads start

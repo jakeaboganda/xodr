@@ -5,8 +5,6 @@
 """Generate objects.xodr: an arc road with objects placed along it, and a
 straight road that places some of them again by reference.
 
-    uv run tests/data/objects.py
-
 Road 0 is a 100 m left arc of radius 200 m starting at the origin heading +X,
 climbing at 2 %. Road 1 is a flat 60 m straight from (0, -40) heading +X, and
 road 2 a 40 m straight from (0, -80) banked at 0.15 rad. So every placement

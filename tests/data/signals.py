@@ -4,8 +4,6 @@
 # ///
 """Generate signals.xodr: signs and traffic lights on three straight roads.
 
-    uv run tests/data/signals.py
-
 Road 0 is a 120 m straight from the origin heading +X, climbing at 2 %, with
 two 3 m lanes each side. Road 1 is a 60 m straight from (0, -40) heading +X,
 banked at 0.15 rad. Road 2 is a flat 60 m straight from (0, 40) heading +X.

@@ -5,8 +5,6 @@
 """Generate all_types.xodr: every lane type and object type the 1.9 schema
 names, and the neighbours a shared lane has.
 
-    uv run tests/data/all_types.py
-
 Road 1 is a 100 m straight with 31 lanes of 1 m, one of each lane type:
 lanes 1 to 15 on the left and -1 to -16 on the right, in the order of
 LANE_TYPES. It holds one object of each object type, 3 m apart along its
