@@ -421,7 +421,7 @@ fn colour_of_kind(stage: &str, kind: &str) -> String {
 
 #[test]
 fn an_object_takes_the_colour_of_its_type() {
-    let stage = stage("types");
+    let stage = stage("all_types");
     let colour = |kind| colour_of_kind(&stage, kind);
     assert_eq!(colour("building"), "[(0.78, 0.72, 0.62)]");
     assert_eq!(colour("tree"), "[(0.4, 0.28, 0.18)]", "a trunk");

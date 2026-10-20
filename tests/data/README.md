@@ -256,11 +256,11 @@ and mean nothing. Regenerate with
 
     uv run tests/data/ignored.py
 
-`types.xodr` comes from `types.py` the same way. It has one lane of each lane
+`all_types.xodr` comes from `all_types.py` the same way. It has one lane of each lane
 type and one object of each object type the schema names, and shared lanes
 beside driving and sidewalk lanes. Regenerate with
 
-    uv run tests/data/types.py
+    uv run tests/data/all_types.py
 
 `crg_order.xodr` comes from `crg_order.py`. It has roads and a junction whose
 `<CRG>` records overlap, to show the last in the file wins. Regenerate with
