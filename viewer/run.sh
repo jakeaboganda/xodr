@@ -4,7 +4,7 @@
 #
 #     sh viewer/run.sh [PORT]
 #
-# PORT defaults to 8000.
+# PORT defaults to 8000. Serving needs uv (https://docs.astral.sh/uv/).
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -26,4 +26,4 @@ sh viewer/build.sh
 ) &
 
 echo "viewer at $url"
-exec python3 -m http.server --bind 127.0.0.1 --directory viewer/web "$port"
+exec uv run -q --no-project python -m http.server --bind 127.0.0.1 --directory viewer/web "$port"

@@ -17,6 +17,7 @@ sh viewer/run.sh        # or: sh viewer/run.sh 8080
 
 This builds the page, serves it on <http://localhost:8000> and opens it. The
 first run installs the `wasm32-unknown-unknown` target and `wasm-bindgen`.
+Serving needs [uv](https://docs.astral.sh/uv/).
 
 Click `open .xodr` and pick a map. Pick its `.crg` files, the files they
 include, and its included files in the same dialog. The sidebar names any it
