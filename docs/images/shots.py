@@ -1,8 +1,12 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["playwright", "pillow"]
+# ///
 """Take the pictures in the docs from the viewer.
 
 Run from the repository root:
 
-    uv run --with playwright --with pillow python docs/images/shots.py [NAME ...]
+    uv run docs/images/shots.py [NAME ...]
 
 It bakes the test maps each shot needs with `viewer_export`, serves
 `viewer/web`, opens each shot's scene in Chrome at the camera its `view`
