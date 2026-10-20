@@ -74,6 +74,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: for script in tests/data/*.py; do uv run "$script"; done
+      # A script runs with its own folder first on the import path, so one
+      # named like a standard module, such as types.py, breaks the rest.
+      - run: |
+          uv run --no-project python -c '
+          import pathlib, sys
+          clash = [p for p in pathlib.Path(".").rglob("*.py") if p.stem in sys.stdlib_module_names and "target" not in p.parts]
+          sys.exit(f"named like a standard module: {clash}" if clash else None)'
+      # introduced.py reads the ASAM schema, which isn't in the repository.
+      - run: |
+          for script in tests/data/*.py; do
+            [ "$script" = tests/data/introduced.py ] || uv run "$script"
+          done
       - run: uv run usd/catalogues/sample.py > usd/catalogues/sample.usda
       - run: git diff --exit-code -I 'date="' -- tests/data usd/catalogues

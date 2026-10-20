@@ -13,6 +13,8 @@ from pathlib import Path
 
 XS = '{http://www.w3.org/2001/XMLSchema}'
 types, groups, root = {}, {}, None
+if not glob.glob('target/asam/xsd/*.xsd'):
+    raise SystemExit('needs the OpenDRIVE 1.9 schema in target/asam/xsd/ (see ROADMAP.md)')
 for f in sorted(glob.glob('target/asam/xsd/*.xsd')):
     for c in ET.parse(f).getroot():
         if c.tag == XS + 'complexType': types[c.get('name')] = c
