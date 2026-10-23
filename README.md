@@ -45,9 +45,8 @@ Test maps in the [viewer](viewer/README.md). Click a picture for details.
 
 ## What it reads
 
-Every element and attribute of the OpenDRIVE 1.9 schema. Of its 671 rows, 420
-shape the network and 251 are kept as data. It also reads the crossfall of
-OpenDRIVE 1.4. [docs/support.md](docs/support.md) says what it does with each
+Every element and attribute of the OpenDRIVE 1.9 schema.
+[docs/support.md](docs/support.md) says what it does with each
 element.
 
 From that it builds:
