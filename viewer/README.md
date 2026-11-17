@@ -7,6 +7,9 @@ The `xodr-viewer` crate here turns a `.xodr` into JSON, a scene, and
 `web/index.html` draws it. The page runs that crate as WebAssembly, so it
 opens a `.xodr` straight from disk.
 
+It is online at <https://jakeaboganda.github.io/xodr/>, with every test map
+but `city.xodr` baked.
+
 ![Hovering a lane in Town07, with its successor in green and its predecessor in orange](town07.png)
 
 ## Run it
