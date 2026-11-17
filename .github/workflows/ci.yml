@@ -73,7 +73,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # pyclothoids, which fits the spirals, has wheels up to Python 3.13.
+      # On a newer Python uv builds it from source, and the maps it writes
+      # differ in the last digits from the committed ones.
       - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
       # A script runs with its own folder first on the import path, so one
       # named like a standard module, such as types.py, breaks the rest.
       - run: |
