@@ -66,7 +66,8 @@ what it ignores, and features newer than the header's version.
 
 The crate draws nothing. [`viewer/`](viewer/README.md) is a three.js page that
 runs the crate as WebAssembly. Open a `.xodr` and hover anything to see what
-the crate knows about it.
+the crate knows about it. [Try it online](https://jakeaboganda.github.io/xodr/),
+with the test maps baked, or run it locally:
 
 ```sh
 sh viewer/run.sh   # serves http://localhost:8000

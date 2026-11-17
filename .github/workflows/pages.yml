@@ -1,0 +1,55 @@
+name: pages
+
+# Publish the viewer, with the test maps baked, to GitHub Pages.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. A newer push replaces a queued one, but a deploy
+# already running finishes.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Builds the WebAssembly baker into viewer/web/pkg and viewer_export,
+      # installing the wasm32 target and wasm-bindgen first.
+      - run: sh viewer/build.sh
+      # city.xodr bakes to about 200 MB, too much to download in a browser.
+      # The page's open .xodr button bakes it on the visitor's machine.
+      - run: |
+          maps=$(ls tests/data/*.xodr | grep -v '/city\.xodr$')
+          target/release/viewer_export $maps
+      # sources.json records paths on the runner, which no visitor needs.
+      - run: |
+          mkdir _site
+          cp -r viewer/web/index.html viewer/web/pkg _site/
+          find viewer/web -maxdepth 1 -name '*.json' ! -name sources.json -exec cp {} _site/ \;
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
