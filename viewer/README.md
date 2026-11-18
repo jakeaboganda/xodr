@@ -74,6 +74,11 @@ in the address.
 The checkboxes also toggle centerlines, lane boundaries, tunnels, bridges
 and junctions. `flag bad tris` paints inverted or degenerate triangles red.
 
+On a phone the map fills the screen. `list` opens the sidebar and `layers`
+the checkboxes. Drag with one finger to orbit and two to pan and zoom. A tap
+shows what a hover would and drops the marker, which buttons step and clear.
+`share` puts the view in the address and shares it.
+
 ## Sidebar
 
 It lists each road's lanes, objects and signals, and its tunnels and
