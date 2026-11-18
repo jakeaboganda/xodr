@@ -33,7 +33,8 @@
   #tip b { color: #8ec07c; }
   #hint { position: absolute; left: 12px; bottom: 10px; color: #6b7280; font-size: 11px; }
   #walk { position: absolute; right: 12px; top: 12px; color: #7dd3fc; font-size: 12px; font-variant-numeric: tabular-nums;
-          white-space: pre; display: none; background: #0b0d11cc; border: 1px solid #2a2f3a; border-radius: 5px; padding: 4px 8px; }
+          display: none; background: #0b0d11cc; border: 1px solid #2a2f3a; border-radius: 5px; padding: 4px 8px; }
+  #walktext { white-space: pre; }
   #tools { position: absolute; left: 12px; top: 12px; z-index: 6; display: flex; gap: 10px; flex-wrap: wrap; max-width: 60%;
            background: #0b0d11cc; border: 1px solid #2a2f3a; border-radius: 6px; padding: 6px 8px; align-items: center; }
   #legend { padding: 8px 12px; border-top: 1px solid #2a2f3a; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: #8fa1b3; }
@@ -49,26 +50,68 @@
   #err { position: absolute; inset: 0; display: none; place-content: center; text-align: center; padding: 40px; color: #e88; }
   #err.prompt { color: #8fa1b3; }
   #err code { color: #d8dee9; background: #1b1f27; padding: 2px 6px; border-radius: 4px; }
+  /* What only a phone or a touchscreen shows. On a desktop, #layers lays
+     its checkboxes out in the toolbar as if it weren't there, and the
+     legend's summary is hidden so the legend shows as before. */
+  .narrow, .touch, #legendbox > summary { display: none; }
+  #layers { display: contents; }
+  #walkbtns { margin-top: 4px; gap: 6px; }
+  #walkbtns button { background: #1b1f27; color: inherit; font: inherit; border: 1px solid #2a2f3a; border-radius: 4px; padding: 4px 10px; }
+  @media (pointer: coarse) {
+    .touch { display: revert; }
+    #walkbtns.touch { display: flex; }
+    .keys { display: none; }
+  }
+  /* A phone: the map fills the screen, and the sidebar and the layer
+     checkboxes fold away behind the toolbar's list and layers buttons. */
+  @media (max-width: 700px) {
+    #app { grid-template-columns: 1fr; }
+    #sidebar { position: fixed; inset: 0 auto 0 0; width: min(85vw, 340px); z-index: 20; background: #12151a;
+               transform: translateX(-100%); transition: transform .2s; }
+    body.list-open #sidebar { transform: none; box-shadow: 0 0 24px #000a; }
+    #listclose { float: right; background: #1b1f27; color: inherit; font: inherit; border: 1px solid #2a2f3a; border-radius: 4px; padding: 4px 10px; margin: -2px 0 6px 8px; }
+    .narrow { display: revert; }
+    .keys { display: none; }
+    .touch { display: revert; }
+    #walkbtns.touch { display: flex; }
+    #tools { left: 8px; right: 8px; top: 8px; max-width: none; gap: 6px; }
+    #tools button, #tools select { padding: 6px 8px; }
+    #tools select { max-width: 7em; }
+    .wide { display: none; }
+    #layers { display: none; }
+    body.layers-open #layers { display: flex; flex-direction: column; gap: 10px; flex-basis: 100%;
+                               max-height: 55vh; overflow: auto; padding: 6px 2px; border-top: 1px solid #2a2f3a; }
+    #walk { top: auto; bottom: 30px; left: 8px; right: 8px; }
+    #walktext { white-space: pre-wrap; }
+    #tip { white-space: pre-wrap; max-width: calc(100% - 16px); font-size: 12px; }
+    #legendbox #legend { border-top: none; }
+    #legendbox > summary { display: list-item; padding: 6px 12px; border-top: 1px solid #2a2f3a; color: #8fa1b3; cursor: pointer; }
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <aside id="sidebar">
     <header>
+      <button id="listclose" class="narrow" title="back to the map">close</button>
       <h1>map</h1>
       <div id="geo"></div>
       <input id="search" placeholder="filter: road, lane, object, signal or warning…" autocomplete="off" />
       <div id="count"></div>
     </header>
     <div id="list"></div>
-    <div id="legend"></div>
+    <details id="legendbox" open><summary>legend</summary><div id="legend"></div></details>
   </aside>
   <div id="view">
     <div id="tip"></div>
     <div id="tools">
+      <button id="listbtn" class="narrow" title="roads, lanes, objects, signals and warnings">list</button>
       <button id="openbtn" title="open a .xodr, with any .crg and included .xml files it uses">open .xodr</button>
       <input type="file" id="open" accept=".xodr,.crg,.xml" multiple hidden>
-      <label>map <select id="map"></select></label>
+      <label><span class="wide">map</span> <select id="map"></select></label>
+      <button id="layersbtn" class="narrow">layers</button>
+      <button id="sharebtn" class="touch" title="put this view in the address, and share it">share</button>
+      <div id="layers">
       <label>view
         <select id="mode">
           <option value="solid">solid</option>
@@ -87,9 +130,15 @@
       <label><input type="checkbox" id="roadmarks" checked> road marks</label>
       <label id="crglabel"><input type="checkbox" id="crg" checked> CRG heights</label>
       <label><input type="checkbox" id="flag"> flag bad tris <span id="flagcount"></span></label>
+      </div>
     </div>
-    <div id="walk"></div>
-    <div id="hint">drag: orbit · scroll: zoom · right-drag: pan · [w] cycles wireframe · [n] toggles normals · [o] toggles objects · [s] toggles signals · [m] toggles road marks · [c] toggles CRG heights · hover a lane, object, signal or road mark for coordinates · click a lane for a marker, [f] / [b] step it along the lanes, [Esc] clears it · [v] puts this view in the address</div>
+    <div id="walk">
+      <div id="walktext"></div>
+      <div id="walkbtns" class="touch">
+        <button id="walkback">◀ 5 m</button><button id="walkfwd">5 m ▶</button><button id="walkclear">clear</button>
+      </div>
+    </div>
+    <div id="hint"><span class="touch">drag: orbit · two fingers: pan and zoom · tap: details and a marker</span><span class="keys">drag: orbit · scroll: zoom · right-drag: pan · [w] cycles wireframe · [n] toggles normals · [o] toggles objects · [s] toggles signals · [m] toggles road marks · [c] toggles CRG heights · hover a lane, object, signal or road mark for coordinates · click a lane for a marker, [f] / [b] step it along the lanes, [Esc] clears it · [v] puts this view in the address</span></div>
     <div id="err"></div>
   </div>
 </div>
@@ -301,6 +350,20 @@ let walkerMesh;              // a square at each branch of the marker
 
 init().catch(showError);
 
+// On a phone the sidebar and the layer checkboxes fold away, one open at a
+// time, and the legend starts folded under the list.
+for (const [button, panel] of [['listbtn', 'list-open'], ['layersbtn', 'layers-open']]) {
+  document.getElementById(button).addEventListener('click', () => {
+    const open = !document.body.classList.contains(panel);
+    closePanels();
+    document.body.classList.toggle(panel, open);
+  });
+}
+document.getElementById('listclose').addEventListener('click', closePanels);
+if (matchMedia('(max-width: 700px)').matches) document.getElementById('legendbox').open = false;
+
+function closePanels() { document.body.classList.remove('list-open', 'layers-open'); }
+
 document.getElementById('openbtn').addEventListener('click', () => document.getElementById('open').click());
 document.getElementById('open').addEventListener('change', async e => {
   const files = [...e.target.files];
@@ -511,14 +574,24 @@ async function init() {
   }
 
   raycaster = new THREE.Raycaster();
-  renderer.domElement.addEventListener('pointermove', onHover);
+  // A finger can't hover: it moves only to orbit, and lifts off the view
+  // after every tap. A tap shows what a mouse would hover, as well as
+  // dropping the marker.
+  renderer.domElement.addEventListener('pointermove', e => { if (e.pointerType !== 'touch') onHover(e); });
   let pressed = null;
-  renderer.domElement.addEventListener('pointerdown', e => { pressed = [e.clientX, e.clientY]; });
+  renderer.domElement.addEventListener('pointerdown', e => { pressed = [e.clientX, e.clientY]; closePanels(); });
   renderer.domElement.addEventListener('pointerup', e => {
-    if (e.button === 0 && pressed && Math.hypot(e.clientX - pressed[0], e.clientY - pressed[1]) < 4) placeWalker(e);
+    if (e.button === 0 && pressed && Math.hypot(e.clientX - pressed[0], e.clientY - pressed[1]) < 4) {
+      if (e.pointerType === 'touch') onHover(e);
+      placeWalker(e);
+    }
     pressed = null;
   });
-  renderer.domElement.addEventListener('pointerleave', () => hideTip());
+  renderer.domElement.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') hideTip(); });
+  document.getElementById('walkback').addEventListener('click', () => stepWalkers(-WALK_STEP));
+  document.getElementById('walkfwd').addEventListener('click', () => stepWalkers(WALK_STEP));
+  document.getElementById('walkclear').addEventListener('click', () => { walkers = []; drawWalkers(); });
+  document.getElementById('sharebtn').addEventListener('click', shareView);
   searchEl.addEventListener('input', renderSidebar);
   addEventListener('keydown', e => {
     if (document.activeElement === searchEl) return;
@@ -1575,7 +1648,7 @@ function renderSidebar() {
     const el = document.createElement('div');
     el.className = 'item' + (selected?.record === record ? ' active' : '');
     el.innerHTML = html;
-    el.onclick = onclick;
+    el.onclick = () => { closePanels(); onclick(); };
     parent.appendChild(el);
   };
   const at = x => x.s != null ? `<span class="tag">s ${x.s.toFixed(0)} m</span>` : '';
@@ -1853,9 +1926,12 @@ function objectPoints(o) {
 // Show the readout `rows` with its corner near `x, y` in the view.
 function placeTip(x, y, rows) {
   tip.style.display = 'block';
-  tip.style.left = (x + 14) + 'px';
-  tip.style.top = (y + 14) + 'px';
   tip.innerHTML = rows.join('\n');
+  // Beside the pointer, but inside the view, which a phone's is barely wider
+  // than the tip.
+  const fit = (at, room, size) => Math.max(4, Math.min(at + 14, room - size - 4));
+  tip.style.left = fit(x, view.clientWidth, tip.offsetWidth) + 'px';
+  tip.style.top = fit(y, view.clientHeight, tip.offsetHeight) + 'px';
 }
 
 // A solid's pose and size.
@@ -2248,7 +2324,8 @@ function drawWalkers() {
     rows.push(`road ${w.lane.roadId}  lane ${w.lane.odLaneId}  §${w.lane.section}   centerline s ${w.arc.toFixed(2)} m` +
       (w.dead ? '   dead end' : ''));
   }
-  box.textContent = walkers.length ? `marker, ${walkers.length} branch${walkers.length > 1 ? 'es' : ''}\n${rows.join('\n')}` : '';
+  document.getElementById('walktext').textContent =
+    walkers.length ? `marker, ${walkers.length} branch${walkers.length > 1 ? 'es' : ''}\n${rows.join('\n')}` : '';
 }
 
 // The marker's point: `arc` along its lane's centerline, and `side` to the
@@ -2402,6 +2479,18 @@ function viewToUrl() {
   const params = new URLSearchParams(location.search);
   params.set('view', [x, y, z, t.x, t.y, t.z].map(n).join(','));
   history.replaceState(null, '', '?' + params.toString().replaceAll('%2C', ','));
+}
+
+// Put the view in the address, as `v` does, and offer the address to the
+// phone's share sheet, or copy it where there is none.
+async function shareView() {
+  viewToUrl();
+  try {
+    if (navigator.share) await navigator.share({ title: document.title, url: location.href });
+    else await navigator.clipboard.writeText(location.href);
+  } catch (e) {
+    if (e.name !== 'AbortError') console.error(e);
+  }
 }
 
 // Frame the camera on `pts`, from no closer than `minRadius` metres.
