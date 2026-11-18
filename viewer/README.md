@@ -50,7 +50,8 @@ cargo run --release -p xodr-viewer -- tests/data/objects.xodr /tmp/objects.json
 - A scene is written whole or not at all, so a failed write leaves the old
   scene, or none.
 
-A link can name a scene and a camera, as
+Without `?scene=` or `?open=`, the page shows `town07.json` if it is baked,
+and otherwise asks for a map. A link can name a scene and a camera, as
 `?scene=town07.json&view=x,y,z,tx,ty,tz`. Press `v` to put the current view
 in the address.
 

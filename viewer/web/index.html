@@ -112,6 +112,10 @@ const listEl = document.getElementById('list');
 const countEl = document.getElementById('count');
 const searchEl = document.getElementById('search');
 
+// The scene a link without ?scene= or ?open= shows: a real map, the one in
+// viewer/README.md's picture.
+const DEFAULT_SCENE = 'town07.json';
+
 // Surface colour per lane type, keyed by the crate's `LaneType::as_str`.
 // Carriageway types stay in cool greys so the road still reads as a road;
 // everything a vehicle has no business on is warm or light enough to pick out
@@ -328,16 +332,18 @@ function openedFiles(mode, use) {
 
 // Fill the map picker from the exporter's scenes.json, and return the scene
 // ?scene= names or the opened map ?open= names, and how many scenes there
-// are. Picking a scene reloads the page on it. A scene must be on this site,
-// so a link can't show a scene from elsewhere as if it were baked here.
+// are. Without either, it returns DEFAULT_SCENE when that is baked. Picking a
+// scene reloads the page on it. A scene must be on this site, so a link can't
+// show a scene from elsewhere as if it were baked here.
 async function pickScene() {
   const names = await fetch('scenes.json').then(r => r.ok ? r.json() : []).catch(() => []);
   const params = new URLSearchParams(location.search);
-  const chosen = params.get('scene');
+  const opened = params.get('open');
+  const fallback = !opened && names.includes(DEFAULT_SCENE) ? DEFAULT_SCENE : null;
+  const chosen = params.get('scene') ?? fallback;
   if (chosen && /^[a-z][a-z0-9+.-]*:|^[\\/]{2}/i.test(chosen)) {
     throw new Error('?scene= names a scene beside this page, not a URL elsewhere.');
   }
-  const opened = params.get('open');
   const picker = document.getElementById('map');
   if (!chosen) {
     picker.add(Object.assign(new Option(opened ? `${opened} (opened)` : 'choose...', '', true, true), { disabled: true }));
