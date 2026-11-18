@@ -72,18 +72,15 @@ jobs:
   #
   # The last digits of a map depend on the machine, so pin what does it:
   # pyclothoids, which fits the spirals, has wheels up to Python 3.13 and is
-  # built from source on a newer one, and numpy's sin and cos differ on a CPU
-  # with AVX-512.
+  # built from source on a newer one, and its fits differ in the last digits
+  # under Ubuntu 26.04.
   scripts:
-    runs-on: ubuntu-latest
-    env:
-      NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
-      - run: uv run -q --no-project --with numpy python -c 'import numpy; numpy.show_runtime()'
       # A script runs with its own folder first on the import path, so one
       # named like a standard module, such as types.py, breaks the rest.
       - run: |
